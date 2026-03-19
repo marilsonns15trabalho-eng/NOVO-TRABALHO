@@ -19,6 +19,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
+import { ConfirmModal } from '@/components/ConfirmModal';
+
 interface Student {
   id: string;
   name: string;
@@ -26,54 +30,115 @@ interface Student {
   phone: string;
   plan: string;
   status: 'Ativo' | 'Inativo';
-  joinDate: string;
+  join_date: string;
 }
 
-const INITIAL_STUDENTS: Student[] = [
-  { id: '1', name: 'Ana Souza', email: 'ana.souza@email.com', phone: '(21) 98876-5432', plan: 'VIP Anual', status: 'Ativo', joinDate: '10/01/2024' },
-  { id: '2', name: 'Lucas Pereira', email: 'lucas.p@email.com', phone: '(21) 97765-4321', plan: 'Mensal', status: 'Ativo', joinDate: '15/02/2024' },
-  { id: '3', name: 'Carla Mendes', email: 'carla.m@email.com', phone: '(21) 96654-3210', plan: 'Trimestral', status: 'Ativo', joinDate: '20/02/2024' },
-  { id: '4', name: 'João Lima', email: 'joao.l@email.com', phone: '(21) 95543-2109', plan: 'Mensal', status: 'Inativo', joinDate: '05/03/2024' },
-  { id: '5', name: 'Mariana Silva', email: 'mariana.s@email.com', phone: '(21) 94432-1098', plan: 'VIP Anual', status: 'Ativo', joinDate: '12/03/2024' },
-];
-
 export default function StudentsPage() {
-  const [students, setStudents] = React.useState<Student[]>(INITIAL_STUDENTS);
+  const [students, setStudents] = React.useState<Student[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [editingStudent, setEditingStudent] = React.useState<Student | null>(null);
+  const [confirmDelete, setConfirmDelete] = React.useState<{ isOpen: boolean; id: string }>({
+    isOpen: false,
+    id: ''
+  });
+
+  const fetchStudents = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('students')
+        .select('*')
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      setStudents(data || []);
+    } catch (error: any) {
+      console.error('Erro ao buscar alunos:', error);
+      toast.error('Erro ao carregar lista de alunos');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    fetchStudents();
+  }, [fetchStudents]);
 
   const filteredStudents = students.filter(s => 
     s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     s.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleAddStudent = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddStudent = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const newStudent: Student = {
-      id: editingStudent ? editingStudent.id : Math.random().toString(36).substr(2, 9),
+    const studentData = {
       name: formData.get('name') as string,
       email: formData.get('email') as string,
       phone: formData.get('phone') as string,
       plan: formData.get('plan') as string,
-      status: 'Ativo',
-      joinDate: new Date().toLocaleDateString('pt-BR'),
+      status: (formData.get('status') as 'Ativo' | 'Inativo') || 'Ativo',
     };
 
-    if (editingStudent) {
-      setStudents(students.map(s => s.id === editingStudent.id ? newStudent : s));
-    } else {
-      setStudents([newStudent, ...students]);
+    try {
+      if (editingStudent) {
+        const { error } = await supabase
+          .from('students')
+          .update(studentData)
+          .eq('id', editingStudent.id);
+        
+        if (error) throw error;
+        toast.success('Aluno atualizado com sucesso!');
+      } else {
+        const { error } = await supabase
+          .from('students')
+          .insert([{ ...studentData, join_date: new Date().toISOString().split('T')[0] }]);
+        
+        if (error) throw error;
+        toast.success('Novo aluno cadastrado!');
+      }
+      
+      fetchStudents();
+      setIsModalOpen(false);
+      setEditingStudent(null);
+    } catch (error: any) {
+      console.error('Erro ao salvar aluno:', error);
+      toast.error('Erro ao salvar dados do aluno');
     }
-    
-    setIsModalOpen(false);
-    setEditingStudent(null);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm('Tem certeza que deseja excluir este aluno?')) {
-      setStudents(students.filter(s => s.id !== id));
+  const confirmDeleteAction = async () => {
+    try {
+      const { error } = await supabase
+        .from('students')
+        .delete()
+        .eq('id', confirmDelete.id);
+      
+      if (error) throw error;
+      toast.success('Aluno excluído com sucesso');
+      fetchStudents();
+    } catch (error: any) {
+      console.error('Erro ao excluir aluno:', error);
+      toast.error('Erro ao excluir aluno');
+    }
+  };
+
+  const toggleStatus = async (student: Student) => {
+    const newStatus = student.status === 'Ativo' ? 'Inativo' : 'Ativo';
+    try {
+      const { error } = await supabase
+        .from('students')
+        .update({ status: newStatus })
+        .eq('id', student.id);
+      
+      if (error) throw error;
+      toast.success(`Status de ${student.name} alterado para ${newStatus}`);
+      fetchStudents();
+    } catch (error: any) {
+      console.error('Erro ao alterar status:', error);
+      toast.error('Erro ao alterar status');
     }
   };
 
@@ -136,7 +201,26 @@ export default function StudentsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {filteredStudents.map((student) => (
+                  {isLoading ? (
+                    [...Array(5)].map((_, i) => (
+                      <tr key={i} className="animate-pulse">
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-white/5" />
+                            <div className="space-y-2">
+                              <div className="h-4 bg-white/5 rounded w-32" />
+                              <div className="h-3 bg-white/5 rounded w-24" />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-4 hidden md:table-cell"><div className="h-4 bg-white/5 rounded w-20" /></td>
+                        <td className="p-4 hidden lg:table-cell"><div className="h-4 bg-white/5 rounded w-28" /></td>
+                        <td className="p-4"><div className="h-6 bg-white/5 rounded-full w-16" /></td>
+                        <td className="p-4 text-right"><div className="h-8 bg-white/5 rounded-lg w-16 ml-auto" /></td>
+                      </tr>
+                    ))
+                  ) : filteredStudents.length > 0 ? (
+                    filteredStudents.map((student) => (
                     <tr key={student.id} className="hover:bg-white/5 transition-colors group">
                       <td className="p-4">
                         <div className="flex items-center gap-3">
@@ -158,12 +242,15 @@ export default function StudentsPage() {
                         <span className="text-sm text-gray-300">{student.phone}</span>
                       </td>
                       <td className="p-4">
-                        <span className={cn(
-                          "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
-                          student.status === 'Ativo' ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"
-                        )}>
+                        <button 
+                          onClick={() => toggleStatus(student)}
+                          className={cn(
+                            "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all hover:scale-105",
+                            student.status === 'Ativo' ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"
+                          )}
+                        >
                           {student.status}
-                        </span>
+                        </button>
                       </td>
                       <td className="p-4 text-right">
                         <div className="flex items-center justify-end gap-2">
@@ -174,7 +261,7 @@ export default function StudentsPage() {
                             <Edit2 size={16} />
                           </button>
                           <button 
-                            onClick={() => handleDelete(student.id)}
+                            onClick={() => setConfirmDelete({ isOpen: true, id: student.id })}
                             className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
                           >
                             <Trash2 size={16} />
@@ -182,7 +269,17 @@ export default function StudentsPage() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="p-12 text-center">
+                        <div className="flex flex-col items-center gap-3 text-gray-500">
+                          <Search size={48} className="opacity-20" />
+                          <p className="text-sm font-medium">Nenhum aluno encontrado.</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -261,18 +358,31 @@ export default function StudentsPage() {
                     />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Plano</label>
-                  <select 
-                    name="plan"
-                    defaultValue={editingStudent?.plan || 'Mensal'}
-                    className="w-full bg-[#0f1117] border border-white/5 rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none transition-all appearance-none"
-                  >
-                    <option value="Mensal">Mensal</option>
-                    <option value="Trimestral">Trimestral</option>
-                    <option value="Semestral">Semestral</option>
-                    <option value="VIP Anual">VIP Anual</option>
-                  </select>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Plano</label>
+                    <select 
+                      name="plan"
+                      defaultValue={editingStudent?.plan || 'Mensal'}
+                      className="w-full bg-[#0f1117] border border-white/5 rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none transition-all appearance-none"
+                    >
+                      <option value="Mensal">Mensal</option>
+                      <option value="Trimestral">Trimestral</option>
+                      <option value="Semestral">Semestral</option>
+                      <option value="VIP Anual">VIP Anual</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Status</label>
+                    <select 
+                      name="status"
+                      defaultValue={editingStudent?.status || 'Ativo'}
+                      className="w-full bg-[#0f1117] border border-white/5 rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none transition-all appearance-none"
+                    >
+                      <option value="Ativo">Ativo</option>
+                      <option value="Inativo">Inativo</option>
+                    </select>
+                  </div>
                 </div>
                 
                 <div className="pt-4 flex gap-3">
@@ -295,6 +405,14 @@ export default function StudentsPage() {
           </div>
         )}
       </AnimatePresence>
+
+      <ConfirmModal 
+        isOpen={confirmDelete.isOpen}
+        onClose={() => setConfirmDelete({ isOpen: false, id: '' })}
+        onConfirm={confirmDeleteAction}
+        title="Excluir Aluno"
+        message="Tem certeza que deseja excluir este aluno? Esta ação não pode ser desfeita."
+      />
     </div>
   );
 }

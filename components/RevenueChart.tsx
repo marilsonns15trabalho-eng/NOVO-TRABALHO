@@ -11,7 +11,11 @@ import {
 } from 'recharts';
 import { REVENUE_DATA } from '@/lib/constants';
 
-export function RevenueChart() {
+interface RevenueChartProps {
+  data: { month: string; revenue: number }[];
+}
+
+export function RevenueChart({ data }: RevenueChartProps) {
   return (
     <div className="bg-[#1a1d26] p-4 md:p-6 rounded-2xl border border-white/5 h-[400px]">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
@@ -24,7 +28,7 @@ export function RevenueChart() {
       
       <div className="h-[280px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={REVENUE_DATA}>
+          <AreaChart data={data}>
             <defs>
               <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>

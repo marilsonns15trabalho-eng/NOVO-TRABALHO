@@ -1,19 +1,23 @@
 import type {Metadata} from 'next';
 import './globals.css'; // Global styles
+import { Inter } from 'next/font/google';
+import { Toaster } from 'sonner';
+import { SettingsProvider } from '@/lib/SettingsContext';
+
+const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
-  title: 'My Google AI Studio App',
-  description: 'My Google AI Studio App',
+  title: 'LPE - Lioness Personal Estúdio',
+  description: 'Sistema de Gestão Profissional para Personal Trainers',
 };
-
-import { SettingsProvider } from '@/lib/SettingsContext';
 
 export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
-    <html lang="en">
-      <body suppressHydrationWarning>
+    <html lang="pt-BR" className={inter.variable}>
+      <body suppressHydrationWarning className="font-sans antialiased">
         <SettingsProvider>
           {children}
+          <Toaster position="top-right" richColors theme="dark" />
         </SettingsProvider>
       </body>
     </html>

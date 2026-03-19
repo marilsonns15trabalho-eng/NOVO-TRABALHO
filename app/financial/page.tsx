@@ -24,7 +24,17 @@ import {
   Banknote,
   QrCode,
   FileText,
-  Download
+  Download,
+  Receipt,
+  FilterX,
+  PieChart,
+  ShoppingBag,
+  Home,
+  Users,
+  Wrench,
+  Activity,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
@@ -34,22 +44,50 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useSettings } from '@/lib/SettingsContext';
+import { toast } from 'sonner';
+import { StatusBadge } from '@/components/StatusBadge';
+import { ConfirmModal } from '@/components/ConfirmModal';
+
+import { supabase } from '@/lib/supabase';
+
+const CATEGORY_ICONS: Record<string, any> = {
+  'Mensalidade': CreditCard,
+  'Equipamentos': Activity,
+  'Aluguel': Home,
+  'Marketing': TrendingUp,
+  'Salários': Users,
+  'Suplementos': ShoppingBag,
+  'Manutenção': Wrench,
+  'Outros': Plus,
+};
+
+const CATEGORY_COLORS: Record<string, string> = {
+  'Mensalidade': 'text-emerald-500 bg-emerald-500/10',
+  'Equipamentos': 'text-blue-500 bg-blue-500/10',
+  'Aluguel': 'text-purple-500 bg-purple-500/10',
+  'Marketing': 'text-orange-500 bg-orange-500/10',
+  'Salários': 'text-indigo-500 bg-indigo-500/10',
+  'Suplementos': 'text-pink-500 bg-pink-500/10',
+  'Manutenção': 'text-yellow-500 bg-yellow-500/10',
+  'Outros': 'text-gray-500 bg-gray-500/10',
+};
 
 const paymentSchema = z.object({
-  studentName: z.string().min(1, 'Selecione um aluno'),
+  student_id: z.string().min(1, 'Selecione um aluno'),
+  student_name: z.string().min(1, 'Selecione um aluno'),
   amount: z.number().min(0.01, 'Valor deve ser maior que zero'),
-  dueDate: z.string().min(1, 'Data de vencimento é obrigatória'),
-  paymentDate: z.string().optional(),
+  due_date: z.string().min(1, 'Data de vencimento é obrigatória'),
+  payment_date: z.string().optional(),
   status: z.enum(['paid', 'pending', 'overdue']),
   method: z.enum(['pix', 'cash', 'card', 'boleto']).optional(),
   notes: z.string().optional(),
 }).superRefine((data, ctx) => {
   if (data.status === 'paid') {
-    if (!data.paymentDate || data.paymentDate === '') {
+    if (!data.payment_date || data.payment_date === '') {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Data de pagamento é obrigatória para status 'Pago'",
-        path: ['paymentDate'],
+        path: ['payment_date'],
       });
     }
     
@@ -61,11 +99,11 @@ const paymentSchema = z.object({
       });
     }
 
-    if (data.paymentDate && data.dueDate && data.paymentDate < data.dueDate) {
+    if (data.payment_date && data.due_date && data.payment_date < data.due_date) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "A data de pagamento deve ser posterior ou igual à data de vencimento",
-        path: ['paymentDate'],
+        path: ['payment_date'],
       });
     }
   }
@@ -94,54 +132,64 @@ interface Transaction {
 
 interface Membership {
   id: string;
-  studentName: string;
+  student_id: string;
+  student_name: string;
   amount: number;
-  dueDate: string;
-  paymentDate?: string;
+  due_date: string;
+  payment_date?: string;
   status: 'paid' | 'pending' | 'overdue';
   method?: 'pix' | 'cash' | 'card' | 'boleto';
   notes?: string;
 }
 
-const INITIAL_TRANSACTIONS: Transaction[] = [
-  { id: '1', description: 'Mensalidade - Ana Souza', amount: 300, type: 'income', category: 'Mensalidade', date: '2024-03-18', status: 'completed' },
-  { id: '2', description: 'Aluguel Sala', amount: 2500, type: 'expense', category: 'Infraestrutura', date: '2024-03-15', status: 'completed' },
-  { id: '3', description: 'Equipamentos Novos', amount: 1200, type: 'expense', category: 'Equipamentos', date: '2024-03-12', status: 'completed' },
-  { id: '4', description: 'Mensalidade - Lucas Pereira', amount: 250, type: 'income', category: 'Mensalidade', date: '2024-03-10', status: 'completed' },
-  { id: '5', description: 'Energia Elétrica', amount: 450, type: 'expense', category: 'Utilidades', date: '2024-03-05', status: 'pending' },
-];
-
-const INITIAL_MEMBERSHIPS: Membership[] = [
-  { id: '1', studentName: 'Ana Souza', amount: 300, dueDate: '2024-03-20', paymentDate: '2024-03-18', status: 'paid', method: 'pix', notes: 'Pago via PIX antecipado' },
-  { id: '2', studentName: 'Lucas Pereira', amount: 250, dueDate: '2024-03-18', status: 'overdue', notes: 'Aguardando contato' },
-  { id: '3', studentName: 'Carla Mendes', amount: 180, dueDate: '2024-03-22', status: 'pending' },
-  { id: '4', studentName: 'João Lima', amount: 150, dueDate: '2024-03-25', status: 'pending' },
-];
-
-const STUDENTS_LIST = [
-  'Ana Souza',
-  'Lucas Pereira',
-  'Carla Mendes',
-  'João Lima',
-  'Mariana Silva',
-  'Ricardo Oliveira',
-  'Beatriz Santos'
-];
-
-const generateId = (prefix: string) => `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
 export default function FinancialPage() {
   const { settings } = useSettings();
   const [activeTab, setActiveTab] = React.useState<'flow' | 'memberships'>('flow');
-  const [transactions, setTransactions] = React.useState<Transaction[]>(INITIAL_TRANSACTIONS);
-  const [memberships, setMemberships] = React.useState<Membership[]>(INITIAL_MEMBERSHIPS);
+  const [transactions, setTransactions] = React.useState<Transaction[]>([]);
+  const [memberships, setMemberships] = React.useState<Membership[]>([]);
+  const [students, setStudents] = React.useState<any[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
+
+  const fetchData = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const [transRes, membRes, studRes] = await Promise.all([
+        supabase.from('transactions').select('*').order('date', { ascending: false }),
+        supabase.from('memberships').select('*').order('due_date', { ascending: false }),
+        supabase.from('students').select('id, name').eq('status', 'Ativo')
+      ]);
+
+      if (transRes.error) throw transRes.error;
+      if (membRes.error) throw membRes.error;
+      if (studRes.error) throw studRes.error;
+
+      setTransactions(transRes.data || []);
+      setMemberships(membRes.data || []);
+      setStudents(studRes.data || []);
+    } catch (error: any) {
+      console.error('Erro ao buscar dados financeiros:', error);
+      toast.error('Erro ao carregar dados financeiros');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    fetchData();
+  }, [fetchData]);
   const [editingItem, setEditingItem] = React.useState<any>(null);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [filterStatus, setFilterStatus] = React.useState<string>('all');
+  const [filterCategory, setFilterCategory] = React.useState<string>('all');
   const [dateRange, setDateRange] = React.useState<{ start: string; end: string }>({ start: '', end: '' });
   const [isReceiptOpen, setIsReceiptOpen] = React.useState(false);
   const [viewingReceipt, setViewingReceipt] = React.useState<Membership | null>(null);
+  const [confirmDelete, setConfirmDelete] = React.useState<{ isOpen: boolean; id: string; type: 'flow' | 'membership' }>({
+    isOpen: false,
+    id: '',
+    type: 'flow'
+  });
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentSchema),
@@ -168,10 +216,11 @@ export default function FinancialPage() {
   React.useEffect(() => {
     if (editingItem) {
       if (activeTab === 'memberships') {
-        setValue('studentName', editingItem.studentName);
+        setValue('student_id', editingItem.student_id);
+        setValue('student_name', editingItem.student_name);
         setValue('amount', editingItem.amount);
-        setValue('dueDate', editingItem.dueDate);
-        setValue('paymentDate', editingItem.paymentDate || '');
+        setValue('due_date', editingItem.due_date);
+        setValue('payment_date', editingItem.payment_date || '');
         setValue('status', editingItem.status);
         setValue('method', editingItem.method || 'pix');
         setValue('notes', editingItem.notes || '');
@@ -184,10 +233,11 @@ export default function FinancialPage() {
       }
     } else {
       reset({
-        studentName: '',
+        student_id: '',
+        student_name: '',
         amount: 0,
-        dueDate: format(new Date(), 'yyyy-MM-dd'),
-        paymentDate: '',
+        due_date: format(new Date(), 'yyyy-MM-dd'),
+        payment_date: '',
         status: 'pending',
         method: 'pix',
         notes: '',
@@ -213,38 +263,55 @@ export default function FinancialPage() {
   const totalExpense = transactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0);
   const balance = totalIncome - totalExpense;
 
-  const filteredTransactions = transactions.filter(t => 
-    t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredTransactions = transactions.filter(t => {
+    const matchesSearch = t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         t.category.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = filterCategory === 'all' || t.category === filterCategory;
+    
+    let matchesDate = true;
+    if (dateRange.start) matchesDate = matchesDate && t.date >= dateRange.start;
+    if (dateRange.end) matchesDate = matchesDate && t.date <= dateRange.end;
+
+    return matchesSearch && matchesCategory && matchesDate;
+  });
 
   const filteredMemberships = memberships.filter(m => {
-    const matchesSearch = m.studentName.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = m.student_name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'all' || m.status === filterStatus;
     
     let matchesDate = true;
-    if (dateRange.start) {
-      matchesDate = matchesDate && m.dueDate >= dateRange.start;
-    }
-    if (dateRange.end) {
-      matchesDate = matchesDate && m.dueDate <= dateRange.end;
-    }
+    if (dateRange.start) matchesDate = matchesDate && m.due_date >= dateRange.start;
+    if (dateRange.end) matchesDate = matchesDate && m.due_date <= dateRange.end;
     
     return matchesSearch && matchesStatus && matchesDate;
   });
 
-  const handleMarkAsPaid = (id: string) => {
-    setMemberships(prev => prev.map(m => {
-      if (m.id === id) {
-        return {
-          ...m,
+  const clearFilters = () => {
+    setSearchTerm('');
+    setFilterStatus('all');
+    setFilterCategory('all');
+    setDateRange({ start: '', end: '' });
+  };
+
+  const handleMarkAsPaid = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('memberships')
+        .update({
           status: 'paid',
-          paymentDate: format(new Date(), 'yyyy-MM-dd'),
+          payment_date: format(new Date(), 'yyyy-MM-dd'),
           method: 'pix'
-        };
-      }
-      return m;
-    }));
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      toast.success(`Pagamento marcado como pago!`);
+      fetchData();
+    } catch (error: any) {
+      console.error('Erro ao marcar como pago:', error);
+      toast.error('Erro ao atualizar pagamento');
+    }
   };
 
   const exportToCSV = () => {
@@ -267,10 +334,10 @@ export default function FinancialPage() {
           ].join(',');
         } else {
           return [
-            item.studentName,
+            item.student_name,
             item.amount,
-            item.dueDate,
-            item.paymentDate || '-',
+            item.due_date,
+            item.payment_date || '-',
             item.method || '-',
             item.status
           ].join(',');
@@ -289,48 +356,77 @@ export default function FinancialPage() {
     document.body.removeChild(link);
   };
 
-  const onSavePayment = (data: PaymentFormValues) => {
-    const newItem: Membership = {
-      id: editingItem ? editingItem.id : generateId('pay'),
-      ...data,
-    };
-
-    if (editingItem) {
-      setMemberships(memberships.map(m => m.id === editingItem.id ? newItem : m));
-    } else {
-      setMemberships([newItem, ...memberships]);
-    }
-    
-    setIsModalOpen(false);
-    setEditingItem(null);
-  };
-
-  const onSaveTransaction = (data: TransactionFormValues) => {
-    const newItem: Transaction = {
-      id: editingItem ? editingItem.id : generateId('flow'),
-      ...data,
-      status: 'completed',
-    };
-
-    if (editingItem) {
-      setTransactions(transactions.map(t => t.id === editingItem.id ? newItem : t));
-    } else {
-      setTransactions([newItem, ...transactions]);
-    }
-    
-    setIsModalOpen(false);
-    setEditingItem(null);
-  };
-
-  const handleDeleteTransaction = (id: string) => {
-    if (confirm('Excluir esta transação?')) {
-      setTransactions(transactions.filter(t => t.id !== id));
+  const onSavePayment = async (data: PaymentFormValues) => {
+    try {
+      if (editingItem) {
+        const { error } = await supabase
+          .from('memberships')
+          .update(data)
+          .eq('id', editingItem.id);
+        
+        if (error) throw error;
+        toast.success('Pagamento atualizado com sucesso!');
+      } else {
+        const { error } = await supabase
+          .from('memberships')
+          .insert([data]);
+        
+        if (error) throw error;
+        toast.success('Novo pagamento registrado!');
+      }
+      
+      fetchData();
+      setIsModalOpen(false);
+      setEditingItem(null);
+    } catch (error: any) {
+      console.error('Erro ao salvar pagamento:', error);
+      toast.error('Erro ao salvar pagamento');
     }
   };
 
-  const handleDeleteMembership = (id: string) => {
-    if (confirm('Excluir este pagamento?')) {
-      setMemberships(memberships.filter(m => m.id !== id));
+  const onSaveTransaction = async (data: TransactionFormValues) => {
+    try {
+      if (editingItem) {
+        const { error } = await supabase
+          .from('transactions')
+          .update(data)
+          .eq('id', editingItem.id);
+        
+        if (error) throw error;
+        toast.success('Transação atualizada com sucesso!');
+      } else {
+        const { error } = await supabase
+          .from('transactions')
+          .insert([{ ...data, status: 'completed' }]);
+        
+        if (error) throw error;
+        toast.success('Nova transação registrada!');
+      }
+      
+      fetchData();
+      setIsModalOpen(false);
+      setEditingItem(null);
+    } catch (error: any) {
+      console.error('Erro ao salvar transação:', error);
+      toast.error('Erro ao salvar transação');
+    }
+  };
+
+  const confirmDeleteAction = async () => {
+    try {
+      const table = confirmDelete.type === 'flow' ? 'transactions' : 'memberships';
+      const { error } = await supabase
+        .from(table)
+        .delete()
+        .eq('id', confirmDelete.id);
+      
+      if (error) throw error;
+      
+      toast.success(confirmDelete.type === 'flow' ? 'Transação excluída' : 'Pagamento excluído');
+      fetchData();
+    } catch (error: any) {
+      console.error('Erro ao excluir item:', error);
+      toast.error('Erro ao excluir item');
     }
   };
 
@@ -378,46 +474,84 @@ export default function FinancialPage() {
 
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-[#1a1d26] p-6 rounded-2xl border border-white/5 space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400 text-sm font-medium">Total Entradas</span>
-                <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-lg">
-                  <TrendingUp size={18} />
+            <motion.div 
+              whileHover={{ y: -5 }}
+              className="bg-[#1a1d26]/40 backdrop-blur-md p-6 rounded-3xl border border-white/10 space-y-4 relative overflow-hidden group shadow-lg"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-3xl -mr-16 -mt-16 group-hover:bg-emerald-500/20 transition-all" />
+              <div className="flex items-center justify-between relative z-10">
+                <div className="space-y-1">
+                  <span className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Total Entradas</span>
+                  <p className="text-2xl font-bold text-emerald-500">{formatCurrency(totalIncome)}</p>
+                </div>
+                <div className="p-3 bg-emerald-500/10 text-emerald-500 rounded-2xl group-hover:scale-110 transition-transform">
+                  <TrendingUp size={24} />
                 </div>
               </div>
-              <p className="text-3xl font-bold text-emerald-500">{formatCurrency(totalIncome)}</p>
-              <p className="text-xs text-gray-500 flex items-center gap-1">
-                <ArrowUpRight size={12} className="text-emerald-500" />
-                +12% em relação ao mês anterior
-              </p>
-            </div>
+              <div className="pt-2 flex items-center justify-between relative z-10">
+                <p className="text-[10px] text-gray-500 flex items-center gap-1">
+                  <ArrowUpRight size={12} className="text-emerald-500" />
+                  <span className="text-emerald-500 font-bold">+12%</span> vs mês anterior
+                </p>
+                <div className="h-1 w-16 bg-white/5 rounded-full overflow-hidden">
+                  <div className="h-full bg-emerald-500 w-3/4" />
+                </div>
+              </div>
+            </motion.div>
 
-            <div className="bg-[#1a1d26] p-6 rounded-2xl border border-white/5 space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400 text-sm font-medium">Total Saídas</span>
-                <div className="p-2 bg-red-500/10 text-red-500 rounded-lg">
-                  <TrendingDown size={18} />
+            <motion.div 
+              whileHover={{ y: -5 }}
+              className="bg-[#1a1d26]/40 backdrop-blur-md p-6 rounded-3xl border border-white/10 space-y-4 relative overflow-hidden group shadow-lg"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 blur-3xl -mr-16 -mt-16 group-hover:bg-red-500/20 transition-all" />
+              <div className="flex items-center justify-between relative z-10">
+                <div className="space-y-1">
+                  <span className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Total Saídas</span>
+                  <p className="text-2xl font-bold text-red-500">{formatCurrency(totalExpense)}</p>
+                </div>
+                <div className="p-3 bg-red-500/10 text-red-500 rounded-2xl group-hover:scale-110 transition-transform">
+                  <TrendingDown size={24} />
                 </div>
               </div>
-              <p className="text-3xl font-bold text-red-500">{formatCurrency(totalExpense)}</p>
-              <p className="text-xs text-gray-500 flex items-center gap-1">
-                <ArrowDownLeft size={12} className="text-red-500" />
-                -5% em relação ao mês anterior
-              </p>
-            </div>
+              <div className="pt-2 flex items-center justify-between relative z-10">
+                <p className="text-[10px] text-gray-500 flex items-center gap-1">
+                  <ArrowDownLeft size={12} className="text-red-500" />
+                  <span className="text-red-500 font-bold">-5%</span> vs mês anterior
+                </p>
+                <div className="h-1 w-16 bg-white/5 rounded-full overflow-hidden">
+                  <div className="h-full bg-red-500 w-1/2" />
+                </div>
+              </div>
+            </motion.div>
 
-            <div className="bg-[#1a1d26] p-6 rounded-2xl border border-white/5 space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400 text-sm font-medium">Saldo Atual</span>
-                <div className="p-2 bg-orange-500/10 text-orange-500 rounded-lg">
-                  <DollarSign size={18} />
+            <motion.div 
+              whileHover={{ y: -5 }}
+              className="bg-[#1a1d26]/40 backdrop-blur-md p-6 rounded-3xl border border-white/10 space-y-4 relative overflow-hidden group shadow-lg"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 blur-3xl -mr-16 -mt-16 group-hover:bg-orange-500/20 transition-all" />
+              <div className="flex items-center justify-between relative z-10">
+                <div className="space-y-1">
+                  <span className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Saldo Atual</span>
+                  <p className="text-2xl font-bold text-white">{formatCurrency(balance)}</p>
+                </div>
+                <div className="p-3 bg-orange-500/10 text-orange-500 rounded-2xl group-hover:scale-110 transition-transform">
+                  <DollarSign size={24} />
                 </div>
               </div>
-              <p className="text-3xl font-bold text-white">{formatCurrency(balance)}</p>
-              <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                <div className="h-full bg-orange-500 rounded-full" style={{ width: '75%' }} />
+              <div className="pt-2 space-y-2 relative z-10">
+                <div className="flex justify-between text-[10px] text-gray-500">
+                  <span>Meta Mensal</span>
+                  <span>75%</span>
+                </div>
+                <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: '75%' }}
+                    className="h-full bg-gradient-to-r from-orange-600 to-orange-400 rounded-full" 
+                  />
+                </div>
               </div>
-            </div>
+            </motion.div>
           </div>
 
           {/* Tabs */}
@@ -445,20 +579,20 @@ export default function FinancialPage() {
           </div>
 
           {/* Content */}
-          <div className="bg-[#1a1d26] rounded-2xl border border-white/5 overflow-hidden">
-            <div className="p-4 border-b border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-3 bg-[#0f1117] px-4 py-2 rounded-xl border border-white/5 w-full md:w-96">
-                <Search size={16} className="text-gray-500" />
+          <div className="bg-[#1a1d26]/40 backdrop-blur-md rounded-3xl border border-white/10 overflow-hidden shadow-xl">
+            <div className="p-6 border-b border-white/10 flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3 bg-[#0f1117]/60 px-4 py-2.5 rounded-2xl border border-white/10 w-full md:w-96 focus-within:border-orange-500/50 transition-all">
+                <Search size={18} className="text-gray-500" />
                 <input 
                   type="text" 
-                  placeholder="Buscar..." 
+                  placeholder="Buscar transações ou alunos..." 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="bg-transparent border-none outline-none text-xs text-white w-full" 
+                  className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-gray-600" 
                 />
               </div>
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-2 bg-[#0f1117] px-3 py-2 rounded-lg border border-white/5">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-2 bg-[#0f1117] px-3 py-2 rounded-xl border border-white/5">
                   <Calendar size={14} className="text-gray-500" />
                   <input 
                     type="date" 
@@ -474,11 +608,22 @@ export default function FinancialPage() {
                     className="bg-transparent border-none outline-none text-[10px] text-white w-24"
                   />
                 </div>
-                {activeTab === 'memberships' && (
+                {activeTab === 'flow' ? (
+                  <select 
+                    value={filterCategory}
+                    onChange={(e) => setFilterCategory(e.target.value)}
+                    className="bg-[#0f1117] text-xs text-gray-400 border border-white/5 rounded-xl px-3 py-2 outline-none focus:border-orange-500 transition-all"
+                  >
+                    <option value="all">Todas Categorias</option>
+                    {Object.keys(CATEGORY_ICONS).map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                ) : (
                   <select 
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value)}
-                    className="bg-[#0f1117] text-xs text-gray-400 border border-white/5 rounded-lg px-3 py-2 outline-none focus:border-orange-500 transition-all"
+                    className="bg-[#0f1117] text-xs text-gray-400 border border-white/5 rounded-xl px-3 py-2 outline-none focus:border-orange-500 transition-all"
                   >
                     <option value="all">Todos Status</option>
                     <option value="paid">Pagos</option>
@@ -487,14 +632,19 @@ export default function FinancialPage() {
                   </select>
                 )}
                 <button 
+                  onClick={clearFilters}
+                  className="p-2 text-gray-400 hover:text-white bg-[#0f1117] rounded-xl border border-white/5 flex items-center gap-2 text-xs font-bold transition-all"
+                  title="Limpar Filtros"
+                >
+                  <FilterX size={16} />
+                </button>
+                <button 
                   onClick={exportToCSV}
-                  className="p-2 text-gray-400 hover:text-white bg-[#0f1117] rounded-lg border border-white/5 flex items-center gap-2 text-xs font-bold"
+                  className="p-2 text-gray-400 hover:text-white bg-[#0f1117] rounded-xl border border-white/5 flex items-center gap-2 text-xs font-bold transition-all"
                 >
                   <Download size={16} />
                   Exportar
                 </button>
-                <button className="p-2 text-gray-400 hover:text-white bg-[#0f1117] rounded-lg border border-white/5"><Filter size={18} /></button>
-                <button className="p-2 text-gray-400 hover:text-white bg-[#0f1117] rounded-lg border border-white/5"><Calendar size={18} /></button>
               </div>
             </div>
 
@@ -515,105 +665,135 @@ export default function FinancialPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {activeTab === 'flow' ? (
-                    filteredTransactions.map((t) => (
-                      <tr key={t.id} className="hover:bg-white/5 transition-colors group">
-                        <td className="p-4">
-                          <div>
-                            <p className="text-sm font-bold text-white">{t.description}</p>
-                            <p className="text-[10px] text-gray-500 uppercase tracking-wider">{t.category}</p>
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <span className={cn("text-sm font-bold", t.type === 'income' ? "text-emerald-500" : "text-red-500")}>
-                            {t.type === 'income' ? '+' : '-'} {formatCurrency(t.amount)}
-                          </span>
-                        </td>
-                        <td className="p-4 text-sm text-gray-400">
-                          {format(new Date(t.date), 'dd MMM, yyyy', { locale: ptBR })}
-                        </td>
-                        <td className="p-4">
-                          <span className={cn(
-                            "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
-                            t.status === 'completed' ? "bg-emerald-500/10 text-emerald-500" : "bg-orange-500/10 text-orange-500"
-                          )}>
-                            {t.status === 'completed' ? 'Concluído' : 'Pendente'}
-                          </span>
-                        </td>
-                        <td className="p-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <button onClick={() => { setEditingItem(t); setIsModalOpen(true); }} className="p-2 text-gray-500 hover:text-orange-500 hover:bg-orange-500/10 rounded-lg transition-all"><Edit2 size={16} /></button>
-                            <button onClick={() => handleDeleteTransaction(t.id)} className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"><Trash2 size={16} /></button>
-                          </div>
-                        </td>
+                  {isLoading ? (
+                    [...Array(5)].map((_, i) => (
+                      <tr key={i} className="animate-pulse">
+                        <td className="p-4"><div className="h-10 bg-white/5 rounded-xl w-48" /></td>
+                        <td className="p-4"><div className="h-6 bg-white/5 rounded-lg w-24" /></td>
+                        <td className="p-4"><div className="h-6 bg-white/5 rounded-lg w-32" /></td>
+                        {activeTab === 'memberships' && <td className="p-4"><div className="h-6 bg-white/5 rounded-lg w-20" /></td>}
+                        <td className="p-4"><div className="h-6 bg-white/5 rounded-lg w-24" /></td>
+                        <td className="p-4 text-right"><div className="h-8 bg-white/5 rounded-lg w-16 ml-auto" /></td>
                       </tr>
                     ))
-                  ) : (
-                    filteredMemberships.map((m) => (
-                      <tr key={m.id} className="hover:bg-white/5 transition-colors group">
-                        <td className="p-4">
-                          <div>
-                            <p className="text-sm font-bold text-white">{m.studentName}</p>
-                            {m.notes && <p className="text-[10px] text-gray-500 truncate max-w-[200px]">{m.notes}</p>}
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <span className="text-sm font-bold text-white">{formatCurrency(m.amount)}</span>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex flex-col">
-                            <span className="text-sm text-gray-400">{format(new Date(m.dueDate), 'dd/MM/yyyy')}</span>
-                            {m.paymentDate && (
-                              <span className="text-[10px] text-emerald-500 flex items-center gap-1">
-                                <CheckCircle2 size={10} />
-                                Pago em {format(new Date(m.paymentDate), 'dd/MM')}
+                  ) : activeTab === 'flow' ? (
+                    filteredTransactions.length > 0 ? (
+                      filteredTransactions.map((t) => {
+                        const Icon = CATEGORY_ICONS[t.category] || Plus;
+                        const colorClass = CATEGORY_COLORS[t.category] || 'text-gray-500 bg-gray-500/10';
+                        
+                        return (
+                          <tr key={t.id} className="hover:bg-white/5 transition-colors group">
+                            <td className="p-4">
+                              <div className="flex items-center gap-3">
+                                <div className={cn("p-2 rounded-xl", colorClass)}>
+                                  <Icon size={16} />
+                                </div>
+                                <div>
+                                  <p className="text-sm font-bold text-white">{t.description}</p>
+                                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">{t.category}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <span className={cn("text-sm font-bold", t.type === 'income' ? "text-emerald-500" : "text-red-500")}>
+                                {t.type === 'income' ? '+' : '-'} {formatCurrency(t.amount)}
                               </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-2 text-gray-400">
-                            {getMethodIcon(m.method)}
-                            <span className="text-xs">{getMethodLabel(m.method)}</span>
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-2">
-                            {m.status === 'paid' && <CheckCircle2 size={14} className="text-emerald-500" />}
-                            {m.status === 'pending' && <Clock size={14} className="text-orange-500" />}
-                            {m.status === 'overdue' && <AlertCircle size={14} className="text-red-500" />}
-                            <span className={cn(
-                              "text-[10px] font-bold uppercase tracking-wider",
-                              m.status === 'paid' ? "text-emerald-500" : m.status === 'pending' ? "text-orange-500" : "text-red-500"
-                            )}>
-                              {m.status === 'paid' ? 'Pago' : m.status === 'pending' ? 'Pendente' : 'Atrasado'}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="p-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            {m.status !== 'paid' && (
-                              <button 
-                                onClick={() => handleMarkAsPaid(m.id)}
-                                title="Marcar como Pago Manualmente" 
-                                className="p-2 text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-all"
-                              >
-                                <CheckCircle2 size={16} />
-                              </button>
-                            )}
-                            <button 
-                              onClick={() => { setViewingReceipt(m); setIsReceiptOpen(true); }}
-                              title="Ver Recibo" 
-                              className="p-2 text-gray-500 hover:text-blue-500 hover:bg-blue-500/10 rounded-lg transition-all"
-                            >
-                              <FileText size={16} />
-                            </button>
-                            <button onClick={() => { setEditingItem(m); setIsModalOpen(true); }} className="p-2 text-gray-500 hover:text-orange-500 hover:bg-orange-500/10 rounded-lg transition-all"><Edit2 size={16} /></button>
-                            <button onClick={() => handleDeleteMembership(m.id)} className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"><Trash2 size={16} /></button>
+                            </td>
+                            <td className="p-4 text-sm text-gray-400">
+                              {format(new Date(t.date), 'dd MMM, yyyy', { locale: ptBR })}
+                            </td>
+                            <td className="p-4">
+                              <StatusBadge status={t.status} />
+                            </td>
+                            <td className="p-4 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button onClick={() => { setEditingItem(t); setIsModalOpen(true); }} className="p-2 text-gray-500 hover:text-orange-500 hover:bg-orange-500/10 rounded-lg transition-all"><Edit2 size={16} /></button>
+                                <button onClick={() => setConfirmDelete({ isOpen: true, id: t.id, type: 'flow' })} className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"><Trash2 size={16} /></button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={5} className="p-12 text-center">
+                          <div className="flex flex-col items-center gap-3 text-gray-500">
+                            <AlertCircle size={48} className="opacity-20" />
+                            <p className="text-sm font-medium">Nenhuma transação encontrada.</p>
                           </div>
                         </td>
                       </tr>
-                    ))
+                    )
+                  ) : (
+                    filteredMemberships.length > 0 ? (
+                      filteredMemberships.map((m) => (
+                        <tr key={m.id} className="hover:bg-white/5 transition-colors group">
+                          <td className="p-4">
+                            <div>
+                              <p className="text-sm font-bold text-white">{m.student_name}</p>
+                              {m.notes && <p className="text-[10px] text-gray-500 truncate max-w-[200px]">{m.notes}</p>}
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <span className="text-sm font-bold text-white">{formatCurrency(m.amount)}</span>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex flex-col">
+                              <span className="text-sm text-gray-400">{format(new Date(m.due_date), 'dd/MM/yyyy')}</span>
+                              {m.payment_date && (
+                                <span className="text-[10px] text-emerald-500 flex items-center gap-1">
+                                  <CheckCircle2 size={10} />
+                                  Pago em {format(new Date(m.payment_date), 'dd/MM')}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-2 text-gray-400">
+                              {getMethodIcon(m.method)}
+                              <span className="text-xs">{getMethodLabel(m.method)}</span>
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-2">
+                              <StatusBadge status={m.status} />
+                            </div>
+                          </td>
+                          <td className="p-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              {m.status !== 'paid' && (
+                                <button 
+                                  onClick={() => handleMarkAsPaid(m.id)}
+                                  title="Marcar como Pago Manualmente" 
+                                  className="p-2 text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-all"
+                                >
+                                  <CheckCircle2 size={16} />
+                                </button>
+                              )}
+                              <button 
+                                onClick={() => { setViewingReceipt(m); setIsReceiptOpen(true); }}
+                                title="Ver Recibo" 
+                                className="p-2 text-gray-500 hover:text-blue-500 hover:bg-blue-500/10 rounded-lg transition-all"
+                              >
+                                <FileText size={16} />
+                              </button>
+                              <button onClick={() => { setEditingItem(m); setIsModalOpen(true); }} className="p-2 text-gray-500 hover:text-orange-500 hover:bg-orange-500/10 rounded-lg transition-all"><Edit2 size={16} /></button>
+                              <button onClick={() => setConfirmDelete({ isOpen: true, id: m.id, type: 'membership' })} className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"><Trash2 size={16} /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={6} className="p-12 text-center">
+                          <div className="flex flex-col items-center gap-3 text-gray-500">
+                            <AlertCircle size={48} className="opacity-20" />
+                            <p className="text-sm font-medium">Nenhum pagamento encontrado para os filtros selecionados.</p>
+                          </div>
+                        </td>
+                      </tr>
+                    )
                   )}
                 </tbody>
               </table>
@@ -686,13 +866,23 @@ export default function FinancialPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Aluno</label>
-                      <select {...register('studentName')} className={cn("w-full bg-[#0f1117] border rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none transition-all appearance-none", errors.studentName ? "border-red-500" : "border-white/5")}>
+                      <select 
+                        {...register('student_id')} 
+                        onChange={(e) => {
+                          const selectedStudent = students.find(s => s.id === e.target.value);
+                          if (selectedStudent) {
+                            setValue('student_name', selectedStudent.name);
+                          }
+                          register('student_id').onChange(e);
+                        }}
+                        className={cn("w-full bg-[#0f1117] border rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none transition-all appearance-none", errors.student_id ? "border-red-500" : "border-white/5")}
+                      >
                         <option value="">Selecione um aluno...</option>
-                        {STUDENTS_LIST.map(name => (
-                          <option key={name} value={name}>{name}</option>
+                        {students.map(student => (
+                          <option key={student.id} value={student.id}>{student.name}</option>
                         ))}
                       </select>
-                      {errors.studentName && <p className="text-red-500 text-[10px]">{errors.studentName.message}</p>}
+                      {errors.student_id && <p className="text-red-500 text-[10px]">{errors.student_id.message}</p>}
                     </div>
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Valor (R$)</label>
@@ -704,15 +894,15 @@ export default function FinancialPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Data de Vencimento</label>
-                      <input {...register('dueDate')} type="date" className={cn("w-full bg-[#0f1117] border rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none transition-all", errors.dueDate ? "border-red-500" : "border-white/5")} />
-                      {errors.dueDate && <p className="text-red-500 text-[10px]">{errors.dueDate.message}</p>}
+                      <input {...register('due_date')} type="date" className={cn("w-full bg-[#0f1117] border rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none transition-all", errors.due_date ? "border-red-500" : "border-white/5")} />
+                      {errors.due_date && <p className="text-red-500 text-[10px]">{errors.due_date.message}</p>}
                     </div>
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">
                         Data do Pagamento {watch('status') === 'paid' ? '(Obrigatório)' : '(Opcional)'}
                       </label>
-                      <input {...register('paymentDate')} type="date" className={cn("w-full bg-[#0f1117] border rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none transition-all", errors.paymentDate ? "border-red-500" : "border-white/5")} />
-                      {errors.paymentDate && <p className="text-red-500 text-[10px]">{errors.paymentDate.message}</p>}
+                      <input {...register('payment_date')} type="date" className={cn("w-full bg-[#0f1117] border rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none transition-all", errors.payment_date ? "border-red-500" : "border-white/5")} />
+                      {errors.payment_date && <p className="text-red-500 text-[10px]">{errors.payment_date.message}</p>}
                     </div>
                   </div>
 
@@ -770,7 +960,7 @@ export default function FinancialPage() {
               <div className="space-y-6">
                 <div className="p-4 bg-[#0f1117] rounded-2xl border border-white/5">
                   <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Aluno</p>
-                  <p className="text-lg font-bold">{viewingReceipt.studentName}</p>
+                  <p className="text-lg font-bold">{viewingReceipt.student_name}</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -792,11 +982,11 @@ export default function FinancialPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 bg-[#0f1117] rounded-2xl border border-white/5">
                     <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Vencimento</p>
-                    <p className="text-sm font-medium">{format(new Date(viewingReceipt.dueDate), 'dd/MM/yyyy')}</p>
+                    <p className="text-sm font-medium">{format(new Date(viewingReceipt.due_date), 'dd/MM/yyyy')}</p>
                   </div>
                   <div className="p-4 bg-[#0f1117] rounded-2xl border border-white/5">
                     <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Pagamento</p>
-                    <p className="text-sm font-medium">{viewingReceipt.paymentDate ? format(new Date(viewingReceipt.paymentDate), 'dd/MM/yyyy') : '-'}</p>
+                    <p className="text-sm font-medium">{viewingReceipt.payment_date ? format(new Date(viewingReceipt.payment_date), 'dd/MM/yyyy') : '-'}</p>
                   </div>
                 </div>
 
@@ -831,6 +1021,13 @@ export default function FinancialPage() {
           </div>
         )}
       </AnimatePresence>
+      <ConfirmModal 
+        isOpen={confirmDelete.isOpen}
+        onClose={() => setConfirmDelete({ ...confirmDelete, isOpen: false })}
+        onConfirm={confirmDeleteAction}
+        title="Confirmar Exclusão"
+        message={`Tem certeza que deseja excluir este ${confirmDelete.type === 'flow' ? 'registro de fluxo' : 'pagamento'}? Esta ação não pode ser desfeita.`}
+      />
     </div>
   );
 }
