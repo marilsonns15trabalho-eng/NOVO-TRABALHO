@@ -18,7 +18,8 @@ export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  // ✅ TIPAGEM CORRIGIDA AQUI
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     
@@ -66,8 +67,11 @@ export default function LoginPage() {
             Entre com suas credenciais para acessar o sistema
           </CardDescription>
         </CardHeader>
+
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
+
+            {/* EMAIL */}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">
@@ -78,15 +82,21 @@ export default function LoginPage() {
                   placeholder="seu@email.com"
                   className="pl-10 bg-[#0a0a0a] border-[#333] focus:border-[#FF6B00] text-white"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setEmail(e.target.value)
+                  }
                   required
                 />
               </div>
             </div>
+
+            {/* SENHA */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Senha</Label>
-                <Link href="#" className="text-xs text-[#FF6B00] hover:underline">Esqueceu a senha?</Link>
+                <Link href="#" className="text-xs text-[#FF6B00] hover:underline">
+                  Esqueceu a senha?
+                </Link>
               </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
@@ -95,11 +105,15 @@ export default function LoginPage() {
                   type="password"
                   className="pl-10 bg-[#0a0a0a] border-[#333] focus:border-[#FF6B00] text-white"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setPassword(e.target.value)
+                  }
                   required
                 />
               </div>
             </div>
+
+            {/* BOTÃO */}
             <Button 
               type="submit" 
               className="w-full bg-[#FF6B00] hover:bg-[#e65a00] text-white font-bold py-6"
@@ -107,16 +121,20 @@ export default function LoginPage() {
             >
               {loading ? 'Entrando...' : 'Entrar'}
             </Button>
-            
+
+            {/* DIVISOR */}
             <div className="relative my-4">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t border-[#333]"></span>
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-[#1a1a1a] px-2 text-gray-500">Ou continue com</span>
+                <span className="bg-[#1a1a1a] px-2 text-gray-500">
+                  Ou continue com
+                </span>
               </div>
             </div>
 
+            {/* GOOGLE */}
             <Button 
               type="button" 
               variant="outline" 
@@ -126,7 +144,9 @@ export default function LoginPage() {
               <Chrome className="mr-2 h-4 w-4" />
               Google
             </Button>
+
           </CardContent>
+
           <CardFooter className="flex flex-wrap items-center justify-center gap-1 text-sm text-gray-400">
             Não tem uma conta? 
             <Link href="/register" className="text-[#FF6B00] font-semibold hover:underline">
