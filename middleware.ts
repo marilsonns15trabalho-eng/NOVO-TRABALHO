@@ -20,7 +20,11 @@ export async function middleware(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           );
-          response = NextResponse.next({ request });
+
+          response = NextResponse.next({
+            request,
+          });
+
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options)
           );
@@ -35,17 +39,19 @@ export async function middleware(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
 
-  // 🔒 NÃO LOGADO
-  if (
-    !user &&
-    !path.startsWith("/login") &&
-    !path.startsWith("/auth") &&
-    path !== "/"
-  ) {
+  // 🔓 ROTAS PÚBLICAS
+  const publicRoutes = ["/", "/login", "/register", "/auth"];
+
+  const isPublic = publicRoutes.some((route) =>
+    path.startsWith(route)
+  );
+
+  // 🔒 NÃO LOGADO → LOGIN
+  if (!user && !isPublic) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // 🔥 NOVO: CONTROLE DE ROLE
+  // 🔥 USUÁRIO LOGADO
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
@@ -53,18 +59,33 @@ export async function middleware(request: NextRequest) {
       .eq("id", user.id)
       .single();
 
+    const role = profile?.role;
+
+    // 🚀 REDIRECIONAMENTO AUTOMÁTICO (se entrar na raiz)
+    if (path === "/") {
+      if (role === "admin") {
+        return NextResponse.redirect(new URL("/admin", request.url));
+      }
+      if (role === "personal") {
+        return NextResponse.redirect(new URL("/personal", request.url));
+      }
+      return NextResponse.redirect(new URL("/aluna/dashboard", request.url));
+    }
+
+    // 🔐 PROTEÇÃO POR ROLE
+
     // ADMIN
-    if (path.startsWith("/admin") && profile?.role !== "admin") {
+    if (path.startsWith("/admin") && role !== "admin") {
       return NextResponse.redirect(new URL("/", request.url));
     }
 
     // PERSONAL
-    if (path.startsWith("/personal") && profile?.role !== "personal") {
+    if (path.startsWith("/personal") && role !== "personal") {
       return NextResponse.redirect(new URL("/", request.url));
     }
 
-    // ALUNO
-    if (path.startsWith("/aluna") && profile?.role !== "student") {
+    // ALUNA
+    if (path.startsWith("/aluna") && role !== "student") {
       return NextResponse.redirect(new URL("/", request.url));
     }
   }
