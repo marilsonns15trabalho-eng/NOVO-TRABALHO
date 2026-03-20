@@ -31,7 +31,7 @@ import { supabase } from '@/lib/supabase';
 
 export default function AssessmentsPage() {
   const [assessments, setAssessments] = React.useState<PhysicalAssessment[]>([]);
-  const [students, setStudents] = React.useState<{ id: string; name: string }[]>([]);
+  const [students, setStudents] = React.useState<{ id: string; name: string; birth_date?: string; gender?: string }[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [selectedStudentId, setSelectedStudentId] = React.useState<string>('all');
@@ -48,7 +48,7 @@ export default function AssessmentsPage() {
       // Fetch students
       const { data: studentsData, error: studentsError } = await supabase
         .from('students')
-        .select('id, name')
+        .select('id, name, birth_date, gender')
         .order('name');
       
       if (studentsError) throw studentsError;
