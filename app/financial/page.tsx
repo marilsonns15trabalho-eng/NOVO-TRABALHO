@@ -718,10 +718,28 @@ export default function FinancialPage() {
                     ) : (
                       <tr>
                         <td colSpan={5} className="p-12 text-center">
-                          <div className="flex flex-col items-center gap-3 text-gray-500">
-                            <AlertCircle size={48} className="opacity-20" />
-                            <p className="text-sm font-medium">Nenhuma transação encontrada.</p>
-                          </div>
+                          <motion.div 
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="flex flex-col items-center gap-4 text-gray-500"
+                          >
+                            <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center text-gray-600">
+                              <AlertCircle size={32} />
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-sm font-bold text-white">Nenhuma transação encontrada</p>
+                              <p className="text-xs">Tente ajustar seus filtros ou busque por outro termo.</p>
+                            </div>
+                            {(searchTerm || filterCategory !== 'all' || dateRange.start || dateRange.end) && (
+                              <button 
+                                onClick={clearFilters}
+                                className="mt-2 text-xs font-bold text-orange-500 hover:text-orange-400 transition-colors flex items-center gap-2"
+                              >
+                                <FilterX size={14} />
+                                Limpar todos os filtros
+                              </button>
+                            )}
+                          </motion.div>
                         </td>
                       </tr>
                     )
@@ -787,10 +805,28 @@ export default function FinancialPage() {
                     ) : (
                       <tr>
                         <td colSpan={6} className="p-12 text-center">
-                          <div className="flex flex-col items-center gap-3 text-gray-500">
-                            <AlertCircle size={48} className="opacity-20" />
-                            <p className="text-sm font-medium">Nenhum pagamento encontrado para os filtros selecionados.</p>
-                          </div>
+                          <motion.div 
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="flex flex-col items-center gap-4 text-gray-500"
+                          >
+                            <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center text-gray-600">
+                              <AlertCircle size={32} />
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-sm font-bold text-white">Nenhum pagamento encontrado</p>
+                              <p className="text-xs">Não encontramos registros para os filtros selecionados.</p>
+                            </div>
+                            {(searchTerm || filterStatus !== 'all' || dateRange.start || dateRange.end) && (
+                              <button 
+                                onClick={clearFilters}
+                                className="mt-2 text-xs font-bold text-orange-500 hover:text-orange-400 transition-colors flex items-center gap-2"
+                              >
+                                <FilterX size={14} />
+                                Limpar todos os filtros
+                              </button>
+                            )}
+                          </motion.div>
                         </td>
                       </tr>
                     )
@@ -882,6 +918,7 @@ export default function FinancialPage() {
                           <option key={student.id} value={student.id}>{student.name}</option>
                         ))}
                       </select>
+                      <input type="hidden" {...register('student_name')} />
                       {errors.student_id && <p className="text-red-500 text-[10px]">{errors.student_id.message}</p>}
                     </div>
                     <div className="space-y-2">

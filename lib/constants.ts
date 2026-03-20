@@ -21,6 +21,7 @@ export const NAV_ITEMS = [
   { icon: Wallet, label: 'Pagamentos', id: 'payments', href: '/financial' },
   { icon: TrendingUp, label: 'Financeiro', id: 'financial', href: '/financial' },
   { icon: FileText, label: 'Relatórios', id: 'reports', href: '/reports' },
+  { icon: Activity, label: 'Diagnóstico', id: 'debug', href: '/debug' },
   { icon: Settings, label: 'Configurações', id: 'settings', href: '/settings' },
 ];
 

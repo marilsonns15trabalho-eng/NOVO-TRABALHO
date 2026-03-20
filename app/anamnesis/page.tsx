@@ -7,56 +7,67 @@ import { AnamnesisDetails } from '@/components/anamnesis/AnamnesisDetails';
 import { type Anamnesis, type AnamnesisData } from '@/lib/anamnesis-schema';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { AnimatePresence } from 'motion/react';
+import { toast } from 'sonner';
 
-// Mock data for initial state
-const MOCK_STUDENTS = [
-  { id: '1', name: 'Ana Souza' },
-  { id: '2', name: 'Carla Mendes' },
-  { id: '3', name: 'Fernanda Oliveira' },
-  { id: '4', name: 'Mariana Silva' },
-];
-
-const MOCK_ANAMNESIS: Anamnesis[] = [
-  {
-    id: '1',
-    studentId: '1',
-    studentName: 'Ana Souza',
-    objective: 'Emagrecimento e melhora do condicionamento cardiovascular',
-    medicalHistory: 'Hipotireoidismo controlado com medicação.',
-    medications: 'Puran T4',
-    surgeries: 'Nenhuma recente.',
-    injuries: 'Dor lombar ocasional após longos períodos sentada.',
-    lifestyle: 'Trabalha em escritório, 8h por dia sentada.',
-    physicalActivityLevel: 'sedentary',
-    sleepQuality: 'fair',
-    stressLevel: 'high',
-    observations: 'Aluna relata cansaço frequente no final do dia.',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    studentId: '2',
-    studentName: 'Carla Mendes',
-    objective: 'Hipertrofia e fortalecimento de membros inferiores',
-    medicalHistory: 'Sem histórico de doenças crônicas.',
-    medications: 'Nenhum.',
-    surgeries: 'Apendicectomia em 2018.',
-    injuries: 'Cirurgia de menisco no joelho esquerdo (2020). Recuperada.',
-    lifestyle: 'Ativa, gosta de caminhadas aos finais de semana.',
-    physicalActivityLevel: 'moderate',
-    sleepQuality: 'good',
-    stressLevel: 'low',
-    observations: 'Foco em exercícios que não sobrecarreguem o joelho esquerdo inicialmente.',
-    createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-  }
-];
+import { supabase } from '@/lib/supabase';
 
 export default function AnamnesisPage() {
-  const [anamnesis, setAnamnesis] = React.useState<Anamnesis[]>(MOCK_ANAMNESIS);
+  const [anamnesis, setAnamnesis] = React.useState<Anamnesis[]>([]);
+  const [students, setStudents] = React.useState<{ id: string; name: string }[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [editingAnamnesis, setEditingAnamnesis] = React.useState<Anamnesis | null>(null);
   const [viewingAnamnesis, setViewingAnamnesis] = React.useState<Anamnesis | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
+  const [anamnesisToDelete, setAnamnesisToDelete] = React.useState<string | null>(null);
+
+  const fetchData = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+      // Fetch students
+      const { data: studentsData, error: studentsError } = await supabase
+        .from('students')
+        .select('id, name')
+        .order('name');
+      
+      if (studentsError) throw studentsError;
+      setStudents(studentsData || []);
+
+      // Fetch anamnesis
+      const { data: anamnesisData, error: anamnesisError } = await supabase
+        .from('anamnesis')
+        .select(`
+          *,
+          students (
+            name
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (anamnesisError) throw anamnesisError;
+
+      const formattedAnamnesis: Anamnesis[] = (anamnesisData || []).map(item => ({
+        id: item.id,
+        studentId: item.student_id,
+        studentName: item.students?.name || 'Aluna Desconhecida',
+        createdAt: item.created_at,
+        ...item.data
+      }));
+
+      setAnamnesis(formattedAnamnesis);
+    } catch (error: any) {
+      console.error('Erro ao buscar dados:', error);
+      toast.error('Erro ao carregar dados: ' + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleAdd = () => {
     setEditingAnamnesis(null);
@@ -69,8 +80,29 @@ export default function AnamnesisPage() {
   };
 
   const handleDelete = (id: string) => {
-    if (confirm('Tem certeza que deseja excluir esta anamnese?')) {
-      setAnamnesis(prev => prev.filter(a => a.id !== id));
+    setAnamnesisToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!anamnesisToDelete) return;
+    
+    try {
+      const { error } = await supabase
+        .from('anamnesis')
+        .delete()
+        .eq('id', anamnesisToDelete);
+
+      if (error) throw error;
+
+      setAnamnesis(prev => prev.filter(a => a.id !== anamnesisToDelete));
+      toast.success('Anamnese excluída com sucesso');
+    } catch (error: any) {
+      console.error('Erro ao excluir anamnese:', error);
+      toast.error('Erro ao excluir anamnese: ' + error.message);
+    } finally {
+      setIsDeleteModalOpen(false);
+      setAnamnesisToDelete(null);
     }
   };
 
@@ -78,25 +110,48 @@ export default function AnamnesisPage() {
     setViewingAnamnesis(item);
   };
 
-  const handleSubmit = (data: AnamnesisData) => {
-    const student = MOCK_STUDENTS.find(s => s.id === data.studentId);
-    
-    if (editingAnamnesis) {
-      setAnamnesis(prev => prev.map(a => a.id === editingAnamnesis.id ? {
-        ...a,
-        ...data,
-        studentName: student?.name || 'Aluna Desconhecida',
-      } : a));
-    } else {
-      const newAnamnesis: Anamnesis = {
-        ...data,
-        id: Math.random().toString(36).substr(2, 9),
-        studentName: student?.name || 'Aluna Desconhecida',
-        createdAt: new Date().toISOString(),
+  const handleSubmit = async (data: AnamnesisData) => {
+    try {
+      const anamnesisPayload = {
+        student_id: data.studentId,
+        data: {
+          objective: data.objective,
+          medicalHistory: data.medicalHistory,
+          medications: data.medications,
+          surgeries: data.surgeries,
+          injuries: data.injuries,
+          lifestyle: data.lifestyle,
+          physicalActivityLevel: data.physicalActivityLevel,
+          sleepQuality: data.sleepQuality,
+          stressLevel: data.stressLevel,
+          observations: data.observations,
+        },
+        updated_at: new Date().toISOString(),
       };
-      setAnamnesis(prev => [newAnamnesis, ...prev]);
+
+      if (editingAnamnesis) {
+        const { error } = await supabase
+          .from('anamnesis')
+          .update(anamnesisPayload)
+          .eq('id', editingAnamnesis.id);
+        
+        if (error) throw error;
+        toast.success('Anamnese atualizada com sucesso!');
+      } else {
+        const { error } = await supabase
+          .from('anamnesis')
+          .insert([anamnesisPayload]);
+        
+        if (error) throw error;
+        toast.success('Nova anamnese cadastrada!');
+      }
+      
+      fetchData();
+      setIsFormOpen(false);
+    } catch (error: any) {
+      console.error('Erro ao salvar anamnese:', error);
+      toast.error('Erro ao salvar anamnese: ' + error.message);
     }
-    setIsFormOpen(false);
   };
 
   return (
@@ -132,7 +187,7 @@ export default function AnamnesisPage() {
             onClose={() => setIsFormOpen(false)}
             onSubmit={handleSubmit}
             initialData={editingAnamnesis || undefined}
-            students={MOCK_STUDENTS}
+            students={students}
           />
         )}
         {viewingAnamnesis && (
@@ -141,6 +196,16 @@ export default function AnamnesisPage() {
             onClose={() => setViewingAnamnesis(null)}
           />
         )}
+        <ConfirmModal 
+          isOpen={isDeleteModalOpen}
+          onClose={() => setIsDeleteModalOpen(false)}
+          onConfirm={confirmDelete}
+          title="Excluir Anamnese"
+          message="Tem certeza que deseja excluir esta anamnese? Esta ação não pode ser desfeita."
+          confirmText="Excluir"
+          cancelText="Cancelar"
+          variant="danger"
+        />
       </AnimatePresence>
     </div>
   );

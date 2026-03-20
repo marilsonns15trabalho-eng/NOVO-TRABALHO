@@ -23,15 +23,19 @@ interface PlanListProps {
 export function PlanList({ plans, onEdit, onDelete }: PlanListProps) {
   if (plans.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 bg-[#1a1d25] rounded-3xl border border-dashed border-white/10">
-        <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center">
-          <CreditCard className="text-gray-500" size={32} />
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col items-center justify-center py-20 text-center space-y-6 bg-[#1a1d25] rounded-3xl border border-dashed border-white/10"
+      >
+        <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center">
+          <CreditCard className="text-gray-600" size={40} />
         </div>
-        <div>
-          <h3 className="text-xl font-semibold text-white">Nenhum plano encontrado</h3>
-          <p className="text-gray-400">Tente ajustar sua busca ou adicione um novo plano.</p>
+        <div className="max-w-xs">
+          <h3 className="text-xl font-bold text-white">Nenhum plano encontrado</h3>
+          <p className="text-gray-400 text-sm mt-2">Tente ajustar sua busca ou adicione um novo plano para começar.</p>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
@@ -61,11 +65,7 @@ export function PlanList({ plans, onEdit, onDelete }: PlanListProps) {
                 <Edit2 size={18} />
               </button>
               <button
-                onClick={() => {
-                  if (confirm('Deseja realmente excluir este plano? Clientes atuais não serão afetados.')) {
-                    onDelete(plan.id);
-                  }
-                }}
+                onClick={() => onDelete(plan.id)}
                 className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
                 title="Excluir plano"
               >

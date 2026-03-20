@@ -35,10 +35,12 @@ import {
   AreaChart,
   Area
 } from 'recharts';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { format, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { ConfirmModal } from '@/components/ConfirmModal';
+import { toast } from 'sonner';
 
 const REVENUE_EXPENSE_DATA = [
   { month: 'Out', revenue: 12000, expense: 8000 },
@@ -80,10 +82,15 @@ export default function ReportsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newReportName, setNewReportName] = useState('');
   const [newReportType, setNewReportType] = useState('Financeiro');
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [reportToDelete, setReportToDelete] = useState<string | null>(null);
 
   const handleAddReport = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newReportName) return;
+    if (!newReportName) {
+      toast.error('Por favor, informe o nome do relatório.');
+      return;
+    }
     const newReport: SavedReport = {
       id: Date.now().toString(),
       name: newReportName,
@@ -93,11 +100,19 @@ export default function ReportsPage() {
     setSavedReports([newReport, ...savedReports]);
     setNewReportName('');
     setIsModalOpen(false);
+    toast.success('Relatório salvo com sucesso!');
   };
 
   const handleDeleteReport = (id: string) => {
-    if (confirm('Deseja excluir este relatório salvo?')) {
-      setSavedReports(savedReports.filter(r => r.id !== id));
+    setReportToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteReport = () => {
+    if (reportToDelete) {
+      setSavedReports(savedReports.filter(r => r.id !== reportToDelete));
+      setReportToDelete(null);
+      toast.success('Relatório excluído com sucesso!');
     }
   };
 
@@ -428,6 +443,17 @@ export default function ReportsPage() {
           </motion.div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDeleteReport}
+        title="Excluir Relatório"
+        message="Tem certeza que deseja excluir este relatório salvo? Esta ação não pode ser desfeita."
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="danger"
+      />
     </div>
   );
 }

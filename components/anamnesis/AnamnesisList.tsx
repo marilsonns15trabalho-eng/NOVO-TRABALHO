@@ -152,13 +152,29 @@ export function AnamnesisList({ anamnesis, onAdd, onEdit, onDelete, onView }: An
         </AnimatePresence>
 
         {filteredAnamnesis.length === 0 && (
-          <div className="col-span-full py-20 flex flex-col items-center justify-center text-gray-500 bg-[#1a1c23] border border-dashed border-white/10 rounded-3xl">
-            <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4">
-              <FileText size={32} className="text-gray-600" />
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="col-span-full py-20 flex flex-col items-center justify-center text-gray-500 bg-[#1a1c23] border border-dashed border-white/10 rounded-3xl"
+          >
+            <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-6">
+              <Search size={40} className="text-gray-600" />
             </div>
-            <p className="text-lg font-medium">Nenhuma anamnese encontrada</p>
-            <p className="text-sm">Comece criando uma nova avaliação profissional.</p>
-          </div>
+            <h3 className="text-xl font-bold text-white mb-2">Nenhuma anamnese encontrada</h3>
+            <p className="text-sm text-gray-400 max-w-xs text-center mb-8">
+              {searchTerm 
+                ? `Não encontramos resultados para "${searchTerm}". Tente outros termos ou limpe a busca.`
+                : "Ainda não há anamneses registradas. Comece criando uma nova avaliação profissional."}
+            </p>
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="px-6 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl text-sm font-bold transition-all border border-white/10"
+              >
+                Limpar busca
+              </button>
+            )}
+          </motion.div>
         )}
       </div>
     </div>

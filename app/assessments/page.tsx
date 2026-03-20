@@ -18,27 +18,78 @@ import {
   X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MOCK_ASSESSMENTS } from '@/lib/mock-assessments';
 import { PhysicalAssessment } from '@/lib/types';
 import { AssessmentForm } from '@/components/assessments/AssessmentForm';
 import { EvolutionChart } from '@/components/assessments/EvolutionChart';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-
-const MOCK_STUDENTS = [
-  { id: '1', name: 'Ana Souza' },
-  { id: '2', name: 'Beatrix Gomes' },
-  { id: '3', name: 'Carla Mendes' },
-];
+import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
 
 export default function AssessmentsPage() {
-  const [assessments, setAssessments] = React.useState<PhysicalAssessment[]>(MOCK_ASSESSMENTS);
+  const [assessments, setAssessments] = React.useState<PhysicalAssessment[]>([]);
+  const [students, setStudents] = React.useState<{ id: string; name: string }[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [selectedStudentId, setSelectedStudentId] = React.useState<string>('all');
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [editingAssessment, setEditingAssessment] = React.useState<PhysicalAssessment | null>(null);
   const [viewingAssessment, setViewingAssessment] = React.useState<PhysicalAssessment | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
+  const [assessmentToDelete, setAssessmentToDelete] = React.useState<string | null>(null);
   const [activeView, setActiveView] = React.useState<'list' | 'evolution'>('list');
+
+  const fetchData = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+      // Fetch students
+      const { data: studentsData, error: studentsError } = await supabase
+        .from('students')
+        .select('id, name')
+        .order('name');
+      
+      if (studentsError) throw studentsError;
+      setStudents(studentsData || []);
+
+      // Fetch assessments
+      const { data: assessmentsData, error: assessmentsError } = await supabase
+        .from('assessments')
+        .select(`
+          *,
+          students (
+            name
+          )
+        `)
+        .order('date', { ascending: false });
+
+      if (assessmentsError) throw assessmentsError;
+
+      const formattedAssessments: PhysicalAssessment[] = (assessmentsData || []).map(item => ({
+        id: item.id,
+        studentId: item.student_id,
+        studentName: item.students?.name || 'Aluna Desconhecida',
+        date: item.date,
+        weight: Number(item.weight),
+        height: Number(item.height),
+        skinfolds: item.skinfolds,
+        perimeters: item.perimeters,
+        results: item.results,
+        notes: item.notes,
+      }));
+
+      setAssessments(formattedAssessments);
+    } catch (error: any) {
+      console.error('Erro ao buscar dados:', error);
+      toast.error('Erro ao carregar dados: ' + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const filteredAssessments = React.useMemo(() => {
     return assessments.filter(a => {
@@ -50,26 +101,72 @@ export default function AssessmentsPage() {
 
   const studentEvolutionData = React.useMemo(() => {
     if (selectedStudentId === 'all') return [];
-    return assessments.filter(a => a.studentId === selectedStudentId);
+    return assessments.filter(a => a.studentId === selectedStudentId).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [assessments, selectedStudentId]);
 
-  const handleSaveAssessment = (data: Partial<PhysicalAssessment>) => {
-    if (editingAssessment) {
-      setAssessments(prev => prev.map(a => a.id === editingAssessment.id ? { ...a, ...data } as PhysicalAssessment : a));
-    } else {
-      const newAssessment: PhysicalAssessment = {
-        ...data,
-        id: Math.random().toString(36).substr(2, 9),
-      } as PhysicalAssessment;
-      setAssessments(prev => [newAssessment, ...prev]);
+  const handleSaveAssessment = async (data: Partial<PhysicalAssessment>) => {
+    try {
+      const assessmentPayload = {
+        student_id: data.studentId,
+        date: data.date,
+        weight: data.weight,
+        height: data.height,
+        skinfolds: data.skinfolds,
+        perimeters: data.perimeters,
+        results: data.results,
+        notes: data.notes,
+      };
+
+      if (editingAssessment) {
+        const { error } = await supabase
+          .from('assessments')
+          .update(assessmentPayload)
+          .eq('id', editingAssessment.id);
+        
+        if (error) throw error;
+        toast.success('Avaliação atualizada com sucesso!');
+      } else {
+        const { error } = await supabase
+          .from('assessments')
+          .insert([assessmentPayload]);
+        
+        if (error) throw error;
+        toast.success('Nova avaliação cadastrada!');
+      }
+      
+      fetchData();
+      setIsFormOpen(false);
+      setEditingAssessment(null);
+    } catch (error: any) {
+      console.error('Erro ao salvar avaliação:', error);
+      toast.error('Erro ao salvar avaliação: ' + error.message);
     }
-    setIsFormOpen(false);
-    setEditingAssessment(null);
   };
 
   const handleDeleteAssessment = (id: string) => {
-    if (confirm('Tem certeza que deseja excluir esta avaliação?')) {
-      setAssessments(prev => prev.filter(a => a.id !== id));
+    setAssessmentToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!assessmentToDelete) return;
+    
+    try {
+      const { error } = await supabase
+        .from('assessments')
+        .delete()
+        .eq('id', assessmentToDelete);
+
+      if (error) throw error;
+
+      setAssessments(prev => prev.filter(a => a.id !== assessmentToDelete));
+      toast.success('Avaliação excluída com sucesso');
+    } catch (error: any) {
+      console.error('Erro ao excluir avaliação:', error);
+      toast.error('Erro ao excluir avaliação: ' + error.message);
+    } finally {
+      setIsDeleteModalOpen(false);
+      setAssessmentToDelete(null);
     }
   };
 
@@ -163,7 +260,7 @@ export default function AssessmentsPage() {
                   className="w-full bg-[#0f1117] border border-white/5 rounded-2xl pl-12 pr-4 py-3 text-sm focus:outline-none focus:border-orange-500 transition-colors appearance-none"
                 >
                   <option value="all">Todas Alunas</option>
-                  {MOCK_STUDENTS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
             </div>
@@ -248,8 +345,35 @@ export default function AssessmentsPage() {
                       ))}
                       {filteredAssessments.length === 0 && (
                         <tr>
-                          <td colSpan={6} className="px-6 py-12 text-center text-gray-500 text-sm">
-                            Nenhuma avaliação encontrada.
+                          <td colSpan={6} className="px-6 py-20">
+                            <motion.div 
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="flex flex-col items-center justify-center text-gray-500 gap-4"
+                            >
+                              <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center">
+                                <Search size={32} className="text-gray-600" />
+                              </div>
+                              <div className="text-center">
+                                <p className="text-lg font-bold text-white">Nenhuma avaliação encontrada</p>
+                                <p className="text-sm text-gray-400 max-w-xs mx-auto mt-1">
+                                  {searchQuery || selectedStudentId !== 'all'
+                                    ? "Não encontramos resultados para os filtros aplicados. Tente ajustar sua busca."
+                                    : "Ainda não há avaliações registradas. Comece criando uma nova avaliação."}
+                                </p>
+                              </div>
+                              {(searchQuery || selectedStudentId !== 'all') && (
+                                <button
+                                  onClick={() => {
+                                    setSearchQuery('');
+                                    setSelectedStudentId('all');
+                                  }}
+                                  className="px-6 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl text-sm font-bold transition-all border border-white/10"
+                                >
+                                  Limpar filtros
+                                </button>
+                              )}
+                            </motion.div>
                           </td>
                         </tr>
                       )}
@@ -280,7 +404,7 @@ export default function AssessmentsPage() {
                     <div className="flex items-center justify-between mb-8">
                       <h3 className="text-xl font-bold flex items-center gap-3">
                         <div className="w-1 h-6 bg-orange-500 rounded-full" />
-                        Evolução de {MOCK_STUDENTS.find(s => s.id === selectedStudentId)?.name}
+                        Evolução de {students.find(s => s.id === selectedStudentId)?.name}
                       </h3>
                     </div>
                     <EvolutionChart data={studentEvolutionData} />
@@ -293,6 +417,16 @@ export default function AssessmentsPage() {
       </main>
 
       {/* Modals */}
+      <ConfirmModal 
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Excluir Avaliação"
+        message="Tem certeza que deseja excluir esta avaliação física? Esta ação não pode ser desfeita."
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="danger"
+      />
       {isFormOpen && (
         <AssessmentForm 
           onClose={() => {
@@ -301,7 +435,7 @@ export default function AssessmentsPage() {
           }}
           onSave={handleSaveAssessment}
           initialData={editingAssessment || undefined}
-          students={MOCK_STUDENTS}
+          students={students}
         />
       )}
 

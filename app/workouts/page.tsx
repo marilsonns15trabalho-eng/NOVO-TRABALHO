@@ -19,6 +19,10 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
+import { ConfirmModal } from '@/components/ConfirmModal';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
+import { AlertCircle } from 'lucide-react';
 
 interface Exercise {
   id: string;
@@ -33,10 +37,10 @@ interface Workout {
   id: string;
   title: string;
   description?: string;
-  studentId: string;
+  student_id: string;
   exercises: Exercise[];
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  updated_at: string;
 }
 
 interface Student {
@@ -44,54 +48,52 @@ interface Student {
   name: string;
 }
 
-const MOCK_STUDENTS: Student[] = [
-  { id: '1', name: 'Ana Souza' },
-  { id: '2', name: 'Lucas Pereira' },
-  { id: '3', name: 'Carla Mendes' },
-  { id: '4', name: 'João Lima' },
-  { id: '5', name: 'Mariana Silva' },
-];
-
-const INITIAL_WORKOUTS: Workout[] = [
-  {
-    id: '1',
-    title: 'Treino A - Inferiores',
-    description: 'Foco em quadríceps e glúteos',
-    studentId: '1',
-    exercises: [
-      { id: 'e1', name: 'Agachamento Livre', sets: '4', reps: '12', rest: '60s', notes: 'Foco na amplitude' },
-      { id: 'e2', name: 'Leg Press 45', sets: '3', reps: '15', rest: '45s' },
-    ],
-    createdAt: '10/03/2024',
-    updatedAt: '10/03/2024'
-  },
-  {
-    id: '2',
-    title: 'Treino B - Superiores',
-    description: 'Foco em costas e bíceps',
-    studentId: '2',
-    exercises: [
-      { id: 'e3', name: 'Puxada Aberta', sets: '4', reps: '10', rest: '60s' },
-      { id: 'e4', name: 'Remada Baixa', sets: '3', reps: '12', rest: '45s' },
-    ],
-    createdAt: '12/03/2024',
-    updatedAt: '12/03/2024'
-  }
-];
+const INITIAL_WORKOUTS: Workout[] = [];
 
 export default function WorkoutsPage() {
-  const [workouts, setWorkouts] = React.useState<Workout[]>(INITIAL_WORKOUTS);
+  const [workouts, setWorkouts] = React.useState<Workout[]>([]);
+  const [students, setStudents] = React.useState<Student[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [editingWorkout, setEditingWorkout] = React.useState<Workout | null>(null);
   const [viewingWorkout, setViewingWorkout] = React.useState<Workout | null>(null);
+  const [confirmDelete, setConfirmDelete] = React.useState<{ isOpen: boolean; id: string }>({
+    isOpen: false,
+    id: ''
+  });
 
   // Form State
   const [formExercises, setFormExercises] = React.useState<Exercise[]>([]);
 
+  const fetchData = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const [{ data: workoutsData, error: workoutsError }, { data: studentsData, error: studentsError }] = await Promise.all([
+        supabase.from('workouts').select('*').order('created_at', { ascending: false }),
+        supabase.from('students').select('id, name').order('name', { ascending: true })
+      ]);
+
+      if (workoutsError) throw workoutsError;
+      if (studentsError) throw studentsError;
+
+      setWorkouts(workoutsData || []);
+      setStudents(studentsData || []);
+    } catch (error: any) {
+      console.error('Erro ao buscar dados:', error);
+      toast.error('Erro ao carregar treinos e alunos');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
   const filteredWorkouts = workouts.filter(w => 
     w.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    MOCK_STUDENTS.find(s => s.id === w.studentId)?.name.toLowerCase().includes(searchQuery.toLowerCase())
+    students.find(s => s.id === w.student_id)?.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleOpenModal = (workout?: Workout) => {
@@ -117,34 +119,65 @@ export default function WorkoutsPage() {
     setFormExercises(formExercises.map(e => e.id === id ? { ...e, [field]: value } : e));
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     
-    const newWorkout: Workout = {
-      id: editingWorkout ? editingWorkout.id : Math.random().toString(36).substr(2, 9),
+    const workoutData = {
       title: formData.get('title') as string,
       description: formData.get('description') as string,
-      studentId: formData.get('studentId') as string,
+      student_id: formData.get('studentId') as string,
       exercises: formExercises.filter(ex => ex.name.trim() !== ''),
-      createdAt: editingWorkout ? editingWorkout.createdAt : new Date().toLocaleDateString('pt-BR'),
-      updatedAt: new Date().toLocaleDateString('pt-BR'),
+      updated_at: new Date().toISOString(),
     };
 
-    if (editingWorkout) {
-      setWorkouts(workouts.map(w => w.id === editingWorkout.id ? newWorkout : w));
-    } else {
-      setWorkouts([newWorkout, ...workouts]);
+    try {
+      if (editingWorkout) {
+        const { error } = await supabase
+          .from('workouts')
+          .update(workoutData)
+          .eq('id', editingWorkout.id);
+        
+        if (error) throw error;
+        toast.success('Treino atualizado com sucesso!');
+      } else {
+        const { error } = await supabase
+          .from('workouts')
+          .insert([{ ...workoutData, created_at: new Date().toISOString() }]);
+        
+        if (error) throw error;
+        toast.success('Novo treino criado!');
+      }
+      
+      fetchData();
+      setIsModalOpen(false);
+      setEditingWorkout(null);
+      setFormExercises([]);
+    } catch (error: any) {
+      console.error('Erro ao salvar treino:', error);
+      toast.error(`Erro ao salvar treino: ${error.message || 'Erro desconhecido'}`);
     }
-    
-    setIsModalOpen(false);
-    setEditingWorkout(null);
-    setFormExercises([]);
   };
 
   const handleDelete = (id: string) => {
-    if (confirm('Tem certeza que deseja excluir este treino?')) {
-      setWorkouts(workouts.filter(w => w.id !== id));
+    setConfirmDelete({ isOpen: true, id });
+  };
+
+  const confirmDeleteAction = async () => {
+    try {
+      const { error } = await supabase
+        .from('workouts')
+        .delete()
+        .eq('id', confirmDelete.id);
+      
+      if (error) throw error;
+      
+      toast.success('Treino excluído com sucesso');
+      fetchData();
+      setConfirmDelete({ isOpen: false, id: '' });
+    } catch (error: any) {
+      console.error('Erro ao excluir treino:', error);
+      toast.error('Erro ao excluir treino');
     }
   };
 
@@ -190,58 +223,107 @@ export default function WorkoutsPage() {
 
           {/* Workouts Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {filteredWorkouts.map((workout) => (
-              <motion.div 
-                key={workout.id}
-                layout
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-[#1a1d26] rounded-2xl border border-white/5 p-6 space-y-4 hover:border-orange-500/30 transition-all group"
-              >
-                <div className="flex justify-between items-start">
-                  <div className="p-3 bg-orange-500/10 rounded-xl text-orange-500">
-                    <Dumbbell size={24} />
-                  </div>
-                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button 
-                      onClick={() => handleOpenModal(workout)}
-                      className="p-2 text-gray-500 hover:text-orange-500 hover:bg-orange-500/10 rounded-lg transition-all"
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(workout.id)}
-                      className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-bold">{workout.title}</h3>
-                  <p className="text-gray-500 text-sm line-clamp-2">{workout.description || 'Sem descrição'}</p>
-                </div>
-
-                <div className="pt-4 border-t border-white/5 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-xs font-bold text-gray-400">
-                      <User size={14} />
+            {isLoading ? (
+              [...Array(6)].map((_, i) => (
+                <div key={i} className="bg-[#1a1d26] rounded-2xl border border-white/5 p-6 space-y-4 animate-pulse">
+                  <div className="flex justify-between items-start">
+                    <div className="p-3 bg-white/5 rounded-xl w-12 h-12" />
+                    <div className="flex gap-2">
+                      <div className="w-8 h-8 bg-white/5 rounded-lg" />
+                      <div className="w-8 h-8 bg-white/5 rounded-lg" />
                     </div>
-                    <span className="text-xs font-medium text-gray-400">
-                      {MOCK_STUDENTS.find(s => s.id === workout.studentId)?.name || 'Não atribuído'}
-                    </span>
                   </div>
-                  <button 
-                    onClick={() => setViewingWorkout(workout)}
-                    className="flex items-center gap-1 text-xs font-bold text-orange-500 hover:text-orange-400 transition-colors"
-                  >
-                    Ver Detalhes
-                    <ChevronRight size={14} />
-                  </button>
+                  <div className="space-y-2">
+                    <div className="h-5 bg-white/5 rounded w-3/4" />
+                    <div className="h-4 bg-white/5 rounded w-full" />
+                  </div>
+                  <div className="pt-4 border-t border-white/5 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-white/5" />
+                      <div className="h-3 bg-white/5 rounded w-20" />
+                    </div>
+                    <div className="h-4 bg-white/5 rounded w-24" />
+                  </div>
                 </div>
-              </motion.div>
-            ))}
+              ))
+            ) : filteredWorkouts.length > 0 ? (
+              filteredWorkouts.map((workout) => (
+                <motion.div 
+                  key={workout.id}
+                  layout
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-[#1a1d26] rounded-2xl border border-white/5 p-6 space-y-4 hover:border-orange-500/30 transition-all group"
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="p-3 bg-orange-500/10 rounded-xl text-orange-500">
+                      <Dumbbell size={24} />
+                    </div>
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => handleOpenModal(workout)}
+                        className="p-2 text-gray-500 hover:text-orange-500 hover:bg-orange-500/10 rounded-lg transition-all"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(workout.id)}
+                        className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-bold">{workout.title}</h3>
+                    <p className="text-gray-500 text-sm line-clamp-2">{workout.description || 'Sem descrição'}</p>
+                  </div>
+
+                  <div className="pt-4 border-t border-white/5 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-xs font-bold text-gray-400">
+                        <User size={14} />
+                      </div>
+                      <span className="text-xs font-medium text-gray-400">
+                        {students.find(s => s.id === workout.student_id)?.name || 'Não atribuído'}
+                      </span>
+                    </div>
+                    <button 
+                      onClick={() => setViewingWorkout(workout)}
+                      className="flex items-center gap-1 text-xs font-bold text-orange-500 hover:text-orange-400 transition-colors"
+                    >
+                      Ver Detalhes
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                </motion.div>
+              ))
+            ) : (
+              <div className="col-span-full py-20 flex flex-col items-center justify-center text-center space-y-4">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex flex-col items-center"
+                >
+                  <div className="w-20 h-20 rounded-3xl bg-white/5 flex items-center justify-center text-gray-600 mb-4">
+                    <AlertCircle size={40} />
+                  </div>
+                  <h3 className="text-xl font-bold text-white">Nenhum treino encontrado</h3>
+                  <p className="text-gray-500 max-w-xs">
+                    Não encontramos treinos para &quot;{searchQuery}&quot;. Tente outro termo ou crie um novo treino.
+                  </p>
+                  {searchQuery && (
+                    <button 
+                      onClick={() => setSearchQuery('')}
+                      className="mt-4 text-sm font-bold text-orange-500 hover:text-orange-400 transition-colors"
+                    >
+                      Limpar busca
+                    </button>
+                  )}
+                </motion.div>
+              </div>
+            )}
           </div>
         </div>
       </main>
@@ -298,11 +380,11 @@ export default function WorkoutsPage() {
                       <select 
                         name="studentId"
                         required
-                        defaultValue={editingWorkout?.studentId || ''}
+                        defaultValue={editingWorkout?.student_id || ''}
                         className="w-full bg-[#0f1117] border border-white/5 rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none transition-all appearance-none"
                       >
                         <option value="" disabled>Selecione uma aluna</option>
-                        {MOCK_STUDENTS.map(s => (
+                        {students.map(s => (
                           <option key={s.id} value={s.id}>{s.name}</option>
                         ))}
                       </select>
@@ -419,7 +501,7 @@ export default function WorkoutsPage() {
                 <div>
                   <h2 className="text-xl font-bold text-white">{viewingWorkout.title}</h2>
                   <p className="text-white/80 text-sm">
-                    Aluna: {MOCK_STUDENTS.find(s => s.id === viewingWorkout.studentId)?.name}
+                    Aluna: {students.find(s => s.id === viewingWorkout.student_id)?.name}
                   </p>
                 </div>
                 <button onClick={() => setViewingWorkout(null)} className="text-white/80 hover:text-white">
@@ -468,7 +550,7 @@ export default function WorkoutsPage() {
 
               <div className="p-6 border-t border-white/5 bg-[#0f1117]/50 flex justify-between items-center">
                 <span className="text-[10px] text-gray-600 uppercase tracking-widest">
-                  Última atualização: {viewingWorkout.updatedAt}
+                  Última atualização: {new Date(viewingWorkout.updated_at).toLocaleDateString('pt-BR')}
                 </span>
                 <button 
                   onClick={() => setViewingWorkout(null)}
@@ -481,6 +563,13 @@ export default function WorkoutsPage() {
           </div>
         )}
       </AnimatePresence>
+      <ConfirmModal 
+        isOpen={confirmDelete.isOpen}
+        onClose={() => setConfirmDelete({ isOpen: false, id: '' })}
+        onConfirm={confirmDeleteAction}
+        title="Excluir Treino"
+        message="Tem certeza que deseja excluir este treino? Esta ação não pode ser desfeita."
+      />
     </div>
   );
 }

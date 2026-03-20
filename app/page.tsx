@@ -41,7 +41,7 @@ export default function Dashboard() {
       const { data: pendingPayments } = await supabase
         .from('memberships')
         .select('*')
-        .or('status.eq.pendente,status.eq.atrasado');
+        .or('status.eq.pending,status.eq.overdue');
       
       const now = new Date();
       const firstDayOfMonth = startOfMonth(now);
@@ -50,7 +50,7 @@ export default function Dashboard() {
       const { data: monthlyTransactions } = await supabase
         .from('transactions')
         .select('amount')
-        .eq('type', 'Receita')
+        .eq('type', 'income')
         .gte('date', firstDayOfMonth.toISOString())
         .lte('date', lastDayOfMonth.toISOString());
       
@@ -76,7 +76,7 @@ export default function Dashboard() {
         name: p.student_name,
         date: isBefore(new Date(p.due_date), now) ? 'Atrasado' : `Vence ${format(new Date(p.due_date), "dd 'de' MMM", { locale: ptBR })}`,
         amount: `R$ ${p.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-        status: p.status
+        status: p.status === 'overdue' ? 'atrasado' : 'pendente'
       })).slice(0, 5) || [];
       setReminders(formattedReminders);
 
@@ -116,7 +116,7 @@ export default function Dashboard() {
         const { data: monthTransactions } = await supabase
           .from('transactions')
           .select('amount')
-          .eq('type', 'Receita')
+          .eq('type', 'income')
           .gte('date', start.toISOString())
           .lte('date', end.toISOString());
         
