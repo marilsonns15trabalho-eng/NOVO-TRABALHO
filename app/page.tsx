@@ -1,379 +1,194 @@
-'use client';
-
-import React, { useState, useEffect, useCallback } from 'react';
-import { Sidebar } from '@/components/Sidebar';
-import { Header } from '@/components/Header';
-import { StatCard } from '@/components/StatCard';
-import { RevenueChart } from '@/components/RevenueChart';
-import { ChevronRight, AlertCircle, CheckCircle2, Clock, Plus, User, Users, ClipboardCheck, Activity, TrendingUp, CreditCard, ArrowUpRight, DollarSign, Calendar } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
-import { format, subMonths, startOfMonth, endOfMonth, isBefore, addDays } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { toast } from 'sonner';
-import { useSettings } from '@/lib/SettingsContext';
+import { Button } from '@/components/ui/button';
+import { ArrowRight, CheckCircle2, Instagram, Phone, MapPin, Dumbbell, Users, TrendingUp } from 'lucide-react';
 
-export default function Dashboard() {
-  const [loading, setLoading] = useState(true);
-  const { settings } = useSettings();
-  const [stats, setStats] = useState([
-    { label: 'Total de Alunos', value: '0', icon: Users, color: 'orange' },
-    { label: 'Alunos Ativos', value: '0', icon: ClipboardCheck, color: 'green' },
-    { label: 'Pagamentos Pendentes', value: '0', icon: Activity, color: 'red' },
-    { label: 'Receita Mensal', value: 'R$ 0', icon: TrendingUp, color: 'orange' },
-    { label: 'Vencimentos Próximos', value: '0', icon: CreditCard, color: 'orange' },
-  ]);
-  
-  const [reminders, setReminders] = useState<any[]>([]);
-  const [expirations, setExpirations] = useState<any[]>([]);
-  const [signups, setSignups] = useState<any[]>([]);
-  const [revenueData, setRevenueData] = useState<any[]>([]);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      // 1. Fetch Stats
-      const { count: totalStudents } = await supabase.from('students').select('*', { count: 'exact', head: true });
-      const { count: activeStudents } = await supabase.from('students').select('*', { count: 'exact', head: true }).eq('status', 'Ativo');
-      
-      const { data: pendingPayments } = await supabase
-        .from('memberships')
-        .select('*')
-        .or('status.eq.pending,status.eq.overdue');
-      
-      const now = new Date();
-      const firstDayOfMonth = startOfMonth(now);
-      const lastDayOfMonth = endOfMonth(now);
-      
-      const { data: monthlyTransactions } = await supabase
-        .from('transactions')
-        .select('amount')
-        .eq('type', 'income')
-        .gte('date', firstDayOfMonth.toISOString())
-        .lte('date', lastDayOfMonth.toISOString());
-      
-      const monthlyRevenue = monthlyTransactions?.reduce((acc, curr) => acc + curr.amount, 0) || 0;
-      
-      const next7Days = addDays(now, 7);
-      const { count: upcomingExpirationsCount } = await supabase
-        .from('memberships')
-        .select('*', { count: 'exact', head: true })
-        .gte('due_date', now.toISOString())
-        .lte('due_date', next7Days.toISOString());
-
-      setStats([
-        { label: 'Total de Alunos', value: String(totalStudents || 0), icon: Users, color: 'orange' },
-        { label: 'Alunos Ativos', value: String(activeStudents || 0), icon: ClipboardCheck, color: 'green' },
-        { label: 'Pagamentos Pendentes', value: String(pendingPayments?.length || 0), icon: Activity, color: 'red' },
-        { label: 'Receita Mensal', value: `R$ ${monthlyRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, icon: TrendingUp, color: 'orange' },
-        { label: 'Vencimentos Próximos', value: String(upcomingExpirationsCount || 0), icon: CreditCard, color: 'orange' },
-      ]);
-
-      // 2. Fetch Reminders (Pending/Overdue Memberships)
-      const formattedReminders = pendingPayments?.map(p => ({
-        name: p.student_name,
-        date: isBefore(new Date(p.due_date), now) ? 'Atrasado' : `Vence ${format(new Date(p.due_date), "dd 'de' MMM", { locale: ptBR })}`,
-        amount: `R$ ${p.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-        status: p.status === 'overdue' ? 'atrasado' : 'pendente'
-      })).slice(0, 5) || [];
-      setReminders(formattedReminders);
-
-      // 3. Fetch Upcoming Expirations
-      const { data: upcomingExpirations } = await supabase
-        .from('memberships')
-        .select('*')
-        .gte('due_date', now.toISOString())
-        .lte('due_date', next7Days.toISOString())
-        .order('due_date', { ascending: true })
-        .limit(5);
-      
-      setExpirations(upcomingExpirations?.map(e => ({
-        name: e.student_name,
-        date: `Expira: ${format(new Date(e.due_date), "dd 'de' MMM, yyyy", { locale: ptBR })}`
-      })) || []);
-
-      // 4. Fetch Recent Signups
-      const { data: recentStudents } = await supabase
-        .from('students')
-        .select('*')
-        .order('join_date', { ascending: false })
-        .limit(5);
-      
-      setSignups(recentStudents?.map(s => ({
-        name: s.name,
-        date: `Entrou: ${format(new Date(s.join_date), "dd 'de' MMM, yyyy", { locale: ptBR })}`
-      })) || []);
-
-      // 5. Fetch Revenue Data for Chart (Last 6 months)
-      const chartData = [];
-      for (let i = 5; i >= 0; i--) {
-        const monthDate = subMonths(now, i);
-        const start = startOfMonth(monthDate);
-        const end = endOfMonth(monthDate);
-        
-        const { data: monthTransactions } = await supabase
-          .from('transactions')
-          .select('amount')
-          .eq('type', 'income')
-          .gte('date', start.toISOString())
-          .lte('date', end.toISOString());
-        
-        const total = monthTransactions?.reduce((acc, curr) => acc + curr.amount, 0) || 0;
-        chartData.push({
-          month: format(monthDate, 'MMM', { locale: ptBR }),
-          revenue: total
-        });
-      }
-      setRevenueData(chartData);
-
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      toast.error('Erro ao carregar dados do dashboard');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  const quickActions = [
-    { label: 'Novo Aluno', icon: User, href: '/students', color: 'bg-orange-500' },
-    { label: 'Registrar Pagamento', icon: DollarSign, href: '/financial', color: 'bg-emerald-500' },
-    { label: 'Nova Transação', icon: ArrowUpRight, href: '/financial', color: 'bg-blue-500' },
-    { label: 'Ver Relatórios', icon: TrendingUp, href: '/financial', color: 'bg-purple-500' },
-  ];
-
+export default function HomePage() {
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-[#0f1117] text-white font-sans">
-      <Sidebar />
-      
-      <main className="flex-1 flex flex-col">
-        <Header />
-        
-        <div className="p-4 md:p-8 space-y-8">
-          {/* Welcome Section */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">Olá, {settings.studioName}!</h1>
-              <p className="text-gray-500 text-sm mt-1">
-                Aqui está o que está acontecendo no seu estúdio hoje, {format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}.
-              </p>
+    <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-[#FF6B00] selection:text-white">
+      {/* Header/Navbar */}
+      <nav className="fixed top-0 w-full z-50 bg-[#0a0a0a]/80 backdrop-blur-md border-b border-[#333]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-20 items-center">
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 bg-[#FF6B00] rounded-lg flex items-center justify-center font-bold text-xl">L</div>
+              <span className="font-bold text-xl tracking-tighter">LIONESS <span className="text-[#FF6B00]">PERSONAL</span></span>
             </div>
-            <div className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-widest bg-[#1a1d26] px-4 py-2 rounded-full border border-white/5">
-              <Calendar size={14} className="text-orange-500" />
-              {format(new Date(), "yyyy")}
+            <div className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-400">
+              <a href="#sobre" className="hover:text-[#FF6B00] transition-colors">Sobre</a>
+              <a href="#planos" className="hover:text-[#FF6B00] transition-colors">Planos</a>
+              <a href="#contato" className="hover:text-[#FF6B00] transition-colors">Contato</a>
             </div>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {quickActions.map((action, idx) => (
-              <Link 
-                key={idx} 
-                href={action.href}
-                className="group flex flex-col items-center justify-center p-6 bg-[#1a1d26] rounded-2xl border border-white/5 hover:border-orange-500/30 transition-all hover:scale-[1.02]"
-              >
-                <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center text-white mb-3 shadow-lg transition-transform group-hover:scale-110", action.color)}>
-                  <action.icon size={24} />
-                </div>
-                <span className="text-sm font-bold text-gray-300 group-hover:text-white transition-colors text-center">{action.label}</span>
+            <div className="flex items-center gap-4">
+              <Link href="/login">
+                <Button variant="ghost" className="text-gray-400 hover:text-white hover:bg-[#333]">Entrar</Button>
               </Link>
-            ))}
-          </div>
-
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
-            {loading ? (
-              [...Array(5)].map((_, i) => (
-                <div key={i} className="h-32 bg-[#1a1d26] animate-pulse rounded-2xl border border-white/5" />
-              ))
-            ) : (
-              stats.map((stat, idx) => (
-                <StatCard key={idx} {...stat} />
-              ))
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Main Chart */}
-            <div className="lg:col-span-2">
-              {loading ? (
-                <div className="h-[400px] bg-[#1a1d26] animate-pulse rounded-2xl border border-white/5" />
-              ) : (
-                <RevenueChart data={revenueData} />
-              )}
-            </div>
-
-            {/* Payment Reminders */}
-            <div className="bg-[#1a1d26] p-6 rounded-2xl border border-white/5 flex flex-col gap-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-white font-bold text-lg">Lembretes de Pagamento</h3>
-                <Link 
-                  href="/financial"
-                  className="p-2 bg-orange-500/10 text-orange-500 rounded-lg hover:bg-orange-500 hover:text-white transition-all"
-                >
-                  <Plus size={16} />
-                </Link>
-              </div>
-
-              <div className="space-y-4">
-                {loading ? (
-                  <div className="space-y-4">
-                    {[1, 2, 3].map(i => (
-                      <div key={i} className="h-20 bg-white/5 animate-pulse rounded-xl" />
-                    ))}
-                  </div>
-                ) : reminders.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-gray-500 gap-3">
-                    <CheckCircle2 size={48} className="opacity-10" />
-                    <p className="text-sm">Tudo em dia por aqui!</p>
-                  </div>
-                ) : (
-                  <AnimatePresence mode="popLayout">
-                    {reminders.map((payment, idx) => (
-                      <motion.div
-                        key={payment.name + idx}
-                        layout
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        className="group relative flex items-center justify-between p-4 rounded-xl bg-[#0f1117] border border-white/5 hover:border-orange-500/30 transition-all"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className={payment.status === 'atrasado' ? 'text-red-500' : 'text-orange-500'}>
-                            {payment.status === 'atrasado' ? <AlertCircle size={20} /> : <Clock size={20} />}
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-white">{payment.name}</p>
-                            <p className="text-xs text-gray-500">{payment.date}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right transition-opacity">
-                            <p className="text-sm font-bold text-white">{payment.amount}</p>
-                            <p className={cn(
-                              "text-[10px] uppercase font-bold tracking-wider",
-                              payment.status === 'atrasado' ? 'text-red-500' : 'text-orange-500'
-                            )}>
-                              {payment.status}
-                            </p>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
-                )}
-              </div>
+              <Link href="/register">
+                <Button className="bg-[#FF6B00] hover:bg-[#e65a00] text-white font-bold">Começar Agora</Button>
+              </Link>
             </div>
           </div>
+        </div>
+      </nav>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Upcoming Expirations */}
-            <div className="bg-[#1a1d26] p-6 rounded-2xl border border-white/5">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-white font-bold text-lg">Vencimentos Próximos</h3>
-                <Link 
-                  href="/financial"
-                  className="p-2 bg-orange-500/10 text-orange-500 rounded-lg hover:bg-orange-500 hover:text-white transition-all"
-                >
-                  <Plus size={16} />
-                </Link>
+      {/* Hero Section */}
+      <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-[#FF6B0015] via-transparent to-transparent pointer-events-none" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+          <div className="text-center max-w-3xl mx-auto">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FF6B0015] border border-[#FF6B0033] text-[#FF6B00] text-xs font-bold mb-6 animate-fade-in">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF6B00] opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#FF6B00]"></span>
+              </span>
+              ESTÚDIO PREMIUM EM RIO DE JANEIRO
+            </div>
+            <h1 className="text-5xl lg:text-7xl font-extrabold tracking-tight mb-6 leading-tight">
+              Transforme seu corpo, <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FF6B00] to-[#ff9d5c]">conquiste sua força.</span>
+            </h1>
+            <p className="text-lg text-gray-400 mb-10 leading-relaxed">
+              Treinamento personalizado de alta performance em um ambiente exclusivo. 
+              Foco total nos seus objetivos com acompanhamento profissional de elite.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link href="/register">
+                <Button className="w-full sm:w-auto bg-[#FF6B00] hover:bg-[#e65a00] text-white font-bold px-8 py-7 text-lg rounded-xl group">
+                  Agendar Aula Experimental
+                  <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </Link>
+              <Link href="#planos">
+                <Button variant="outline" className="w-full sm:w-auto border-[#333] bg-transparent hover:bg-[#333] text-white px-8 py-7 text-lg rounded-xl">
+                  Ver Planos
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Stats/Features */}
+      <section className="py-20 border-y border-[#333] bg-[#0d0d0d]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-[#FF6B0015] rounded-xl flex items-center justify-center text-[#FF6B00]">
+                <Dumbbell className="w-6 h-6" />
               </div>
-              <div className="space-y-4">
-                {loading ? (
-                  <div className="space-y-4">
-                    {[1, 2, 3].map(i => (
-                      <div key={i} className="h-16 bg-white/5 animate-pulse rounded-xl" />
-                    ))}
-                  </div>
-                ) : expirations.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-gray-500 gap-3">
-                    <Calendar size={48} className="opacity-10" />
-                    <p className="text-sm">Nenhum vencimento próximo.</p>
-                  </div>
-                ) : (
-                  <AnimatePresence mode="popLayout">
-                    {expirations.map((item, idx) => (
-                      <motion.div 
-                        key={item.name + idx}
-                        layout
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        className="group flex items-center justify-between p-4 rounded-xl bg-[#0f1117] border border-white/5 hover:border-orange-500/30 transition-all"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500">
-                            <User size={16} />
-                          </div>
-                          <span className="text-sm font-medium">{item.name}</span>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <span className="text-xs text-gray-500 transition-opacity">{item.date}</span>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
-                )}
+              <div>
+                <h3 className="font-bold text-xl mb-2">Equipamentos Elite</h3>
+                <p className="text-gray-400 text-sm">Tecnologia de ponta para maximizar seus resultados em cada repetição.</p>
               </div>
             </div>
-
-            {/* Recent Signups */}
-            <div className="bg-[#1a1d26] p-6 rounded-2xl border border-white/5">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-white font-bold text-lg">Novos Alunos</h3>
-                <Link 
-                  href="/students"
-                  className="p-2 bg-emerald-500/10 text-emerald-500 rounded-lg hover:bg-emerald-500 hover:text-white transition-all"
-                >
-                  <Plus size={16} />
-                </Link>
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-[#FF6B0015] rounded-xl flex items-center justify-center text-[#FF6B00]">
+                <Users className="w-6 h-6" />
               </div>
-              <div className="space-y-4">
-                {loading ? (
-                  <div className="space-y-4">
-                    {[1, 2, 3].map(i => (
-                      <div key={i} className="h-16 bg-white/5 animate-pulse rounded-xl" />
-                    ))}
-                  </div>
-                ) : signups.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-gray-500 gap-3">
-                    <Users size={48} className="opacity-10" />
-                    <p className="text-sm">Nenhum novo aluno recente.</p>
-                  </div>
-                ) : (
-                  <AnimatePresence mode="popLayout">
-                    {signups.map((item, idx) => (
-                      <motion.div 
-                        key={item.name + idx}
-                        layout
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        className="group flex items-center justify-between p-4 rounded-xl bg-[#0f1117] border border-white/5 hover:border-orange-500/30 transition-all"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-                            <CheckCircle2 size={16} />
-                          </div>
-                          <span className="text-sm font-medium">{item.name}</span>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <span className="text-xs text-gray-500 transition-opacity">{item.date}</span>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
-                )}
+              <div>
+                <h3 className="font-bold text-xl mb-2">Atendimento VIP</h3>
+                <p className="text-gray-400 text-sm">No máximo 3 alunos por horário. Atenção total do seu personal trainer.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-[#FF6B0015] rounded-xl flex items-center justify-center text-[#FF6B00]">
+                <TrendingUp className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-xl mb-2">Evolução Real</h3>
+                <p className="text-gray-400 text-sm">Avaliações físicas periódicas e treinos ajustados ao seu progresso.</p>
               </div>
             </div>
           </div>
         </div>
-      </main>
+      </section>
+
+      {/* Plans Section */}
+      <section id="planos" className="py-24 bg-[#0a0a0a]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl lg:text-5xl font-bold mb-4">Escolha seu <span className="text-[#FF6B00]">Plano</span></h2>
+            <p className="text-gray-400">Investimento na sua saúde com flexibilidade e resultados.</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[
+              { name: 'Basic', price: '249', features: ['2x na semana', 'Avaliação mensal', 'App de treinos', 'Suporte WhatsApp'] },
+              { name: 'Premium', price: '349', features: ['3x na semana', 'Avaliação quinzenal', 'App de treinos', 'Suporte VIP 24h', 'Plano nutricional'], popular: true },
+              { name: 'Elite', price: '499', features: ['5x na semana', 'Avaliação semanal', 'App de treinos', 'Suporte VIP 24h', 'Plano nutricional', 'Acesso livre'] },
+            ].map((plan, i) => (
+              <div key={i} className={`relative p-8 rounded-3xl border ${plan.popular ? 'border-[#FF6B00] bg-[#FF6B0005]' : 'border-[#333] bg-[#111]'} flex flex-col`}>
+                {plan.popular && (
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#FF6B00] text-white text-xs font-bold px-4 py-1 rounded-full">
+                    MAIS POPULAR
+                  </div>
+                )}
+                <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
+                <div className="flex items-baseline gap-1 mb-6">
+                  <span className="text-4xl font-bold">R$ {plan.price}</span>
+                  <span className="text-gray-500">/mês</span>
+                </div>
+                <ul className="space-y-4 mb-8 flex-grow">
+                  {plan.features.map((feature, j) => (
+                    <li key={j} className="flex items-center gap-3 text-sm text-gray-300">
+                      <CheckCircle2 className="w-5 h-5 text-[#FF6B00]" />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+                <Button className={`w-full py-6 font-bold rounded-xl ${plan.popular ? 'bg-[#FF6B00] hover:bg-[#e65a00] text-white' : 'bg-white text-black hover:bg-gray-200'}`}>
+                  Assinar Agora
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer id="contato" className="py-20 border-t border-[#333] bg-[#0d0d0d]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
+            <div className="col-span-1 md:col-span-2">
+              <div className="flex items-center gap-2 mb-6">
+                <div className="w-10 h-10 bg-[#FF6B00] rounded-lg flex items-center justify-center font-bold text-xl">L</div>
+                <span className="font-bold text-xl tracking-tighter">LIONESS <span className="text-[#FF6B00]">PERSONAL</span></span>
+              </div>
+              <p className="text-gray-400 max-w-sm mb-6">
+                O estúdio de treinamento personalizado mais exclusivo do Rio de Janeiro. 
+                Focado em resultados reais e atendimento de alta performance.
+              </p>
+              <div className="flex gap-4">
+                <a href="#" className="w-10 h-10 rounded-full bg-[#1a1a1a] flex items-center justify-center text-gray-400 hover:text-[#FF6B00] transition-colors">
+                  <Instagram className="w-5 h-5" />
+                </a>
+                <a href="#" className="w-10 h-10 rounded-full bg-[#1a1a1a] flex items-center justify-center text-gray-400 hover:text-[#FF6B00] transition-colors">
+                  <Phone className="w-5 h-5" />
+                </a>
+              </div>
+            </div>
+            <div>
+              <h4 className="font-bold mb-6">Localização</h4>
+              <ul className="space-y-4 text-sm text-gray-400">
+                <li className="flex items-start gap-3">
+                  <MapPin className="w-5 h-5 text-[#FF6B00] shrink-0" />
+                  Av. das Américas, 500 - Barra da Tijuca, Rio de Janeiro - RJ
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-bold mb-6">Horários</h4>
+              <ul className="space-y-2 text-sm text-gray-400">
+                <li>Segunda - Sexta: 06h às 22h</li>
+                <li>Sábado: 08h às 14h</li>
+                <li>Domingo: Fechado</li>
+              </ul>
+            </div>
+          </div>
+          <div className="pt-8 border-t border-[#333] text-center text-sm text-gray-500">
+            © 2026 Lioness Personal Estúdio. Todos os direitos reservados.
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
