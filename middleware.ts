@@ -20,11 +20,7 @@ export async function middleware(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           );
-
-          response = NextResponse.next({
-            request,
-          });
-
+          response = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options)
           );
@@ -33,25 +29,29 @@ export async function middleware(request: NextRequest) {
     }
   );
 
+  // 🔐 pega usuário logado
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
 
-  // 🔓 ROTAS PÚBLICAS
-  const publicRoutes = ["/", "/login", "/register", "/auth"];
-
-  const isPublic = publicRoutes.some((route) =>
-    path.startsWith(route)
-  );
-
-  // 🔒 NÃO LOGADO → LOGIN
-  if (!user && !isPublic) {
+  // ===============================
+  // 🚫 USUÁRIO NÃO LOGADO
+  // ===============================
+  if (
+    !user &&
+    !path.startsWith("/login") &&
+    !path.startsWith("/register") &&
+    !path.startsWith("/auth") &&
+    path !== "/"
+  ) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // 🔥 USUÁRIO LOGADO
+  // ===============================
+  // 🔐 USUÁRIO LOGADO
+  // ===============================
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
@@ -59,20 +59,12 @@ export async function middleware(request: NextRequest) {
       .eq("id", user.id)
       .single();
 
-    const role = profile?.role;
+    // 🔥 fallback seguro
+    const role = profile?.role ?? "student";
 
-    // 🚀 REDIRECIONAMENTO AUTOMÁTICO (se entrar na raiz)
-    if (path === "/") {
-      if (role === "admin") {
-        return NextResponse.redirect(new URL("/admin", request.url));
-      }
-      if (role === "personal") {
-        return NextResponse.redirect(new URL("/personal", request.url));
-      }
-      return NextResponse.redirect(new URL("/aluna/dashboard", request.url));
-    }
-
-    // 🔐 PROTEÇÃO POR ROLE
+    // ===============================
+    // 🔒 BLOQUEIOS POR ROLE
+    // ===============================
 
     // ADMIN
     if (path.startsWith("/admin") && role !== "admin") {
@@ -84,15 +76,36 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL("/", request.url));
     }
 
-    // ALUNA
+    // ALUNO
     if (path.startsWith("/aluna") && role !== "student") {
       return NextResponse.redirect(new URL("/", request.url));
+    }
+
+    // ===============================
+    // 🔁 REDIRECIONAMENTO INTELIGENTE
+    // ===============================
+
+    if (path === "/" || path === "/login") {
+      if (role === "admin") {
+        return NextResponse.redirect(new URL("/admin/dashboard", request.url));
+      }
+
+      if (role === "personal") {
+        return NextResponse.redirect(new URL("/personal/dashboard", request.url));
+      }
+
+      if (role === "student") {
+        return NextResponse.redirect(new URL("/aluna/dashboard", request.url));
+      }
     }
   }
 
   return response;
 }
 
+// ===============================
+// ⚙️ CONFIG
+// ===============================
 export const config = {
   matcher: [
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
