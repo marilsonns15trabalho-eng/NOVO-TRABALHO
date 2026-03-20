@@ -30,9 +30,13 @@ export const MOCK_ASSESSMENTS: PhysicalAssessment[] = [
     },
     results: {
       bmi: 22.49,
+      bmiClassification: 'Peso normal',
       fatPercentage: 15.72,
       fatMass: 10.22,
       leanMass: 54.78,
+      waistHipRatio: 0.71,
+      rcqClassification: 'Baixo',
+      age: 25,
     },
     notes: 'Primeira avaliação do ano.'
   },
@@ -65,9 +69,13 @@ export const MOCK_ASSESSMENTS: PhysicalAssessment[] = [
     },
     results: {
       bmi: 23.18,
+      bmiClassification: 'Peso normal',
       fatPercentage: 17.40,
       fatMass: 11.66,
       leanMass: 55.34,
+      waistHipRatio: 0.72,
+      rcqClassification: 'Baixo',
+      age: 25,
     },
     notes: 'Avaliação inicial.'
   }
