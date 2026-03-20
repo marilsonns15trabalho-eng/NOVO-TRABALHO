@@ -33,11 +33,16 @@ export interface PhysicalAssessment {
   // Calculated Results
   results: {
     bmi: number; // IMC
+    bmiClassification: string; // Classificação IMC
     fatPercentage: number; // % Gordura
     fatMass: number; // Massa Gorda (kg)
     leanMass: number; // Massa Magra (kg)
+    waistHipRatio: number; // RCQ
+    rcqClassification: string; // Classificação RCQ
+    age: number;
   };
   
+  age?: number;
   notes?: string;
 }
 

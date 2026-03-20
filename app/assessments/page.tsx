@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
@@ -461,6 +463,16 @@ export default function AssessmentsPage() {
                     <div>
                       <p className="text-xs text-gray-500">IMC</p>
                       <p className="text-xl font-bold">{viewingAssessment.results.bmi}</p>
+                      <p className="text-[10px] text-gray-500">{viewingAssessment.results.bmiClassification}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">RCQ</p>
+                      <p className="text-xl font-bold">{viewingAssessment.results.waistHipRatio}</p>
+                      <p className="text-[10px] text-gray-500">{viewingAssessment.results.rcqClassification}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Idade</p>
+                      <p className="text-xl font-bold">{viewingAssessment.results.age || viewingAssessment.age || '--'} anos</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">% Gordura</p>
@@ -503,12 +515,28 @@ export default function AssessmentsPage() {
               <div className="bg-[#0f1117] p-6 rounded-3xl border border-white/5">
                 <h4 className="text-sm font-bold text-orange-500 uppercase tracking-widest mb-4">Perímetros</h4>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {Object.entries(viewingAssessment.perimeters).map(([key, value]) => (
-                    <div key={key}>
-                      <p className="text-[10px] text-gray-500 uppercase">{key}</p>
-                      <p className="text-sm font-bold">{value} cm</p>
-                    </div>
-                  ))}
+                  {Object.entries(viewingAssessment.perimeters).map(([key, value]) => {
+                    const labels: Record<string, string> = {
+                      neck: 'Pescoço',
+                      shoulder: 'Ombro',
+                      chest: 'Tórax',
+                      waist: 'Cintura',
+                      abdomen: 'Abdômen',
+                      hip: 'Quadril',
+                      rightArm: 'Braço D',
+                      leftArm: 'Braço E',
+                      rightThigh: 'Coxa D',
+                      leftThigh: 'Coxa E',
+                      rightCalf: 'Pant. D',
+                      leftCalf: 'Pant. E',
+                    };
+                    return (
+                      <div key={key}>
+                        <p className="text-[10px] text-gray-500 uppercase">{labels[key] || key}</p>
+                        <p className="text-sm font-bold">{value} cm</p>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>

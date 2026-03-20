@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React from 'react';
 import { AnamnesisList } from '@/components/anamnesis/AnamnesisList';
 import { AnamnesisForm } from '@/components/anamnesis/AnamnesisForm';

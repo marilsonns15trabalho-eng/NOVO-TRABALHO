@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React from 'react';
 import Link from 'next/link';
 import { Sidebar } from '@/components/Sidebar';
@@ -20,8 +22,12 @@ import {
   Trash2,
   Edit2,
   X,
-  UserPlus
+  UserPlus,
+  Download,
+  Scale
 } from 'lucide-react';
+import { ComparisonModal } from '@/components/assessments/ComparisonModal';
+import { exportToPDF } from '@/lib/pdf-utils';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
@@ -54,7 +60,23 @@ export default function StudentProfile() {
   const [isLoading, setIsLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [viewingAssessment, setViewingAssessment] = React.useState<PhysicalAssessment | null>(null);
+  const [isComparing, setIsComparing] = React.useState(false);
   const [viewingWorkout, setViewingWorkout] = React.useState<any | null>(null);
+
+  const perimeterLabels: Record<string, string> = {
+    neck: 'Pescoço',
+    shoulder: 'Ombros',
+    chest: 'Peitoral',
+    waist: 'Cintura',
+    abdomen: 'Abdomen',
+    hip: 'Quadril',
+    rightArm: 'Braço Dir.',
+    leftArm: 'Braço Esq.',
+    rightThigh: 'Coxa Dir.',
+    leftThigh: 'Coxa Esq.',
+    rightCalf: 'Panturrilha Dir.',
+    leftCalf: 'Panturrilha Esq.',
+  };
 
   const fetchStudentData = React.useCallback(async () => {
     if (!studentId) return;
@@ -538,12 +560,23 @@ export default function StudentProfile() {
                           <div className="w-1 h-6 bg-orange-500 rounded-full" />
                           Evolução Antropométrica
                         </h3>
-                        <button 
-                          onClick={() => setIsFormOpen(true)}
-                          className="p-3 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20"
-                        >
-                          <Plus size={20} />
-                        </button>
+                        <div className="flex items-center gap-3">
+                          {assessments.length >= 2 && (
+                            <button 
+                              onClick={() => setIsComparing(true)}
+                              className="flex items-center gap-2 px-4 py-3 bg-white/5 text-white rounded-xl hover:bg-white/10 transition-all border border-white/5"
+                            >
+                              <Scale size={18} />
+                              <span className="text-sm font-bold">Comparar</span>
+                            </button>
+                          )}
+                          <button 
+                            onClick={() => setIsFormOpen(true)}
+                            className="p-3 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20"
+                          >
+                            <Plus size={20} />
+                          </button>
+                        </div>
                       </div>
                       <EvolutionChart data={assessments} />
                     </div>
@@ -638,7 +671,12 @@ export default function StudentProfile() {
         <AssessmentForm 
           onClose={() => setIsFormOpen(false)}
           onSave={handleSaveAssessment}
-          students={[{ id: student.id, name: student.name }]}
+          students={[{ 
+            id: student.id, 
+            name: student.name, 
+            birth_date: student.birth_date, 
+            gender: student.gender 
+          }]}
           initialData={{ studentId: student.id }}
         />
       )}
@@ -690,25 +728,40 @@ export default function StudentProfile() {
 
       {viewingAssessment && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#1a1d26] w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl border border-white/10 shadow-2xl p-6 md:p-8">
+          <div id="assessment-details" className="bg-[#1a1d26] w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl border border-white/10 shadow-2xl p-6 md:p-8">
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h2 className="text-2xl font-bold text-white">Detalhes da Avaliação</h2>
                 <p className="text-gray-500 text-sm">{student.name} • {format(new Date(viewingAssessment.date), 'dd/MM/yyyy')}</p>
               </div>
-              <button onClick={() => setViewingAssessment(null)} className="p-2 hover:bg-white/5 rounded-full transition-colors">
-                <X size={24} className="text-gray-400" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => exportToPDF('assessment-details', `Avaliacao_${student.name}_${viewingAssessment.date}`)}
+                  className="p-2 bg-orange-500/10 text-orange-500 rounded-xl hover:bg-orange-500 hover:text-white transition-all flex items-center gap-2 px-4"
+                >
+                  <Download size={18} />
+                  <span className="text-xs font-bold uppercase">PDF</span>
+                </button>
+                <button onClick={() => setViewingAssessment(null)} className="p-2 hover:bg-white/5 rounded-full transition-colors">
+                  <X size={24} className="text-gray-400" />
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-8">
                 <div className="bg-[#0f1117] p-6 rounded-3xl border border-white/5">
                   <h4 className="text-sm font-bold text-orange-500 uppercase tracking-widest mb-4">Resultados</h4>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-y-6 gap-x-4">
                     <div>
                       <p className="text-xs text-gray-500">IMC</p>
                       <p className="text-xl font-bold">{viewingAssessment.results.bmi}</p>
+                      <p className="text-[10px] text-gray-500 uppercase">{viewingAssessment.results.bmiClassification}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">RCQ</p>
+                      <p className="text-xl font-bold">{viewingAssessment.results.waistHipRatio}</p>
+                      <p className="text-[10px] text-gray-500 uppercase">{viewingAssessment.results.rcqClassification}</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">% Gordura</p>
@@ -721,6 +774,10 @@ export default function StudentProfile() {
                     <div>
                       <p className="text-xs text-gray-500">Massa Magra</p>
                       <p className="text-xl font-bold">{viewingAssessment.results.leanMass} kg</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Idade na Avaliação</p>
+                      <p className="text-xl font-bold">{viewingAssessment.age || '--'} anos</p>
                     </div>
                   </div>
                 </div>
@@ -750,10 +807,10 @@ export default function StudentProfile() {
 
               <div className="bg-[#0f1117] p-6 rounded-3xl border border-white/5">
                 <h4 className="text-sm font-bold text-orange-500 uppercase tracking-widest mb-4">Perímetros</h4>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
                   {Object.entries(viewingAssessment.perimeters).map(([key, value]) => (
                     <div key={key}>
-                      <p className="text-[10px] text-gray-500 uppercase">{key}</p>
+                      <p className="text-[10px] text-gray-500 uppercase">{perimeterLabels[key] || key}</p>
                       <p className="text-sm font-bold">{value} cm</p>
                     </div>
                   ))}
@@ -769,6 +826,13 @@ export default function StudentProfile() {
             )}
           </div>
         </div>
+      )}
+
+      {isComparing && (
+        <ComparisonModal 
+          onClose={() => setIsComparing(false)}
+          assessments={assessments}
+        />
       )}
     </div>
   );
