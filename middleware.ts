@@ -17,12 +17,10 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
+          cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           );
-          response = NextResponse.next({
-            request,
-          });
+          response = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options)
           );
@@ -35,9 +33,40 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Se não estiver logado e tentar acessar rotas protegidas
-  if (!user && !request.nextUrl.pathname.startsWith('/login') && !request.nextUrl.pathname.startsWith('/auth') && request.nextUrl.pathname !== '/') {
-    return NextResponse.redirect(new URL('/login', request.url));
+  const path = request.nextUrl.pathname;
+
+  // 🔒 NÃO LOGADO
+  if (
+    !user &&
+    !path.startsWith("/login") &&
+    !path.startsWith("/auth") &&
+    path !== "/"
+  ) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  // 🔥 NOVO: CONTROLE DE ROLE
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    // ADMIN
+    if (path.startsWith("/admin") && profile?.role !== "admin") {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+
+    // PERSONAL
+    if (path.startsWith("/personal") && profile?.role !== "personal") {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+
+    // ALUNO
+    if (path.startsWith("/aluna") && profile?.role !== "student") {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
   }
 
   return response;
@@ -45,13 +74,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * Feel free to modify this pattern to include more paths.
-     */
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
