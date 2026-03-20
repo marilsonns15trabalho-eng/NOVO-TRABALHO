@@ -29,7 +29,7 @@ export default function RegisterPage() {
       options: {
         data: {
           full_name: name,
-          role: 'student', // Role padrão conforme solicitado
+          role: 'student',
         },
       },
     });
@@ -72,8 +72,11 @@ export default function RegisterPage() {
             Junte-se ao Lioness Personal Estúdio hoje mesmo
           </CardDescription>
         </CardHeader>
+
         <form onSubmit={handleRegister}>
           <CardContent className="space-y-4">
+            
+            {/* NOME */}
             <div className="space-y-2">
               <Label htmlFor="name">Nome Completo</Label>
               <div className="relative">
@@ -83,11 +86,13 @@ export default function RegisterPage() {
                   placeholder="Seu nome completo"
                   className="pl-10 bg-[#0a0a0a] border-[#333] focus:border-[#FF6B00] text-white"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
                   required
                 />
               </div>
             </div>
+
+            {/* EMAIL */}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">
@@ -98,11 +103,13 @@ export default function RegisterPage() {
                   placeholder="seu@email.com"
                   className="pl-10 bg-[#0a0a0a] border-[#333] focus:border-[#FF6B00] text-white"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
                   required
                 />
               </div>
             </div>
+
+            {/* SENHA */}
             <div className="space-y-2">
               <Label htmlFor="password">Senha</Label>
               <div className="relative">
@@ -113,11 +120,12 @@ export default function RegisterPage() {
                   placeholder="Mínimo 6 caracteres"
                   className="pl-10 bg-[#0a0a0a] border-[#333] focus:border-[#FF6B00] text-white"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
                   required
                 />
               </div>
             </div>
+
             <Button 
               type="submit" 
               className="w-full bg-[#FF6B00] hover:bg-[#e65a00] text-white font-bold py-6"
@@ -125,7 +133,8 @@ export default function RegisterPage() {
             >
               {loading ? 'Cadastrando...' : 'Criar Conta'}
             </Button>
-            
+
+            {/* DIVISOR */}
             <div className="relative my-4">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t border-[#333]"></span>
@@ -135,6 +144,7 @@ export default function RegisterPage() {
               </div>
             </div>
 
+            {/* GOOGLE */}
             <Button 
               type="button" 
               variant="outline" 
@@ -144,7 +154,9 @@ export default function RegisterPage() {
               <Chrome className="mr-2 h-4 w-4" />
               Google
             </Button>
+
           </CardContent>
+
           <CardFooter className="flex flex-wrap items-center justify-center gap-1 text-sm text-gray-400">
             Já tem uma conta? 
             <Link href="/login" className="text-[#FF6B00] font-semibold hover:underline">
