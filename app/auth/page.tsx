@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'motion/react';
 import { Loader2, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
-export default function AuthPage() {
+function AuthContent() {
   const { user, loading: authLoading, signIn, signUp } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -224,5 +224,17 @@ export default function AuthPage() {
         </div>
       </motion.div>
     </div>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-black">
+        <Loader2 className="text-orange-500 animate-spin" size={48} />
+      </div>
+    }>
+      <AuthContent />
+    </Suspense>
   );
 }
