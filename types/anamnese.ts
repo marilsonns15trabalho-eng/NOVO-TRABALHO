@@ -1,0 +1,62 @@
+// Tipos do domínio de Anamnese Nutricional
+
+export interface Anamnese {
+  id: string;
+  student_id: string;
+  data: string;
+  peso?: number;
+  altura?: number;
+  objetivo_nutricional?: string;
+  restricoes_alimentares?: string;
+  alergias?: string;
+  medicamentos?: string;
+  historico_familiar?: string;
+  habitos_alimentares?: string;
+  consumo_agua?: string;
+  atividade_fisica?: string;
+  observacoes?: string;
+  circunferencia_abdominal?: string;
+  circunferencia_quadril?: string;
+  medidas_corpo?: string;
+  doencas_cronicas?: string;
+  problemas_saude?: string;
+  cirurgias?: string;
+  condicoes_hormonais?: string;
+  acompanhamento_psicologico?: string;
+  disturbios_alimentares?: string;
+  gravida_amamentando?: string;
+  acompanhamento_previo?: string;
+  frequencia_refeicoes?: string;
+  horarios_refeicoes?: string;
+  consumo_fastfood?: string;
+  consumo_doces?: string;
+  consumo_bebidas_acucaradas?: string;
+  consumo_alcool?: string;
+  gosta_cozinhar?: string;
+  preferencia_alimentos?: string;
+  consumo_cafe?: string;
+  uso_suplementos?: string;
+  frequencia_atividade_fisica?: string;
+  objetivos_treino?: string;
+  rotina_sono?: string;
+  nivel_estresse?: string;
+  tempo_sentado?: string;
+  dificuldade_dietas?: string;
+  lanches_fora?: string;
+  come_emocional?: string;
+  beliscar?: string;
+  compulsao_alimentar?: string;
+  fome_fora_horario?: string;
+  estrategias_controle_peso?: string;
+  alimentos_preferidos?: string;
+  alimentos_evitados?: string;
+  meta_peso_medidas?: string;
+  disposicao_mudancas?: string;
+  preferencia_dietas?: string;
+  expectativas?: string;
+  created_at: string;
+  user_id?: string;
+  students?: { id: string; nome: string };
+}
+
+export type AnamneseFormData = Partial<Anamnese>;

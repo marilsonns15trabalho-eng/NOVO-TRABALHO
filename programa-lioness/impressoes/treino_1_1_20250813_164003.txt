@@ -1,0 +1,32 @@
+            Lioness Personal Estúdio            
+------------------------------------------------
+ALUNO: Marilson Nascimento
+DATA: 13/08/2025 16:40
+------------------------------------------------
+TREINO: TESTE
+OBJETIVO: TESTE
+NÍVEL: Iniciante
+DURAÇÃO: 60 min
+------------------------------------------------
+EXERCÍCIOS:
+1. Levantamento Terra (Deadlift) - 3x8-12,
+Variável
+   Descanso: 90s
+   Obs: Manter coluna neutra
+2. Agachamento Frontal - 3x8-12, Variável
+   Descanso: 90s
+   Obs: Manter cotovelos elevados
+3. Corrida Intervalada - 4x30s, Peso corporal
+   Descanso: 30s
+   Obs: Alta intensidade
+4. Supino Reto com Barra - 3x8-12, Variável
+   Descanso: 90s
+   Obs: Controlar a descida
+5. The Hundred - 3x100 respirações, Peso
+corporal
+   Descanso: 30s
+   Obs: Manter respiração controlada
+------------------------------------------------
+Instruções: Realizar com intervalo indicado entre as séries.
+              Boa sorte no treino!              
+------------------------------------------------
