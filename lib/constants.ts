@@ -1,11 +1,5 @@
 // Constantes centralizadas do sistema LIONESS PRIME
 
-/**
- * User ID temporário enquanto não há autenticação implementada.
- * Quando autenticação for adicionada, substituir pelo ID do usuário logado.
- */
-export const MOCK_USER_ID = '00000000-0000-0000-0000-000000000000';
-
 /** Valores padrão para formulários */
 export const DEFAULTS = {
   DUE_DAY: 10,

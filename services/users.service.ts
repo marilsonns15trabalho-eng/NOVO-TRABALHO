@@ -1,5 +1,5 @@
 // Camada de serviço para gerenciamento de usuários (user_profiles)
-import { supabase, getCurrentUserId } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { SUPER_ADMIN_EMAIL } from '@/lib/constants';
 import type { UserRole } from '@/contexts/AuthContext';
 
@@ -44,12 +44,13 @@ export async function updateUserRole(
   targetEmail?: string
 ): Promise<{ error: string | null }> {
   // Verificar que o chamador é admin
-  const currentUserId = await getCurrentUserId();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Usuário não autenticado' };
 
   const { data: callerProfile } = await supabase
     .from('user_profiles')
     .select('role')
-    .eq('id', currentUserId)
+    .eq('id', user.id)
     .single();
 
   if (!callerProfile || callerProfile.role !== 'admin') {
@@ -57,7 +58,7 @@ export async function updateUserRole(
   }
 
   // Não permitir alterar o próprio role
-  if (targetUserId === currentUserId) {
+  if (targetUserId === user.id) {
     return { error: 'Você não pode alterar seu próprio role.' };
   }
 

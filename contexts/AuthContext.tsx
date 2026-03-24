@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { SUPER_ADMIN_EMAIL } from '@/lib/constants';
 import type { User, Session } from '@supabase/supabase-js';
@@ -36,57 +36,70 @@ async function ensureUserSetup(user: User, displayName?: string): Promise<UserPr
   const email = user.email || '';
   const name = displayName || email.split('@')[0] || 'Usuário';
 
-  // 1. Verificar/criar user_profiles
-  const { data: existingProfile } = await supabase
-    .from('user_profiles')
-    .select('*')
-    .eq('id', userId)
-    .single();
+  // ⚡ Buscar profile e student em PARALELO
+  const [profileResult, studentResult] = await Promise.all([
+    supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', userId)
+      .single(),
+    supabase
+      .from('students')
+      .select('id')
+      .eq('user_id', userId)
+      .single(),
+  ]);
 
-  let profile = existingProfile as UserProfile | null;
+  let profile = profileResult.data as UserProfile | null;
 
   // Determinar role: super admin sempre é 'admin'
   const isSuperAdmin = email === SUPER_ADMIN_EMAIL;
   const defaultRole = isSuperAdmin ? 'admin' : 'aluno';
 
-  if (!profile) {
-    const { data: newProfile, error: profileError } = await supabase
-      .from('user_profiles')
-      .insert([{
-        id: userId,
-        role: defaultRole,
-        display_name: name,
-      }])
-      .select()
-      .single();
+  // Criar profile e student em paralelo se necessário
+  const pendingInserts: PromiseLike<any>[] = [];
 
-    if (profileError) {
-      console.error('Erro ao criar perfil:', profileError.message);
-    } else {
-      profile = newProfile as UserProfile;
-    }
+  if (!profile) {
+    pendingInserts.push(
+      supabase
+        .from('user_profiles')
+        .insert([{
+          id: userId,
+          role: defaultRole,
+          display_name: name,
+        }])
+        .select()
+        .single()
+        .then(({ data, error }) => {
+          if (error) {
+            console.error('Erro ao criar perfil:', error.message);
+          } else {
+            profile = data as UserProfile;
+          }
+        })
+    );
   }
 
-  // 2. Verificar/criar students
-  const { data: existingStudent } = await supabase
-    .from('students')
-    .select('id')
-    .eq('user_id', userId)
-    .single();
+  if (!studentResult.data) {
+    pendingInserts.push(
+      supabase
+        .from('students')
+        .insert([{
+          name: name,
+          email: email,
+          status: 'ativo',
+          user_id: userId,
+        }])
+        .then(({ error }) => {
+          if (error) {
+            console.error('Erro ao criar registro de aluno:', error.message);
+          }
+        })
+    );
+  }
 
-  if (!existingStudent) {
-    const { error: studentError } = await supabase
-      .from('students')
-      .insert([{
-        name: name,
-        email: email,
-        status: 'ativo',
-        user_id: userId,
-      }]);
-
-    if (studentError) {
-      console.error('Erro ao criar registro de aluno:', studentError.message);
-    }
+  if (pendingInserts.length > 0) {
+    await Promise.all(pendingInserts);
   }
 
   return profile;
@@ -98,52 +111,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Buscar perfil do usuário na tabela user_profiles
-  const fetchProfile = useCallback(async (userId: string) => {
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-
-    if (error && error.code !== 'PGRST116') {
-      console.warn('Erro ao buscar perfil:', error.message);
-      return null;
-    }
-
-    return data as UserProfile | null;
-  }, []);
-
-  // Inicializar sessão
+  // Inicializar sessão via onAuthStateChange (única fonte de verdade)
   useEffect(() => {
-    const initAuth = async () => {
-      try {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-
-        if (currentSession?.user) {
-          setUser(currentSession.user);
-          setSession(currentSession);
-          // ensureUserSetup garante profile + student existem
-          const userProfile = await ensureUserSetup(currentSession.user);
-          setProfile(userProfile);
-        }
-      } catch (err) {
-        console.error('Erro ao inicializar auth:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    initAuth();
-
-    // Listener para mudanças de sessão
+    // Listener para TODAS as mudanças de sessão (incluindo INITIAL_SESSION no mount)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setSession(null);
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+
+      if (event === 'TOKEN_REFRESHED') {
+        // Apenas atualiza sessão — NÃO roda ensureUserSetup
+        if (newSession) {
+          setSession(newSession);
+          setUser(newSession.user);
+        }
+        return;
+      }
+
       if (newSession?.user) {
         setUser(newSession.user);
         setSession(newSession);
-        // ensureUserSetup em toda mudança de sessão (login, token refresh)
-        const userProfile = await ensureUserSetup(newSession.user);
-        setProfile(userProfile);
+
+        // ensureUserSetup só roda em SIGNED_IN e INITIAL_SESSION
+        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+          const userProfile = await ensureUserSetup(newSession.user);
+          setProfile(userProfile);
+        }
       } else {
         setUser(null);
         setSession(null);
@@ -155,7 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [fetchProfile]);
+  }, []);
 
   // Login — ensureUserSetup roda via onAuthStateChange
   const signIn = async (email: string, password: string) => {
@@ -180,10 +177,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Logout
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setSession(null);
-    setProfile(null);
+    try {
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
+      if (error) console.error('Erro no signOut:', error.message);
+    } catch (e) {
+      console.error('Erro ao fazer logout:', e);
+    } finally {
+      setUser(null);
+      setSession(null);
+      setProfile(null);
+    }
   };
 
   // Promoção de role (apenas admin)

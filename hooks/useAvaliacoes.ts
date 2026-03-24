@@ -23,6 +23,7 @@ export function useAvaliacoes() {
     data: new Date().toISOString().split('T')[0],
     peso: 0,
     altura: 0,
+    protocolo: 'faulkner',
   });
 
   const { notification, showNotification, clearNotification } = useNotification();

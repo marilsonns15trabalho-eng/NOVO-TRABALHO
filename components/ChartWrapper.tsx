@@ -64,7 +64,7 @@ export default function ChartWrapper({ children, height = "100%", minHeight = 30
         React.cloneElement(children, {
           width: dimensions.width,
           height: dimensions.height
-        })
+        } as any)
       ) : (
         <div className="w-full h-full flex items-center justify-center bg-zinc-900/10 rounded-2xl animate-pulse">
           <div className="w-6 h-6 border-2 border-zinc-800 border-t-zinc-500 rounded-full animate-spin" />

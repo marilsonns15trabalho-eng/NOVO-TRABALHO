@@ -48,8 +48,8 @@ export function usePlanos() {
     setEditingPlano(plano);
     setFormData({
       name: plano.name,
-      price: plano.price.toString(),
-      duration_months: plano.duration_months.toString(),
+      price: (plano.price ?? 0).toString(),
+      duration_months: (plano.duration_months ?? 1).toString(),
       description: plano.description,
       active: plano.active,
     });

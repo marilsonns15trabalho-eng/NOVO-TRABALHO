@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   Users, 
   DollarSign, 
@@ -45,6 +46,7 @@ const allMenuItems = [
 
 export default function Sidebar({ activeTab, setActiveTab, userRole = 'admin' }: SidebarProps) {
   const { user, profile, signOut } = useAuth();
+  const router = useRouter();
 
   // Filtrar menu items com base no role
   const allowedIds = ROLE_ACCESS[userRole] || ROLE_ACCESS.aluno;
@@ -52,7 +54,7 @@ export default function Sidebar({ activeTab, setActiveTab, userRole = 'admin' }:
 
   const handleSignOut = async () => {
     await signOut();
-    window.location.href = '/';
+    router.push('/');
   };
 
   return (

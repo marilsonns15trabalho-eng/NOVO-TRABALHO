@@ -1,5 +1,5 @@
 // Camada de serviço para Treinos
-import { supabase, getCurrentUserId } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { TABLES } from '@/lib/constants';
 import { mapStudentToListItem } from '@/lib/mappers';
 import type { Treino, TreinoFormData } from '@/types/treino';
@@ -55,12 +55,14 @@ export async function fetchAlunosParaTreino(): Promise<StudentListItem[]> {
 
 /** Cria um novo treino */
 export async function createTreino(treinoData: TreinoFormData): Promise<void> {
-  const userId = await getCurrentUserId();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Usuário não autenticado');
+
   const { error } = await supabase
     .from(TABLES.TREINOS)
     .insert([{
       ...treinoData,
-      user_id: userId,
+      user_id: user.id,
     }]);
 
   if (error) throw error;

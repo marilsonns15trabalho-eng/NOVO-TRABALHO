@@ -1,5 +1,5 @@
 // Camada de serviço para Alunos — Centraliza todas as chamadas Supabase
-import { supabase, getCurrentUserId } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { TABLES } from '@/lib/constants';
 import { mapStudentRowToAluno, mapAlunoToStudentRow } from '@/lib/mappers';
 import type { Aluno } from '@/types/aluno';
@@ -36,7 +36,11 @@ export async function createAluno(
   planos: PlanoListItem[],
   selectedPlanoId: string
 ): Promise<{ id: string } | null> {
-  const dbAluno = mapAlunoToStudentRow(alunoData, planos, selectedPlanoId);
+  // Obter user_id autenticado
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Usuário não autenticado');
+
+  const dbAluno = mapAlunoToStudentRow(alunoData, planos, selectedPlanoId, user.id);
 
   const { data, error } = await supabase
     .from(TABLES.STUDENTS)
@@ -52,13 +56,12 @@ export async function createAluno(
   if (selectedPlanoId && studentId) {
     const plano = planos.find((p) => p.id === selectedPlanoId);
     if (plano) {
-      const userId = await getCurrentUserId();
       await supabase.from(TABLES.ASSINATURAS).insert([{
         student_id: studentId,
         plan_id: plano.id,
         plan_name: plano.name,
         plan_price: plano.price,
-        user_id: userId,
+        user_id: user.id,
       }]);
     }
   }
@@ -82,7 +85,11 @@ export async function updateAluno(
   selectedPlanoId: string,
   userRole: string = 'admin'
 ): Promise<void> {
-  const dbAluno = mapAlunoToStudentRow(alunoData, planos, selectedPlanoId);
+  // Obter user_id autenticado
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Usuário não autenticado');
+
+  const dbAluno = mapAlunoToStudentRow(alunoData, planos, selectedPlanoId, user.id);
 
   // Segurança: se for aluno, remover campos administrativos do payload
   if (userRole === 'aluno') {
@@ -91,14 +98,13 @@ export async function updateAluno(
     }
 
     // Verificar que o aluno só edita seu próprio registro
-    const userId = await getCurrentUserId();
     const { data: student } = await supabase
       .from(TABLES.STUDENTS)
       .select('user_id')
       .eq('id', alunoId)
       .single();
 
-    if (student && student.user_id !== userId) {
+    if (student && student.user_id !== user.id) {
       throw new Error('Você não tem permissão para editar este registro.');
     }
   }

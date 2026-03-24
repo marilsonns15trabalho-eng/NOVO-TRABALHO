@@ -1,5 +1,5 @@
 // Camada de serviço para Configurações
-import { supabase, getCurrentUserId } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { TABLES } from '@/lib/constants';
 import type { Configuracoes, ConfiguracoesFormData } from '@/types/configuracoes';
 
@@ -32,10 +32,12 @@ export async function salvarConfiguracoes(config: ConfiguracoesFormData): Promis
     return config as Configuracoes;
   } else {
     // Insert
-    const userId = await getCurrentUserId();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
+
     const { data, error } = await supabase
       .from(TABLES.CONFIGURACOES)
-      .insert([{ ...config, user_id: userId }])
+      .insert([{ ...config, user_id: user.id }])
       .select()
       .single();
 

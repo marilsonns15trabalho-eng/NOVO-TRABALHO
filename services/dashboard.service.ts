@@ -35,41 +35,71 @@ export async function fetchDashboardData() {
   const now = new Date();
   const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
-  // 1. Total de Alunos
-  const { count: totalAlunos } = await supabase
-    .from(TABLES.STUDENTS)
-    .select('*', { count: 'exact', head: true });
+  // ⚡ Todas as queries rodam em PARALELO para máxima velocidade
+  const [
+    alunosResult,
+    pagamentosMesResult,
+    planosResult,
+    treinosResult,
+    recentBillsResult,
+    allFinanceiroResult,
+    proximosVencimentosResult,
+  ] = await Promise.all([
+    // 1. Total de Alunos
+    supabase
+      .from(TABLES.STUDENTS)
+      .select('*', { count: 'exact', head: true }),
 
-  // 2. Receita Mensal
-  const { data: pagamentosMes } = await supabase
-    .from(TABLES.FINANCEIRO)
-    .select('valor')
-    .eq('status', 'pago')
-    .eq('tipo', 'receita')
-    .gte('data_vencimento', firstDayOfMonth);
+    // 2. Receita Mensal
+    supabase
+      .from(TABLES.FINANCEIRO)
+      .select('valor')
+      .eq('status', 'pago')
+      .eq('tipo', 'receita')
+      .gte('data_vencimento', firstDayOfMonth),
 
-  const receitaMensal = pagamentosMes?.reduce((acc, curr) => acc + curr.valor, 0) || 0;
+    // 3. Planos Ativos
+    supabase
+      .from(TABLES.STUDENTS)
+      .select('*', { count: 'exact', head: true })
+      .not('plan_id', 'is', null),
 
-  // 3. Planos Ativos
-  const { count: planosAtivos } = await supabase
-    .from(TABLES.STUDENTS)
-    .select('*', { count: 'exact', head: true })
-    .not('plan_id', 'is', null);
+    // 4. Treinos Ativos
+    supabase
+      .from(TABLES.TREINOS)
+      .select('*', { count: 'exact', head: true })
+      .eq('ativo', true),
 
-  // 4. Treinos Ativos
-  const { count: treinosAtivos } = await supabase
-    .from(TABLES.TREINOS)
-    .select('*', { count: 'exact', head: true })
-    .eq('ativo', true);
+    // 5. Atividades Recentes
+    supabase
+      .from(TABLES.BILLS)
+      .select('*, students(name)')
+      .order('created_at', { ascending: false })
+      .limit(5),
 
-  // 5. Atividades Recentes
-  const { data: recentBills } = await supabase
-    .from(TABLES.BILLS)
-    .select('*, students(name)')
-    .order('created_at', { ascending: false })
-    .limit(5);
+    // 6. Dados financeiros para gráfico
+    supabase
+      .from(TABLES.FINANCEIRO)
+      .select('valor, data_vencimento, status, tipo')
+      .eq('tipo', 'receita'),
 
-  const activities: RecentActivity[] = (recentBills || []).map((b: any) => ({
+    // 7. Próximos vencimentos
+    supabase
+      .from(TABLES.BILLS)
+      .select('*, students(name, phone)')
+      .eq('status', 'pending')
+      .gte('due_date', now.toISOString().split('T')[0])
+      .order('due_date', { ascending: true })
+      .limit(5),
+  ]);
+
+  // Processar resultados
+  const totalAlunos = alunosResult.count;
+  const receitaMensal = pagamentosMesResult.data?.reduce((acc: number, curr: any) => acc + curr.valor, 0) || 0;
+  const planosAtivos = planosResult.count;
+  const treinosAtivos = treinosResult.count;
+
+  const activities: RecentActivity[] = (recentBillsResult.data || []).map((b: any) => ({
     id: b.id,
     user: b.students?.name || 'Sistema',
     action: b.status === 'paid' ? 'Pagamento realizado' : 'Boleto gerado',
@@ -77,7 +107,7 @@ export async function fetchDashboardData() {
     type: b.status === 'paid' ? 'payment' : 'new_user',
   }));
 
-  // 6. Dados do gráfico (últimos 6 meses)
+  // Dados do gráfico (últimos 6 meses)
   const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
   const last6Months = [];
   for (let i = 5; i >= 0; i--) {
@@ -89,10 +119,7 @@ export async function fetchDashboardData() {
     });
   }
 
-  const { data: allFinanceiro } = await supabase
-    .from(TABLES.FINANCEIRO)
-    .select('valor, data_vencimento, status, tipo')
-    .eq('tipo', 'receita');
+  const allFinanceiro = allFinanceiroResult.data;
 
   const chartData: DashboardChartData[] = last6Months.map((m) => {
     const total = allFinanceiro?.filter((f: any) => {
@@ -102,7 +129,7 @@ export async function fetchDashboardData() {
     return { name: m.month, value: total };
   });
 
-  // 7. Calcular variação de receita
+  // Calcular variação de receita
   const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const receitaLastMonth = allFinanceiro?.filter((f: any) => {
     const d = new Date(f.data_vencimento);
@@ -112,15 +139,6 @@ export async function fetchDashboardData() {
   const receitaChange = receitaLastMonth > 0
     ? `${(((receitaMensal - receitaLastMonth) / receitaLastMonth) * 100).toFixed(0)}%`
     : '+0%';
-
-  // 8. Próximos vencimentos
-  const { data: proximosVencimentos } = await supabase
-    .from(TABLES.BILLS)
-    .select('*, students(name, phone)')
-    .eq('status', 'pending')
-    .gte('due_date', now.toISOString().split('T')[0])
-    .order('due_date', { ascending: true })
-    .limit(5);
 
   return {
     stats: {
@@ -132,7 +150,7 @@ export async function fetchDashboardData() {
     },
     chartData,
     activities,
-    proximosVencimentos: (proximosVencimentos || []) as ProximoVencimento[],
+    proximosVencimentos: (proximosVencimentosResult.data || []) as ProximoVencimento[],
   };
 }
 
@@ -165,8 +183,18 @@ export async function fetchRelatoriosMetrics() {
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
 
+  // ⚡ Todas as queries rodam em PARALELO
+  const [alunosResult, financeiroResult, inadimplentesResult] = await Promise.all([
+    supabase.from(TABLES.STUDENTS).select('*'),
+    supabase.from(TABLES.FINANCEIRO).select('*'),
+    supabase
+      .from(TABLES.BILLS)
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'late'),
+  ]);
+
   // Alunos
-  const { data: alunos } = await supabase.from(TABLES.STUDENTS).select('*');
+  const alunos = alunosResult.data;
   const totalAlunos = alunos?.length || 0;
   const alunosAtivos = alunos?.filter((a: any) => a.status === 'ativo').length || 0;
   const alunosInativos = totalAlunos - alunosAtivos;
@@ -177,7 +205,7 @@ export async function fetchRelatoriosMetrics() {
   }).length || 0;
 
   // Financeiro
-  const { data: financeiro } = await supabase.from(TABLES.FINANCEIRO).select('*');
+  const financeiro = financeiroResult.data;
 
   const receitasMes = financeiro?.filter((p: any) => {
     const d = new Date(p.data_vencimento);
@@ -192,17 +220,13 @@ export async function fetchRelatoriosMetrics() {
   const receitas = receitasMes.reduce((acc: number, curr: any) => acc + (curr.valor || 0), 0);
   const despesas = despesasMes.reduce((acc: number, curr: any) => acc + (curr.valor || 0), 0);
 
-  // Inadimplentes
-  const { count: inadimplentes } = await supabase
-    .from(TABLES.BILLS)
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'late');
+  // Inadimplentes (já buscado no Promise.all acima)
 
   return {
     receitas,
     despesas,
     saldo: receitas - despesas,
-    inadimplentes: inadimplentes || 0,
+    inadimplentes: inadimplentesResult.count || 0,
     totalAlunos,
     alunosAtivos,
     alunosInativos,

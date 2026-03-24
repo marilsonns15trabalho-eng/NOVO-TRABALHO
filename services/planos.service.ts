@@ -1,5 +1,5 @@
 // Camada de serviço para Planos
-import { supabase, getCurrentUserId } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { TABLES } from '@/lib/constants';
 import type { Plano, PlanoFormData } from '@/types/plano';
 
@@ -20,7 +20,9 @@ export async function fetchPlanos(): Promise<Plano[]> {
 
 /** Cria um novo plano */
 export async function createPlano(formData: PlanoFormData): Promise<void> {
-  const userId = await getCurrentUserId();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Usuário não autenticado');
+
   const { error } = await supabase
     .from(TABLES.PLANS)
     .insert([{
@@ -29,7 +31,7 @@ export async function createPlano(formData: PlanoFormData): Promise<void> {
       duration_months: parseInt(formData.duration_months, 10),
       description: formData.description,
       active: formData.active,
-      user_id: userId,
+      user_id: user.id,
     }]);
 
   if (error) throw error;

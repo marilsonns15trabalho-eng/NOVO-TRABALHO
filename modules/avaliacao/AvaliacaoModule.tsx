@@ -33,6 +33,8 @@ import {
 } from 'recharts';
 import { Toast } from '@/components/ui';
 
+import { calcularBiometria } from '@/lib/biometrics';
+
 export default function AvaliacaoModule() {
   const {
     avaliacoes,
@@ -64,45 +66,32 @@ export default function AvaliacaoModule() {
   const [alunoSearch, setAlunoSearch] = useState('');
   const [showAlunoDropdown, setShowAlunoDropdown] = useState(false);
 
-  // Cálculo automático de resultados (IMC, %Gordura, Massa Gorda, Massa Magra)
+  // Cálculo automático de resultados usando função pura centralizada
   useEffect(() => {
-    if (newAvaliacao.peso && newAvaliacao.altura) {
-      const alturaMetros = newAvaliacao.altura > 3 ? newAvaliacao.altura / 100 : newAvaliacao.altura;
-      const imc = parseFloat((newAvaliacao.peso / (alturaMetros * alturaMetros)).toFixed(2));
+    if (!newAvaliacao.peso || !newAvaliacao.altura) return;
 
-      let percentual_gordura = newAvaliacao.percentual_gordura || 0;
-      let soma_dobras = 0;
+    const resultado = calcularBiometria({
+      peso: newAvaliacao.peso,
+      altura: newAvaliacao.altura,
+      tricipital: newAvaliacao.tricipital,
+      subescapular: newAvaliacao.subescapular,
+      supra_iliaca: newAvaliacao.supra_iliaca,
+      abdominal: newAvaliacao.abdominal,
+      protocolo: newAvaliacao.protocolo,
+    });
 
-      if (
-        newAvaliacao.protocolo === 'faulkner' &&
-        newAvaliacao.tricipital &&
-        newAvaliacao.subescapular &&
-        newAvaliacao.supra_iliaca &&
-        newAvaliacao.abdominal
-      ) {
-        soma_dobras = parseFloat((newAvaliacao.tricipital + newAvaliacao.subescapular + newAvaliacao.supra_iliaca + newAvaliacao.abdominal).toFixed(1));
-        percentual_gordura = parseFloat((soma_dobras * 0.153 + 5.783).toFixed(2));
-      }
-
-      const massa_gorda = parseFloat((newAvaliacao.peso * (percentual_gordura / 100)).toFixed(2));
-      const massa_magra = parseFloat((newAvaliacao.peso - massa_gorda).toFixed(2));
-
-      if (
-        imc !== newAvaliacao.imc ||
-        percentual_gordura !== newAvaliacao.percentual_gordura ||
-        massa_gorda !== newAvaliacao.massa_gorda ||
-        massa_magra !== newAvaliacao.massa_magra ||
-        soma_dobras !== newAvaliacao.soma_dobras
-      ) {
-        setNewAvaliacao((prev: any) => ({
-          ...prev,
-          imc,
-          percentual_gordura,
-          massa_gorda,
-          massa_magra,
-          soma_dobras,
-        }));
-      }
+    // Só atualiza se algum valor realmente mudou (evita loop)
+    if (
+      resultado.imc !== newAvaliacao.imc ||
+      resultado.percentual_gordura !== newAvaliacao.percentual_gordura ||
+      resultado.massa_gorda !== newAvaliacao.massa_gorda ||
+      resultado.massa_magra !== newAvaliacao.massa_magra ||
+      resultado.soma_dobras !== newAvaliacao.soma_dobras
+    ) {
+      setNewAvaliacao((prev: any) => ({
+        ...prev,
+        ...resultado,
+      }));
     }
   }, [
     newAvaliacao.peso,
