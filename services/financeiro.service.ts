@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { TABLES, DEFAULTS } from '@/lib/constants';
 import { mapStudentToListItem } from '@/lib/mappers';
 import type { Pagamento, Boleto, FinanceiroStudent, PagamentoFormData, BoletoFormData } from '@/types/financeiro';
+import { assertNotProfessor } from '@/lib/authz';
 
 /** Busca todos os dados financeiros (pagamentos, boletos, alunos) */
 export async function fetchFinanceiroData() {
@@ -55,6 +56,7 @@ export async function fetchFinanceiroData() {
 
 /** Cria uma nova transação financeira */
 export async function createTransacao(data: PagamentoFormData): Promise<void> {
+  await assertNotProfessor();
   const { error } = await supabase
     .from(TABLES.FINANCEIRO)
     .insert([{ ...data, valor: Number(data.valor) }]);
@@ -64,6 +66,7 @@ export async function createTransacao(data: PagamentoFormData): Promise<void> {
 
 /** Gera um boleto para um aluno */
 export async function gerarBoleto(data: BoletoFormData): Promise<void> {
+  await assertNotProfessor();
   const { error } = await supabase
     .from(TABLES.BILLS)
     .insert([{
@@ -81,6 +84,7 @@ export async function gerar3Boletos(
   alunos: FinanceiroStudent[],
   boletos: Boleto[]
 ): Promise<number> {
+  await assertNotProfessor();
   const student = alunos.find((a) => a.id === studentId);
   if (!student) return 0;
 
@@ -124,6 +128,7 @@ export async function gerar3Boletos(
 
 /** Gera boletos em lote para todos os alunos sem cobrança no mês */
 export async function gerarBoletosEmLote(alunos: FinanceiroStudent[]): Promise<number> {
+  await assertNotProfessor();
   const now = new Date();
   const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
   const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
@@ -160,6 +165,7 @@ export async function gerarBoletosEmLote(alunos: FinanceiroStudent[]): Promise<n
 
 /** Dá baixa manual em um boleto (marca como pago e registra receita) */
 export async function darBaixaManual(boleto: Boleto): Promise<void> {
+  await assertNotProfessor();
   const { error: billError } = await supabase
     .from(TABLES.BILLS)
     .update({ status: 'paid' })
@@ -182,6 +188,7 @@ export async function darBaixaManual(boleto: Boleto): Promise<void> {
 
 /** Exclui um boleto */
 export async function excluirBoleto(boletoId: string): Promise<void> {
+  await assertNotProfessor();
   const { error } = await supabase
     .from(TABLES.BILLS)
     .delete()

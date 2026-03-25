@@ -1,7 +1,8 @@
 // Camada de serviço para Configurações
-import { supabase } from '@/lib/supabase';
+import { supabase, getAuthenticatedUser } from '@/lib/supabase';
 import { TABLES } from '@/lib/constants';
 import type { Configuracoes, ConfiguracoesFormData } from '@/types/configuracoes';
+import { assertNotProfessorForUserId } from '@/lib/authz';
 
 /** Busca as configurações do sistema (retorna a primeira row) */
 export async function fetchConfiguracoes(): Promise<Partial<Configuracoes> | null> {
@@ -21,6 +22,9 @@ export async function fetchConfiguracoes(): Promise<Partial<Configuracoes> | nul
 
 /** Salva configurações (cria ou atualiza) */
 export async function salvarConfiguracoes(config: ConfiguracoesFormData): Promise<Configuracoes | null> {
+  const user = await getAuthenticatedUser();
+  await assertNotProfessorForUserId(user.id);
+
   if (config.id) {
     // Update
     const { error } = await supabase
@@ -32,9 +36,6 @@ export async function salvarConfiguracoes(config: ConfiguracoesFormData): Promis
     return config as Configuracoes;
   } else {
     // Insert
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Usuário não autenticado');
-
     const { data, error } = await supabase
       .from(TABLES.CONFIGURACOES)
       .insert([{ ...config, user_id: user.id }])

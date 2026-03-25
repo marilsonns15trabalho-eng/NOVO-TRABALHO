@@ -17,7 +17,7 @@ export interface MenuItem {
 /** Acesso por role — quais IDs cada role pode acessar */
 export const ROLE_ACCESS: Record<UserRole, string[]> = {
   admin: ['home', 'alunos', 'financeiro', 'planos', 'treinos', 'anamnese', 'avaliacao', 'relatorios', 'configuracoes'],
-  professor: ['home', 'alunos', 'treinos', 'avaliacao', 'anamnese', 'relatorios'],
+  professor: ['home', 'alunos', 'treinos', 'avaliacao', 'anamnese'],
   aluno: ['home', 'treinos', 'avaliacao'],
 };
 

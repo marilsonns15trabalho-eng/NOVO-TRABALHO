@@ -1,16 +1,21 @@
 // Camada de serviço para Treinos
-import { supabase } from '@/lib/supabase';
+import { supabase, getAuthenticatedUser } from '@/lib/supabase';
 import { TABLES } from '@/lib/constants';
 import { mapStudentToListItem } from '@/lib/mappers';
 import type { Treino, TreinoFormData } from '@/types/treino';
 import type { StudentListItem } from '@/types/common';
+import { assertNotProfessorForUserId } from '@/lib/authz';
 
 /** Busca todos os treinos com nome do aluno (join) */
-export async function fetchTreinos(): Promise<Treino[]> {
-  const { data, error } = await supabase
+export async function fetchTreinos(userId?: string): Promise<Treino[]> {
+  let query = supabase
     .from(TABLES.TREINOS)
     .select(`*, students(name)`)
     .order('created_at', { ascending: false });
+
+  if (userId) query = query.eq('user_id', userId);
+
+  const { data, error } = await query;
 
   if (error) {
     console.warn('Erro ao buscar treinos com join, tentando sem join:', error.message);
@@ -30,11 +35,15 @@ export async function fetchTreinos(): Promise<Treino[]> {
 }
 
 /** Busca lista de alunos para o select */
-export async function fetchAlunosParaTreino(): Promise<StudentListItem[]> {
-  const { data, error } = await supabase
+export async function fetchAlunosParaTreino(userId?: string): Promise<StudentListItem[]> {
+  let query = supabase
     .from(TABLES.STUDENTS)
     .select('*')
     .order('name', { ascending: true });
+
+  if (userId) query = query.eq('user_id', userId);
+
+  const { data, error } = await query;
 
   if (error) {
     console.warn('Erro ao buscar alunos por "name", tentando "nome":', error.message);
@@ -55,8 +64,8 @@ export async function fetchAlunosParaTreino(): Promise<StudentListItem[]> {
 
 /** Cria um novo treino */
 export async function createTreino(treinoData: TreinoFormData): Promise<void> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Usuário não autenticado');
+  const user = await getAuthenticatedUser();
+  await assertNotProfessorForUserId(user.id);
 
   const { error } = await supabase
     .from(TABLES.TREINOS)

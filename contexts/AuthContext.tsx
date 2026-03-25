@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, refreshSessionIfStale } from '@/lib/supabase';
 import { SUPER_ADMIN_EMAIL } from '@/lib/constants';
 import type { User, Session } from '@supabase/supabase-js';
 
@@ -28,79 +28,102 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 /**
+ * Garante linha em students: por user_id, ou vincula e-mail órfão, ou insere.
+ * Evita violação de students_email_key (corrida / aluno cadastrado antes sem user_id).
+ */
+async function ensureStudentRow(userId: string, email: string, name: string): Promise<void> {
+  if (!email) return;
+
+  const { data: byUser } = await supabase
+    .from('students')
+    .select('id')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (byUser) return;
+
+  const { data: byEmail } = await supabase
+    .from('students')
+    .select('id, user_id')
+    .eq('email', email)
+    .maybeSingle();
+
+  if (byEmail) {
+    if (!byEmail.user_id) {
+      const { error } = await supabase
+        .from('students')
+        .update({ user_id: userId, name })
+        .eq('id', byEmail.id);
+      if (error) {
+        console.error('Erro ao vincular aluno ao login:', error.message);
+      }
+    }
+    return;
+  }
+
+  const { error } = await supabase.from('students').insert([{
+    name,
+    email,
+    status: 'ativo',
+    user_id: userId,
+  }]);
+
+  if (error?.code === '23505') {
+    return;
+  }
+  if (error) {
+    console.error('Erro ao criar registro de aluno:', error.message);
+  }
+}
+
+/**
  * Garante que user_profiles e students existam para o usuário.
- * Idempotente — se já existir, não duplica.
+ * Idempotente — perfil primeiro (para is_admin() no RLS), depois aluno.
  */
 async function ensureUserSetup(user: User, displayName?: string): Promise<UserProfile | null> {
   const userId = user.id;
   const email = user.email || '';
   const name = displayName || email.split('@')[0] || 'Usuário';
 
-  // ⚡ Buscar profile e student em PARALELO
-  const [profileResult, studentResult] = await Promise.all([
-    supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', userId)
-      .single(),
-    supabase
-      .from('students')
-      .select('id')
-      .eq('user_id', userId)
-      .single(),
-  ]);
-
-  let profile = profileResult.data as UserProfile | null;
-
-  // Determinar role: super admin sempre é 'admin'
   const isSuperAdmin = email === SUPER_ADMIN_EMAIL;
   const defaultRole = isSuperAdmin ? 'admin' : 'aluno';
 
-  // Criar profile e student em paralelo se necessário
-  const pendingInserts: PromiseLike<any>[] = [];
+  let profile: UserProfile | null = null;
 
-  if (!profile) {
-    pendingInserts.push(
-      supabase
+  const { data: existingProfile } = await supabase
+    .from('user_profiles')
+    .select('*')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (existingProfile) {
+    profile = existingProfile as UserProfile;
+  } else {
+    const { data: inserted, error } = await supabase
+      .from('user_profiles')
+      .insert([{
+        id: userId,
+        role: defaultRole,
+        display_name: name,
+      }])
+      .select()
+      .single();
+
+    if (error?.code === '23505') {
+      const { data: refetch } = await supabase
         .from('user_profiles')
-        .insert([{
-          id: userId,
-          role: defaultRole,
-          display_name: name,
-        }])
-        .select()
-        .single()
-        .then(({ data, error }) => {
-          if (error) {
-            console.error('Erro ao criar perfil:', error.message);
-          } else {
-            profile = data as UserProfile;
-          }
-        })
-    );
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+      profile = refetch as UserProfile | null;
+    } else if (error) {
+      console.error('Erro ao criar perfil:', error.message);
+    } else {
+      profile = inserted as UserProfile;
+    }
   }
 
-  if (!studentResult.data) {
-    pendingInserts.push(
-      supabase
-        .from('students')
-        .insert([{
-          name: name,
-          email: email,
-          status: 'ativo',
-          user_id: userId,
-        }])
-        .then(({ error }) => {
-          if (error) {
-            console.error('Erro ao criar registro de aluno:', error.message);
-          }
-        })
-    );
-  }
-
-  if (pendingInserts.length > 0) {
-    await Promise.all(pendingInserts);
-  }
+  await ensureStudentRow(userId, email, name);
 
   return profile;
 }
@@ -151,6 +174,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       subscription.unsubscribe();
+    };
+  }, []);
+
+  // JWT: em aba em segundo plano o navegador suspende timers; ao voltar o access token pode estar expirado.
+  useEffect(() => {
+    let debounce: ReturnType<typeof setTimeout> | undefined;
+    const onResume = () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      clearTimeout(debounce);
+      debounce = setTimeout(() => {
+        void refreshSessionIfStale();
+      }, 150);
+    };
+    document.addEventListener('visibilitychange', onResume);
+    window.addEventListener('focus', onResume);
+    window.addEventListener('pageshow', onResume);
+    window.addEventListener('online', onResume);
+    return () => {
+      clearTimeout(debounce);
+      document.removeEventListener('visibilitychange', onResume);
+      window.removeEventListener('focus', onResume);
+      window.removeEventListener('pageshow', onResume);
+      window.removeEventListener('online', onResume);
     };
   }, []);
 

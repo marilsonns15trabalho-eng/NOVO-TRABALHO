@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAvaliacoes } from '@/hooks/useAvaliacoes';
+import { useUserRole } from '@/hooks/useUserRole';
 import ChartWrapper from '@/components/ChartWrapper';
 import {
   LineChart,
@@ -36,6 +37,7 @@ import { Toast } from '@/components/ui';
 import { calcularBiometria } from '@/lib/biometrics';
 
 export default function AvaliacaoModule() {
+  const { isReadOnly } = useUserRole();
   const {
     avaliacoes,
     alunos,
@@ -43,7 +45,8 @@ export default function AvaliacaoModule() {
     searchTerm,
     setSearchTerm,
     showAddModal,
-    setShowAddModal,
+    openAddModal,
+    closeAddModal,
     editingAvaliacao,
     newAvaliacao,
     setNewAvaliacao,
@@ -66,42 +69,34 @@ export default function AvaliacaoModule() {
   const [alunoSearch, setAlunoSearch] = useState('');
   const [showAlunoDropdown, setShowAlunoDropdown] = useState(false);
 
-  // Cálculo automático de resultados usando função pura centralizada
-  useEffect(() => {
-    if (!newAvaliacao.peso || !newAvaliacao.altura) return;
-
-    const resultado = calcularBiometria({
-      peso: newAvaliacao.peso,
-      altura: newAvaliacao.altura,
-      tricipital: newAvaliacao.tricipital,
-      subescapular: newAvaliacao.subescapular,
-      supra_iliaca: newAvaliacao.supra_iliaca,
-      abdominal: newAvaliacao.abdominal,
-      protocolo: newAvaliacao.protocolo,
+  const handleAvaliacaoFieldChange = (campo: string, valor: unknown) => {
+    setNewAvaliacao((prev) => {
+      const atualizado = { ...prev, [campo]: valor };
+      const calculado = calcularBiometria(atualizado as Record<string, unknown>);
+      return { ...atualizado, ...calculado };
     });
+  };
 
-    // Só atualiza se algum valor realmente mudou (evita loop)
-    if (
-      resultado.imc !== newAvaliacao.imc ||
-      resultado.percentual_gordura !== newAvaliacao.percentual_gordura ||
-      resultado.massa_gorda !== newAvaliacao.massa_gorda ||
-      resultado.massa_magra !== newAvaliacao.massa_magra ||
-      resultado.soma_dobras !== newAvaliacao.soma_dobras
-    ) {
-      setNewAvaliacao((prev: any) => ({
-        ...prev,
-        ...resultado,
-      }));
+  const handleOpenNovaAvaliacao = () => {
+    openAddModal();
+    setAlunoSearch('');
+    setShowAlunoDropdown(false);
+  };
+
+  const handleCloseAvaliacaoModal = () => {
+    closeAddModal();
+    setAlunoSearch('');
+    setShowAlunoDropdown(false);
+  };
+
+  useEffect(() => {
+    if (!showAddModal) return;
+    if (editingAvaliacao) {
+      setAlunoSearch(editingAvaliacao.students?.nome || '');
+    } else {
+      setAlunoSearch('');
     }
-  }, [
-    newAvaliacao.peso,
-    newAvaliacao.altura,
-    newAvaliacao.tricipital,
-    newAvaliacao.subescapular,
-    newAvaliacao.supra_iliaca,
-    newAvaliacao.abdominal,
-    newAvaliacao.protocolo,
-  ]);
+  }, [showAddModal, editingAvaliacao]);
 
   // PDF export (UI-level, no DB)
   const exportToPDF = async (avaliacao: any) => {
@@ -187,13 +182,16 @@ export default function AvaliacaoModule() {
           <h2 className="text-3xl font-bold tracking-tight">Avaliação Física</h2>
           <p className="text-zinc-500">Acompanhe a evolução corporal e os resultados dos seus alunos.</p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center justify-center gap-2 bg-purple-500 hover:bg-purple-600 text-white font-bold px-6 py-3 rounded-2xl transition-all active:scale-95 shadow-lg shadow-purple-500/20"
-        >
-          <Plus size={20} />
-          Nova Avaliação
-        </button>
+        {!isReadOnly && (
+          <button
+            type="button"
+            onClick={handleOpenNovaAvaliacao}
+            className="flex items-center justify-center gap-2 bg-purple-500 hover:bg-purple-600 text-white font-bold px-6 py-3 rounded-2xl transition-all active:scale-95 shadow-lg shadow-purple-500/20"
+          >
+            <Plus size={20} />
+            Nova Avaliação
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4">
@@ -275,12 +273,14 @@ export default function AvaliacaoModule() {
                       >
                         Ver Relatório
                       </button>
-                      <button
-                        onClick={() => startEdit(avaliacao)}
-                        className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-xs font-bold transition-all mr-2"
-                      >
-                        Editar
-                      </button>
+                      {!isReadOnly && (
+                        <button
+                          onClick={() => startEdit(avaliacao)}
+                          className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-xs font-bold transition-all mr-2"
+                        >
+                          Editar
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -475,11 +475,11 @@ export default function AvaliacaoModule() {
           </div>
         )}
 
-        {showAddModal && (
+        {!isReadOnly && showAddModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setShowAddModal(false)}
+              onClick={handleCloseAvaliacaoModal}
               className="absolute inset-0 bg-black/80 backdrop-blur-sm"
             />
             <motion.div
@@ -507,7 +507,7 @@ export default function AvaliacaoModule() {
                             <div
                               key={aluno.id}
                               onClick={() => {
-                                setNewAvaliacao({ ...newAvaliacao, student_id: aluno.id });
+                                handleAvaliacaoFieldChange('student_id', aluno.id);
                                 setAlunoSearch(aluno.nome);
                                 setShowAlunoDropdown(false);
                               }}
@@ -524,13 +524,13 @@ export default function AvaliacaoModule() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Data da Avaliação *</label>
-                    <input required type="date" value={newAvaliacao.data || ''} onChange={(e) => setNewAvaliacao({ ...newAvaliacao, data: e.target.value })} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 outline-none transition-all [color-scheme:dark]" />
+                    <input required type="date" value={newAvaliacao.data || ''} onChange={(e) => handleAvaliacaoFieldChange('data', e.target.value)} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 outline-none transition-all [color-scheme:dark]" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Protocolo</label>
                     <select
                       value={newAvaliacao.protocolo}
-                      onChange={(e) => setNewAvaliacao({ ...newAvaliacao, protocolo: e.target.value as any })}
+                      onChange={(e) => handleAvaliacaoFieldChange('protocolo', e.target.value)}
                       className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 outline-none transition-all"
                     >
                       <option value="faulkner">Faulkner (4 Dobras)</option>
@@ -542,11 +542,11 @@ export default function AvaliacaoModule() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Peso (kg) *</label>
-                    <input required type="number" step="0.1" value={newAvaliacao.peso || ''} onChange={(e) => setNewAvaliacao({ ...newAvaliacao, peso: parseFloat(e.target.value) })} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 outline-none transition-all" placeholder="75.5" />
+                    <input required type="number" step="0.1" value={newAvaliacao.peso ?? ''} onChange={(e) => handleAvaliacaoFieldChange('peso', parseFloat(e.target.value) || 0)} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 outline-none transition-all" placeholder="75.5" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Altura (m) *</label>
-                    <input required type="number" step="0.01" value={newAvaliacao.altura || ''} onChange={(e) => setNewAvaliacao({ ...newAvaliacao, altura: parseFloat(e.target.value) })} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 outline-none transition-all" placeholder="1.75" />
+                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Altura (m ou cm) *</label>
+                    <input required type="number" step="0.01" value={newAvaliacao.altura ?? ''} onChange={(e) => handleAvaliacaoFieldChange('altura', parseFloat(e.target.value) || 0)} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 outline-none transition-all" placeholder="1.75 m ou 175 cm" />
                   </div>
                 </div>
 
@@ -560,7 +560,16 @@ export default function AvaliacaoModule() {
                     ].map(({ key, label }) => (
                       <div key={key} className="space-y-1.5">
                         <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">{label}</label>
-                        <input type="number" step="0.1" value={(newAvaliacao as any)[key] || ''} onChange={(e) => setNewAvaliacao({ ...newAvaliacao, [key]: parseFloat(e.target.value) })} className="w-full bg-black border border-zinc-800 rounded-xl py-2 px-3 text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 outline-none transition-all" />
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={(newAvaliacao as Record<string, number | undefined>)[key] ?? ''}
+                          onChange={(e) => {
+                            const v = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                            handleAvaliacaoFieldChange(key, v !== undefined && !Number.isNaN(v) ? v : undefined);
+                          }}
+                          className="w-full bg-black border border-zinc-800 rounded-xl py-2 px-3 text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 outline-none transition-all"
+                        />
                       </div>
                     ))}
                   </div>
@@ -574,7 +583,16 @@ export default function AvaliacaoModule() {
                     ].map(({ key, label }) => (
                       <div key={key} className="space-y-1.5">
                         <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">{label}</label>
-                        <input type="number" step="0.1" value={(newAvaliacao as any)[key] || ''} onChange={(e) => setNewAvaliacao({ ...newAvaliacao, [key]: parseFloat(e.target.value) })} className="w-full bg-black border border-zinc-800 rounded-xl py-2 px-3 text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 outline-none transition-all" />
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={(newAvaliacao as Record<string, number | undefined>)[key] ?? ''}
+                          onChange={(e) => {
+                            const v = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                            handleAvaliacaoFieldChange(key, v !== undefined && !Number.isNaN(v) ? v : undefined);
+                          }}
+                          className="w-full bg-black border border-zinc-800 rounded-xl py-2 px-3 text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 outline-none transition-all"
+                        />
                       </div>
                     ))}
                   </div>
@@ -593,7 +611,7 @@ export default function AvaliacaoModule() {
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">% Gordura (BF)</label>
-                      <input type="number" step="0.1" value={newAvaliacao.percentual_gordura || ''} onChange={(e) => setNewAvaliacao({ ...newAvaliacao, percentual_gordura: parseFloat(e.target.value) })} className="w-full bg-black border border-zinc-800 rounded-xl py-2 px-3 text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 outline-none transition-all" />
+                      <input type="number" readOnly value={newAvaliacao.percentual_gordura ?? ''} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-zinc-400 cursor-not-allowed outline-none" placeholder="Calculado auto." />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Massa Gorda (kg)</label>
@@ -608,11 +626,11 @@ export default function AvaliacaoModule() {
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Observações</label>
-                  <textarea value={newAvaliacao.observacoes || ''} onChange={(e) => setNewAvaliacao({ ...newAvaliacao, observacoes: e.target.value })} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 outline-none transition-all min-h-[100px]" placeholder="Observações gerais..."></textarea>
+                  <textarea value={newAvaliacao.observacoes || ''} onChange={(e) => handleAvaliacaoFieldChange('observacoes', e.target.value)} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 outline-none transition-all min-h-[100px]" placeholder="Observações gerais..."></textarea>
                 </div>
 
                 <div className="flex gap-3 pt-4">
-                  <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-4 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-2xl transition-all">Cancelar</button>
+                  <button type="button" onClick={handleCloseAvaliacaoModal} className="flex-1 py-4 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-2xl transition-all">Cancelar</button>
                   <button type="submit" className="flex-1 py-4 bg-purple-500 hover:bg-purple-600 text-white font-bold rounded-2xl transition-all shadow-lg shadow-purple-500/20">Salvar Avaliação</button>
                 </div>
               </form>

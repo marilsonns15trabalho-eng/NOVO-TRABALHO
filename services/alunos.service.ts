@@ -1,9 +1,10 @@
 // Camada de serviço para Alunos — Centraliza todas as chamadas Supabase
-import { supabase } from '@/lib/supabase';
+import { supabase, getAuthenticatedUser } from '@/lib/supabase';
 import { TABLES } from '@/lib/constants';
 import { mapStudentRowToAluno, mapAlunoToStudentRow } from '@/lib/mappers';
 import type { Aluno } from '@/types/aluno';
 import type { PlanoListItem } from '@/types/common';
+import { assertNotProfessorForUserId } from '@/lib/authz';
 
 /** Busca todos os alunos ordenados por nome */
 export async function fetchAlunos(): Promise<Aluno[]> {
@@ -36,9 +37,8 @@ export async function createAluno(
   planos: PlanoListItem[],
   selectedPlanoId: string
 ): Promise<{ id: string } | null> {
-  // Obter user_id autenticado
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Usuário não autenticado');
+  const user = await getAuthenticatedUser();
+  await assertNotProfessorForUserId(user.id);
 
   const dbAluno = mapAlunoToStudentRow(alunoData, planos, selectedPlanoId, user.id);
 
@@ -85,9 +85,8 @@ export async function updateAluno(
   selectedPlanoId: string,
   userRole: string = 'admin'
 ): Promise<void> {
-  // Obter user_id autenticado
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Usuário não autenticado');
+  const user = await getAuthenticatedUser();
+  await assertNotProfessorForUserId(user.id);
 
   const dbAluno = mapAlunoToStudentRow(alunoData, planos, selectedPlanoId, user.id);
 
@@ -119,6 +118,9 @@ export async function updateAluno(
 
 /** Exclui um aluno e todos os registros vinculados (cascade manual) */
 export async function deleteAluno(alunoId: string): Promise<void> {
+  const user = await getAuthenticatedUser();
+  await assertNotProfessorForUserId(user.id);
+
   // Excluir registros dependentes para evitar erro de FK
   await supabase.from(TABLES.ASSINATURAS).delete().eq('student_id', alunoId);
   await supabase.from(TABLES.ANAMNESES).delete().eq('student_id', alunoId);
@@ -140,6 +142,9 @@ export async function toggleAlunoStatus(
   alunoId: string,
   currentStatus: string
 ): Promise<void> {
+  const user = await getAuthenticatedUser();
+  await assertNotProfessorForUserId(user.id);
+
   const newStatus = currentStatus === 'ativo' ? 'inativo' : 'ativo';
 
   const { error } = await supabase

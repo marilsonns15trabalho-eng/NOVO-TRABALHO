@@ -1,7 +1,27 @@
 // Camada de serviço para Avaliações Físicas
-import { supabase } from '@/lib/supabase';
+import { supabase, getAuthenticatedUser } from '@/lib/supabase';
 import { TABLES } from '@/lib/constants';
+import { calcularBiometria } from '@/lib/biometrics';
 import type { Avaliacao, AvaliacaoFormData, AvaliacaoAlunoItem } from '@/types/avaliacao';
+import { assertNotProfessorForUserId } from '@/lib/authz';
+
+/** Numérico opcional para o banco (preserva 0; evita "" e undefined virarem bug) */
+function n(v: unknown): number | null {
+  if (v === undefined || v === null || v === '') return null;
+  const x = Number(v);
+  return Number.isFinite(x) ? x : null;
+}
+
+function logSupabaseError(context: string, error: unknown) {
+  const e = error as { message?: string; code?: string; details?: string; hint?: string };
+  console.error(context, {
+    message: e?.message,
+    code: e?.code,
+    details: e?.details,
+    hint: e?.hint,
+    raw: String(error),
+  });
+}
 
 /**
  * Mapeia uma row do banco para o formato flat da UI.
@@ -38,11 +58,15 @@ function mapAvaliacaoRow(item: any): Avaliacao {
 }
 
 /** Busca todas as avaliações com join do aluno */
-export async function fetchAvaliacoes(): Promise<Avaliacao[]> {
-  const { data, error } = await supabase
+export async function fetchAvaliacoes(userId?: string): Promise<Avaliacao[]> {
+  let query = supabase
     .from(TABLES.AVALIACOES)
     .select(`*, students(nome: name)`)
     .order('data', { ascending: false });
+
+  if (userId) query = query.eq('user_id', userId);
+
+  const { data, error } = await query;
 
   if (error) {
     console.error('Erro ao buscar avaliações:', error.message);
@@ -53,11 +77,15 @@ export async function fetchAvaliacoes(): Promise<Avaliacao[]> {
 }
 
 /** Busca lista de alunos para o seletor de avaliação */
-export async function fetchAlunosParaAvaliacao(): Promise<AvaliacaoAlunoItem[]> {
-  const { data, error } = await supabase
+export async function fetchAlunosParaAvaliacao(userId?: string): Promise<AvaliacaoAlunoItem[]> {
+  let query = supabase
     .from(TABLES.STUDENTS)
     .select('id, name')
     .order('name', { ascending: true });
+
+  if (userId) query = query.eq('user_id', userId);
+
+  const { data, error } = await query;
 
   if (error) {
     console.error('Erro ao buscar alunos:', error.message);
@@ -71,12 +99,16 @@ export async function fetchAlunosParaAvaliacao(): Promise<AvaliacaoAlunoItem[]> 
 }
 
 /** Busca histórico de avaliações de um aluno */
-export async function fetchHistoricoAluno(studentId: string): Promise<Avaliacao[]> {
-  const { data, error } = await supabase
+export async function fetchHistoricoAluno(studentId: string, userId?: string): Promise<Avaliacao[]> {
+  let query = supabase
     .from(TABLES.AVALIACOES)
     .select('*')
     .eq('student_id', studentId)
     .order('data', { ascending: true });
+
+  if (userId) query = query.eq('user_id', userId);
+
+  const { data, error } = await query;
 
   if (error) throw error;
 
@@ -89,81 +121,105 @@ export async function salvarAvaliacao(
   editingId?: string
 ): Promise<void> {
   // Obter user_id autenticado
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Usuário não autenticado');
+  const user = await getAuthenticatedUser();
+  await assertNotProfessorForUserId(user.id);
 
-  // Payload unificado: colunas FLAT como fonte primária
+  const dadosCalculados = calcularBiometria(avaliacaoData as Record<string, unknown>);
+  const data = { ...avaliacaoData, ...dadosCalculados };
+
+  const studentIdRaw = data.student_id;
+  const studentId =
+    typeof studentIdRaw === 'string' ? studentIdRaw.trim() : String(studentIdRaw ?? '').trim();
+  if (!studentId) {
+    throw new Error('Selecione um aluno na lista (toque no nome após buscar).');
+  }
+
+  const rawData = data.data != null && String(data.data).trim() !== '' ? String(data.data).trim() : '';
+  const dataAvaliacao = rawData.includes('T') ? rawData.split('T')[0] : rawData;
+  if (!dataAvaliacao) {
+    throw new Error('Informe a data da avaliação.');
+  }
+
+  /** INSERT exige user_id; em UPDATE manter o dono original evita violar RLS (WITH CHECK). */
+  const rowId =
+    editingId ??
+    (typeof (avaliacaoData as AvaliacaoFormData).id === 'string' ? (avaliacaoData as AvaliacaoFormData).id : undefined);
+
+  // Payload unificado: colunas FLAT como fonte primária (valores biométricos sempre recalculados)
   const payload: Record<string, any> = {
-    student_id: avaliacaoData.student_id,
-    data: avaliacaoData.data,
-    peso: avaliacaoData.peso,
-    altura: avaliacaoData.altura,
-    imc: avaliacaoData.imc,
+    student_id: studentId,
+    data: dataAvaliacao,
+    peso: n(data.peso) ?? 0,
+    altura: n(data.altura) ?? 0,
+    imc: n(data.imc) ?? 0,
     // Campo unificado: salva em AMBOS para compatibilidade
-    percentual_gordura: avaliacaoData.percentual_gordura,
-    gordura_corporal: avaliacaoData.percentual_gordura,
-    massa_magra: avaliacaoData.massa_magra,
-    massa_gorda: avaliacaoData.massa_gorda,
-    soma_dobras: avaliacaoData.soma_dobras,
-    protocolo: avaliacaoData.protocolo || 'faulkner',
-    observacoes: avaliacaoData.observacoes || null,
+    percentual_gordura: n(data.percentual_gordura) ?? 0,
+    gordura_corporal: n(data.percentual_gordura) ?? 0,
+    massa_magra: n(data.massa_magra) ?? 0,
+    massa_gorda: n(data.massa_gorda) ?? 0,
+    soma_dobras: n(data.soma_dobras) ?? 0,
+    protocolo: data.protocolo || 'faulkner',
+    observacoes: data.observacoes || null,
     user_id: user.id,
     // Colunas flat de perímetros
-    ombro: avaliacaoData.ombro || null,
-    torax: avaliacaoData.torax || null,
-    cintura: avaliacaoData.cintura || null,
-    abdome: avaliacaoData.abdome || null,
-    quadril: avaliacaoData.quadril || null,
-    braco_direito: avaliacaoData.braco_direito || null,
-    braco_esquerdo: avaliacaoData.braco_esquerdo || null,
-    coxa_direita: avaliacaoData.coxa_direita || null,
-    coxa_esquerda: avaliacaoData.coxa_esquerda || null,
-    panturrilha_direita: avaliacaoData.panturrilha_direita || null,
-    panturrilha_esquerda: avaliacaoData.panturrilha_esquerda || null,
+    ombro: n(data.ombro),
+    torax: n(data.torax),
+    cintura: n(data.cintura),
+    abdome: n(data.abdome),
+    quadril: n(data.quadril),
+    braco_direito: n(data.braco_direito),
+    braco_esquerdo: n(data.braco_esquerdo),
+    coxa_direita: n(data.coxa_direita),
+    coxa_esquerda: n(data.coxa_esquerda),
+    panturrilha_direita: n(data.panturrilha_direita),
+    panturrilha_esquerda: n(data.panturrilha_esquerda),
     // Colunas flat de dobras
-    tricipital: avaliacaoData.tricipital || null,
-    subescapular: avaliacaoData.subescapular || null,
-    supra_iliaca: avaliacaoData.supra_iliaca || null,
-    abdominal: avaliacaoData.abdominal || null,
+    tricipital: n(data.tricipital),
+    subescapular: n(data.subescapular),
+    supra_iliaca: n(data.supra_iliaca),
+    abdominal: n(data.abdominal),
     // JSONB como backup (gerado dos mesmos dados)
     medidas: {
-      ombro: avaliacaoData.ombro,
-      torax: avaliacaoData.torax,
-      cintura: avaliacaoData.cintura,
-      abdome: avaliacaoData.abdome,
-      quadril: avaliacaoData.quadril,
-      braco_direito: avaliacaoData.braco_direito,
-      braco_esquerdo: avaliacaoData.braco_esquerdo,
-      coxa_direita: avaliacaoData.coxa_direita,
-      coxa_esquerda: avaliacaoData.coxa_esquerda,
-      panturrilha_direita: avaliacaoData.panturrilha_direita,
-      panturrilha_esquerda: avaliacaoData.panturrilha_esquerda,
+      ombro: n(data.ombro),
+      torax: n(data.torax),
+      cintura: n(data.cintura),
+      abdome: n(data.abdome),
+      quadril: n(data.quadril),
+      braco_direito: n(data.braco_direito),
+      braco_esquerdo: n(data.braco_esquerdo),
+      coxa_direita: n(data.coxa_direita),
+      coxa_esquerda: n(data.coxa_esquerda),
+      panturrilha_direita: n(data.panturrilha_direita),
+      panturrilha_esquerda: n(data.panturrilha_esquerda),
     },
     dobras: {
-      tricipital: avaliacaoData.tricipital,
-      subescapular: avaliacaoData.subescapular,
-      supra_iliaca: avaliacaoData.supra_iliaca,
-      abdominal: avaliacaoData.abdominal,
-      soma_dobras: avaliacaoData.soma_dobras,
+      tricipital: n(data.tricipital),
+      subescapular: n(data.subescapular),
+      supra_iliaca: n(data.supra_iliaca),
+      abdominal: n(data.abdominal),
+      soma_dobras: n(data.soma_dobras),
     },
   };
 
-  if (editingId) {
+  if (rowId) {
+    const updatePayload = { ...payload };
+    delete updatePayload.user_id;
+
     const { error } = await supabase
       .from(TABLES.AVALIACOES)
-      .update(payload)
-      .eq('id', editingId);
+      .update(updatePayload)
+      .eq('id', rowId);
     if (error) {
-      console.error('Erro ao atualizar avaliação:', error);
-      throw error;
+      logSupabaseError('Erro ao atualizar avaliação:', error);
+      throw new Error(error.message || 'Não foi possível atualizar a avaliação.');
     }
   } else {
     const { error } = await supabase
       .from(TABLES.AVALIACOES)
       .insert([payload]);
     if (error) {
-      console.error('Erro ao inserir avaliação:', error);
-      throw error;
+      logSupabaseError('Erro ao inserir avaliação:', error);
+      throw new Error(error.message || 'Não foi possível salvar a avaliação.');
     }
   }
 }

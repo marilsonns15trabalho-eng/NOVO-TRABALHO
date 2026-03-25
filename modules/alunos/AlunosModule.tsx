@@ -30,6 +30,7 @@ export default function AlunosModule() {
   const { user, profile } = useAuth();
   const userRole = profile?.role || 'aluno';
   const isAdmin = userRole === 'admin';
+  const isReadOnly = userRole === 'professor';
 
   // --- Estado de gerenciamento de roles (admin only) ---
   const [showRolesModal, setShowRolesModal] = useState(false);
@@ -161,13 +162,15 @@ export default function AlunosModule() {
               Roles
             </button>
           )}
-          <button
-            onClick={handleOpenAdd}
-            className="flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-black font-bold px-6 py-3 rounded-2xl transition-all active:scale-95 shadow-lg shadow-orange-500/20"
-          >
-            <UserPlus size={20} />
-            Novo Aluno
-          </button>
+          {!isReadOnly && (
+            <button
+              onClick={handleOpenAdd}
+              className="flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-black font-bold px-6 py-3 rounded-2xl transition-all active:scale-95 shadow-lg shadow-orange-500/20"
+            >
+              <UserPlus size={20} />
+              Novo Aluno
+            </button>
+          )}
         </div>
       </div>
 
@@ -235,11 +238,12 @@ export default function AlunosModule() {
                     <td className="px-6 py-4">
                       <button
                         onClick={() => handleToggleStatus(aluno.id, aluno.status)}
+                        disabled={isReadOnly}
                         className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all ${
                           aluno.status === 'ativo'
                             ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500 hover:text-black'
                             : 'bg-rose-500/10 text-rose-500 border-rose-500/20 hover:bg-rose-500 hover:text-black'
-                        }`}
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
                       >
                         {aluno.status === 'ativo' ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
                         {aluno.status}
@@ -256,12 +260,16 @@ export default function AlunosModule() {
                         <button onClick={() => sendWhatsApp(aluno)} className="p-2 text-zinc-500 hover:text-emerald-500 transition-colors" title="Enviar WhatsApp">
                           <MessageCircle size={18} />
                         </button>
-                        <button onClick={() => handleStartEdit(aluno)} className="p-2 text-zinc-500 hover:text-orange-500 transition-colors" title="Editar">
-                          Editar
-                        </button>
-                        <button onClick={() => setDeleteConfirmation(aluno.id)} className="p-2 text-zinc-500 hover:text-red-500 transition-colors" title="Excluir">
-                          Excluir
-                        </button>
+                        {!isReadOnly && (
+                          <>
+                            <button onClick={() => handleStartEdit(aluno)} className="p-2 text-zinc-500 hover:text-orange-500 transition-colors" title="Editar">
+                              Editar
+                            </button>
+                            <button onClick={() => setDeleteConfirmation(aluno.id)} className="p-2 text-zinc-500 hover:text-red-500 transition-colors" title="Excluir">
+                              Excluir
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -286,24 +294,26 @@ export default function AlunosModule() {
       </div>
 
       {/* Modal de Cadastro/Edição */}
-      <Modal
-        isOpen={showAddModal}
-        onClose={closeAddModal}
-        title={editingAluno ? 'Editar Aluno' : 'Novo Aluno'}
-        maxWidth="max-w-4xl"
-      >
-        <AlunoForm
-          data={editingAluno || formData}
-          onChange={(d) => editingAluno ? startEdit({ ...editingAluno, ...d } as Aluno) : setFormData(d)}
-          planos={planos}
-          selectedPlanoId={selectedPlanoId}
-          onPlanoChange={setSelectedPlanoId}
-          onSubmit={handleFormSubmit}
-          onCancel={closeAddModal}
-          isEditing={!!editingAluno}
-          userRole={userRole}
-        />
-      </Modal>
+      {!isReadOnly && (
+        <Modal
+          isOpen={showAddModal}
+          onClose={closeAddModal}
+          title={editingAluno ? 'Editar Aluno' : 'Novo Aluno'}
+          maxWidth="max-w-4xl"
+        >
+          <AlunoForm
+            data={editingAluno || formData}
+            onChange={(d) => editingAluno ? startEdit({ ...editingAluno, ...d } as Aluno) : setFormData(d)}
+            planos={planos}
+            selectedPlanoId={selectedPlanoId}
+            onPlanoChange={setSelectedPlanoId}
+            onSubmit={handleFormSubmit}
+            onCancel={closeAddModal}
+            isEditing={!!editingAluno}
+            userRole={userRole}
+          />
+        </Modal>
+      )}
 
       {/* Dialog de Confirmação de Exclusão */}
       <ConfirmDialog

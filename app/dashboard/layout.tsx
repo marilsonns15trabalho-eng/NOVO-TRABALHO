@@ -6,7 +6,7 @@ import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import MobileMenu from '@/components/MobileMenu';
 import { useAuth } from '@/hooks/useAuth';
-import { getActiveIdFromPath } from '@/lib/navigation';
+import { getActiveIdFromPath, ROLE_ACCESS, type UserRole } from '@/lib/navigation';
 import { Loader2 } from 'lucide-react';
 
 /** Mapa de título por rota */
@@ -59,6 +59,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const activeId = getActiveIdFromPath(pathname);
   const role = profile?.role || 'aluno';
   const title = TITLES[activeId] || 'Painel de Controle';
+
+  // Proteção de rota por role (evita acesso direto a páginas não permitidas)
+  useEffect(() => {
+    if (!user) return;
+    const allowedIds: string[] = (ROLE_ACCESS[role as UserRole] || ROLE_ACCESS.aluno) as string[];
+    if (!allowedIds.includes(activeId)) {
+      router.replace('/dashboard');
+    }
+  }, [activeId, role, router, user]);
 
   // Navegação via setActiveTab → agora traduz para router.push
   const handleNavigate = (id: string) => {

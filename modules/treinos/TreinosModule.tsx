@@ -16,10 +16,12 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTreinos } from '@/hooks/useTreinos';
+import { useUserRole } from '@/hooks/useUserRole';
 import { Toast } from '@/components/ui';
 import type { Treino } from '@/types/treino';
 
 export default function TreinosModule() {
+  const { isReadOnly } = useUserRole();
   const {
     treinos,
     alunos,
@@ -100,13 +102,15 @@ export default function TreinosModule() {
           <h2 className="text-3xl font-bold tracking-tight">Gestão de Treinos</h2>
           <p className="text-zinc-500">Crie fichas de treinamento e acompanhe a evolução dos alunos.</p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-bold px-6 py-3 rounded-2xl transition-all active:scale-95 shadow-lg shadow-blue-500/20"
-        >
-          <Plus size={20} />
-          Novo Treino
-        </button>
+        {!isReadOnly && (
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-bold px-6 py-3 rounded-2xl transition-all active:scale-95 shadow-lg shadow-blue-500/20"
+          >
+            <Plus size={20} />
+            Novo Treino
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4">
@@ -293,7 +297,7 @@ export default function TreinosModule() {
         )}
 
         {/* Modal Criação — original AnimatePresence com form inline */}
-        {showAddModal && (
+        {!isReadOnly && showAddModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}

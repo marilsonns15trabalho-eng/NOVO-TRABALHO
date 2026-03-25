@@ -1,8 +1,9 @@
 // Camada de serviço para Anamneses
-import { supabase } from '@/lib/supabase';
+import { supabase, getAuthenticatedUser } from '@/lib/supabase';
 import { TABLES } from '@/lib/constants';
 import type { Anamnese, AnamneseFormData } from '@/types/anamnese';
 import type { AlunoListItem } from '@/types/common';
+import { assertNotProfessorForUserId } from '@/lib/authz';
 
 /** Busca todas as anamneses com join do aluno */
 export async function fetchAnamneses(): Promise<Anamnese[]> {
@@ -51,6 +52,9 @@ export async function fetchAlunosParaAnamnese(): Promise<AlunoListItem[]> {
 
 /** Cria uma nova anamnese */
 export async function createAnamnese(data: AnamneseFormData): Promise<void> {
+  const user = await getAuthenticatedUser();
+  await assertNotProfessorForUserId(user.id);
+
   const { error } = await supabase
     .from(TABLES.ANAMNESES)
     .insert([data]);

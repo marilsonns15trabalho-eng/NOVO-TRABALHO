@@ -1,7 +1,8 @@
 // Camada de serviço para Planos
-import { supabase } from '@/lib/supabase';
+import { supabase, getAuthenticatedUser } from '@/lib/supabase';
 import { TABLES } from '@/lib/constants';
 import type { Plano, PlanoFormData } from '@/types/plano';
+import { assertNotProfessorForUserId } from '@/lib/authz';
 
 /** Busca todos os planos ordenados por preço */
 export async function fetchPlanos(): Promise<Plano[]> {
@@ -20,8 +21,8 @@ export async function fetchPlanos(): Promise<Plano[]> {
 
 /** Cria um novo plano */
 export async function createPlano(formData: PlanoFormData): Promise<void> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Usuário não autenticado');
+  const user = await getAuthenticatedUser();
+  await assertNotProfessorForUserId(user.id);
 
   const { error } = await supabase
     .from(TABLES.PLANS)
@@ -39,6 +40,9 @@ export async function createPlano(formData: PlanoFormData): Promise<void> {
 
 /** Atualiza um plano existente */
 export async function updatePlano(planoId: string, formData: PlanoFormData): Promise<void> {
+  const user = await getAuthenticatedUser();
+  await assertNotProfessorForUserId(user.id);
+
   const { error } = await supabase
     .from(TABLES.PLANS)
     .update({
@@ -55,6 +59,9 @@ export async function updatePlano(planoId: string, formData: PlanoFormData): Pro
 
 /** Desativa um plano ativo ou exclui um plano já inativo */
 export async function deleteOrDeactivatePlano(plano: Plano): Promise<void> {
+  const user = await getAuthenticatedUser();
+  await assertNotProfessorForUserId(user.id);
+
   if (plano.active) {
     // Desativar
     const { error } = await supabase

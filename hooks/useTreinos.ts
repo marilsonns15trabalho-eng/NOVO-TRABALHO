@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as treinosService from '@/services/treinos.service';
 import { useNotification } from '@/hooks/useNotification';
+import { useAuth } from '@/hooks/useAuth';
 import type { Treino, TreinoFormData, Exercicio } from '@/types/treino';
 import type { StudentListItem } from '@/types/common';
 
@@ -18,6 +19,10 @@ const EMPTY_EXERCICIO: Exercicio = {
 };
 
 export function useTreinos() {
+  const { user, profile, loading: authLoading } = useAuth();
+  const role = profile?.role || 'aluno';
+  const restrictUserId = role === 'aluno' ? user?.id : undefined;
+
   const [treinos, setTreinos] = useState<Treino[]>([]);
   const [alunos, setAlunos] = useState<StudentListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,11 +45,18 @@ export function useTreinos() {
   const { notification, showNotification, clearNotification } = useNotification();
 
   const loadData = useCallback(async () => {
+    if (authLoading) return;
     setLoading(true);
     try {
+      if (role === 'aluno' && !restrictUserId) {
+        setTreinos([]);
+        setAlunos([]);
+        return;
+      }
+
       const [treinosData, alunosData] = await Promise.all([
-        treinosService.fetchTreinos(),
-        treinosService.fetchAlunosParaTreino(),
+        treinosService.fetchTreinos(restrictUserId),
+        treinosService.fetchAlunosParaTreino(restrictUserId),
       ]);
       setTreinos(treinosData);
       setAlunos(alunosData);
@@ -53,7 +65,7 @@ export function useTreinos() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [authLoading, role, restrictUserId]);
 
   useEffect(() => {
     loadData();

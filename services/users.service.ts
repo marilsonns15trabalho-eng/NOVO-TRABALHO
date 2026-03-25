@@ -1,5 +1,5 @@
 // Camada de serviço para gerenciamento de usuários (user_profiles)
-import { supabase } from '@/lib/supabase';
+import { supabase, getAuthenticatedUser } from '@/lib/supabase';
 import { SUPER_ADMIN_EMAIL } from '@/lib/constants';
 import type { UserRole } from '@/contexts/AuthContext';
 
@@ -26,26 +26,18 @@ export async function fetchAllProfiles(): Promise<UserProfileRow[]> {
   return (data || []) as UserProfileRow[];
 }
 
-/** Verifica se um userId pertence ao super admin */
-export async function isSuperAdmin(userId: string): Promise<boolean> {
-  const { data } = await supabase.auth.admin.getUserById(userId).catch(() => ({ data: null }));
-  // Fallback: buscar pelo perfil se admin API não disponível
-  if (!data) {
-    // Sem acesso à API admin, usamos o email do perfil
-    return false;
-  }
-  return data?.user?.email === SUPER_ADMIN_EMAIL;
-}
-
 /** Atualiza o role de um usuário (somente admin, protege super admin) */
 export async function updateUserRole(
   targetUserId: string,
   newRole: UserRole,
   targetEmail?: string
 ): Promise<{ error: string | null }> {
-  // Verificar que o chamador é admin
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: 'Usuário não autenticado' };
+  let user;
+  try {
+    user = await getAuthenticatedUser();
+  } catch {
+    return { error: 'Usuário não autenticado' };
+  }
 
   const { data: callerProfile } = await supabase
     .from('user_profiles')
@@ -62,8 +54,17 @@ export async function updateUserRole(
     return { error: 'Você não pode alterar seu próprio role.' };
   }
 
-  // Proteger super admin
-  if (targetEmail === SUPER_ADMIN_EMAIL) {
+  // Proteger super admin (sem auth.admin: email vindo do caller ou da tabela students)
+  let emailToCheck = targetEmail;
+  if (!emailToCheck) {
+    const { data: studentRow } = await supabase
+      .from('students')
+      .select('email')
+      .eq('user_id', targetUserId)
+      .maybeSingle();
+    emailToCheck = studentRow?.email ?? undefined;
+  }
+  if (emailToCheck === SUPER_ADMIN_EMAIL) {
     return { error: 'Super admin não pode ser alterado.' };
   }
 

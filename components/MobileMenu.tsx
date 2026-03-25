@@ -20,7 +20,7 @@ interface MobileMenuProps {
 
 const ROLE_ACCESS: Record<UserRole, string[]> = {
   admin: ['home', 'alunos', 'financeiro', 'planos', 'treinos', 'anamnese', 'avaliacao', 'relatorios', 'configuracoes'],
-  professor: ['home', 'alunos', 'treinos', 'avaliacao', 'anamnese', 'relatorios'],
+  professor: ['home', 'alunos', 'treinos', 'avaliacao', 'anamnese'],
   aluno: ['home', 'treinos', 'avaliacao'],
 };
 

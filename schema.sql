@@ -497,16 +497,18 @@ ALTER TABLE assinaturas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE configuracoes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 
--- Função auxiliar: verificar se o usuário é admin
+-- Função auxiliar: verificar se o usuário é admin (search_path fixo para RLS)
 CREATE OR REPLACE FUNCTION is_admin()
 RETURNS BOOLEAN AS $$
 BEGIN
     RETURN EXISTS (
-        SELECT 1 FROM user_profiles
+        SELECT 1 FROM public.user_profiles
         WHERE id = auth.uid() AND role = 'admin'
     );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public;
 
 -- ---- Policies para students ----
 DO $$ BEGIN
@@ -528,6 +530,18 @@ DO $$ BEGIN
     CREATE POLICY "students_update" ON students FOR UPDATE USING (
         user_id = auth.uid() OR is_admin()
     );
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+-- Vincular aluno órfão (mesmo e-mail do login, user_id NULL) sem ser admin
+DO $$ BEGIN
+    DROP POLICY IF EXISTS "students_update_claim" ON students;
+    CREATE POLICY "students_update_claim" ON students FOR UPDATE USING (
+        user_id IS NULL
+        AND email IS NOT NULL
+        AND lower(trim(email)) = lower(trim((auth.jwt() ->> 'email')))
+    )
+    WITH CHECK (user_id = auth.uid());
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 
@@ -571,9 +585,41 @@ DO $$ BEGIN
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 
+-- avaliacoes: políticas separadas (INSERT com WITH CHECK explícito — evita falha com FOR ALL no Supabase)
 DO $$ BEGIN
     DROP POLICY IF EXISTS "avaliacoes_all" ON avaliacoes;
-    CREATE POLICY "avaliacoes_all" ON avaliacoes FOR ALL USING (
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    DROP POLICY IF EXISTS "avaliacoes_select" ON avaliacoes;
+    CREATE POLICY "avaliacoes_select" ON avaliacoes FOR SELECT USING (
+        user_id = auth.uid() OR is_admin()
+    );
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    DROP POLICY IF EXISTS "avaliacoes_insert" ON avaliacoes;
+    CREATE POLICY "avaliacoes_insert" ON avaliacoes FOR INSERT WITH CHECK (
+        user_id = auth.uid() OR is_admin()
+    );
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    DROP POLICY IF EXISTS "avaliacoes_update" ON avaliacoes;
+    CREATE POLICY "avaliacoes_update" ON avaliacoes FOR UPDATE USING (
+        user_id = auth.uid() OR is_admin()
+    ) WITH CHECK (
+        user_id = auth.uid() OR is_admin()
+    );
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    DROP POLICY IF EXISTS "avaliacoes_delete" ON avaliacoes;
+    CREATE POLICY "avaliacoes_delete" ON avaliacoes FOR DELETE USING (
         user_id = auth.uid() OR is_admin()
     );
 EXCEPTION WHEN OTHERS THEN NULL;
