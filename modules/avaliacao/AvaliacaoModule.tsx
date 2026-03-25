@@ -18,7 +18,7 @@ import {
   Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import ChartWrapper from './ChartWrapper';
+import ChartWrapper from '@/components/ChartWrapper';
 import { 
   LineChart, 
   Line, 
