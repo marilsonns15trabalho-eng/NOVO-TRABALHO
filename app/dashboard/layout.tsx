@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
@@ -22,19 +22,9 @@ const TITLES: Record<string, string> = {
   configuracoes: 'Configurações do Sistema',
 };
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, profile, loading } = useAuth();
-  const router = useRouter();
-  const pathname = usePathname();
+function TabRedirector() {
   const searchParams = useSearchParams();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  // Redirect para login se não autenticado
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/auth');
-    }
-  }, [loading, user, router]);
+  const router = useRouter();
 
   // Compatibilidade: redirecionar ?tab=xyz para /dashboard/xyz
   useEffect(() => {
@@ -45,6 +35,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.replace('/dashboard');
     }
   }, [searchParams, router]);
+
+  return null;
+}
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { user, profile, loading } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Redirect para login se não autenticado
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/auth');
+    }
+  }, [loading, user, router]);
 
   if (loading) {
     return (
@@ -80,6 +86,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-screen bg-black text-white font-sans selection:bg-orange-500 selection:text-black">
+      <Suspense fallback={null}>
+        <TabRedirector />
+      </Suspense>
+
       {/* Sidebar — visível apenas no desktop */}
       <div className="hidden md:block">
         <Sidebar activeTab={activeId} setActiveTab={handleNavigate} userRole={role} />
