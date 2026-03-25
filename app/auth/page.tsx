@@ -25,7 +25,7 @@ function AuthContent() {
   // Se já logado, redirecionar para dashboard
   useEffect(() => {
     if (!authLoading && user) {
-      router.push('/dashboard');
+      router.replace('/dashboard');
     }
   }, [authLoading, user, router]);
 

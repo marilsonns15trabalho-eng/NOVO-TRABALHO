@@ -123,7 +123,8 @@ async function ensureUserSetup(user: User, displayName?: string): Promise<UserPr
     }
   }
 
-  await ensureStudentRow(userId, email, name);
+  // Executa a criação do aluno em background para não travar o carregamento inicial
+  ensureStudentRow(userId, email, name).catch(console.error);
 
   return profile;
 }
@@ -138,38 +139,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Listener para TODAS as mudanças de sessão (incluindo INITIAL_SESSION no mount)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-      if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setSession(null);
-        setProfile(null);
-        setLoading(false);
-        return;
-      }
+      try {
+        if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setSession(null);
+          setProfile(null);
+          return;
+        }
 
-      if (event === 'TOKEN_REFRESHED') {
-        // Apenas atualiza sessão — NÃO roda ensureUserSetup
-        if (newSession) {
-          setSession(newSession);
+        if (event === 'TOKEN_REFRESHED') {
+          // Apenas atualiza sessão — NÃO roda ensureUserSetup
+          if (newSession) {
+            setSession(newSession);
+            setUser(newSession.user);
+          }
+          return;
+        }
+
+        if (newSession?.user) {
           setUser(newSession.user);
-        }
-        return;
-      }
+          setSession(newSession);
 
-      if (newSession?.user) {
-        setUser(newSession.user);
-        setSession(newSession);
-
-        // ensureUserSetup só roda em SIGNED_IN e INITIAL_SESSION
-        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-          const userProfile = await ensureUserSetup(newSession.user);
-          setProfile(userProfile);
+          // ensureUserSetup só roda em SIGNED_IN e INITIAL_SESSION
+          if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+            const userProfile = await ensureUserSetup(newSession.user);
+            setProfile(userProfile);
+          }
+        } else {
+          setUser(null);
+          setSession(null);
+          setProfile(null);
         }
-      } else {
-        setUser(null);
-        setSession(null);
-        setProfile(null);
+      } catch (error) {
+        console.error('Erro no onAuthStateChange:', error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => {
