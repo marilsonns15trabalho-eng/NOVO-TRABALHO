@@ -28,51 +28,76 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 /**
+ * Helper para adicionar timeout a uma promise
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`Timeout após ${ms}ms`));
+    }, ms);
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
+
+/**
  * Garante linha em students: por user_id, ou vincula e-mail órfão, ou insere.
  * Evita violação de students_email_key (corrida / aluno cadastrado antes sem user_id).
  */
 async function ensureStudentRow(userId: string, email: string, name: string): Promise<void> {
   if (!email) return;
 
-  const { data: byUser } = await supabase
-    .from('students')
-    .select('id')
-    .eq('user_id', userId)
-    .maybeSingle();
+  try {
+    const { data: byUser } = await withTimeout(
+      supabase.from('students').select('id').eq('user_id', userId).maybeSingle(),
+      5000
+    );
 
-  if (byUser) return;
+    if (byUser) return;
 
-  const { data: byEmail } = await supabase
-    .from('students')
-    .select('id, user_id')
-    .eq('email', email)
-    .maybeSingle();
+    const { data: byEmail } = await withTimeout(
+      supabase.from('students').select('id, user_id').eq('email', email).maybeSingle(),
+      5000
+    );
 
-  if (byEmail) {
-    if (!byEmail.user_id) {
-      const { error } = await supabase
-        .from('students')
-        .update({ user_id: userId, name })
-        .eq('id', byEmail.id);
-      if (error) {
-        console.error('Erro ao vincular aluno ao login:', error.message);
+    if (byEmail) {
+      if (!byEmail.user_id) {
+        const { error } = await withTimeout(
+          supabase.from('students').update({ user_id: userId, name }).eq('id', byEmail.id),
+          5000
+        );
+        if (error) {
+          console.error('Erro ao vincular aluno ao login:', error.message);
+        }
       }
+      return;
     }
-    return;
-  }
 
-  const { error } = await supabase.from('students').insert([{
-    name,
-    email,
-    status: 'ativo',
-    user_id: userId,
-  }]);
+    const { error } = await withTimeout(
+      supabase.from('students').insert([{
+        name,
+        email,
+        status: 'ativo',
+        user_id: userId,
+      }]),
+      5000
+    );
 
-  if (error?.code === '23505') {
-    return;
-  }
-  if (error) {
-    console.error('Erro ao criar registro de aluno:', error.message);
+    if (error?.code === '23505') {
+      return;
+    }
+    if (error) {
+      console.error('Erro ao criar registro de aluno:', error.message);
+    }
+  } catch (err) {
+    console.error('Erro de timeout ou rede em ensureStudentRow:', err);
   }
 }
 
@@ -90,40 +115,41 @@ async function ensureUserSetup(user: User, displayName?: string): Promise<UserPr
 
   let profile: UserProfile | null = null;
 
-  const { data: existingProfile } = await supabase
-    .from('user_profiles')
-    .select('*')
-    .eq('id', userId)
-    .maybeSingle();
+  try {
+    const { data: existingProfile } = await withTimeout(
+      supabase.from('user_profiles').select('*').eq('id', userId).maybeSingle(),
+      5000
+    );
 
-  if (existingProfile) {
-    profile = existingProfile as UserProfile;
-  } else {
-    const { data: inserted, error } = await supabase
-      .from('user_profiles')
-      .insert([{
-        id: userId,
-        role: defaultRole,
-        display_name: name,
-      }])
-      .select()
-      .single();
-
-    if (error?.code === '23505') {
-      const { data: refetch } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
-      profile = refetch as UserProfile | null;
-    } else if (error) {
-      console.error('Erro ao criar perfil:', error.message);
+    if (existingProfile) {
+      profile = existingProfile as UserProfile;
     } else {
-      profile = inserted as UserProfile;
-    }
-  }
+      const { data: inserted, error } = await withTimeout(
+        supabase.from('user_profiles').insert([{
+          id: userId,
+          role: defaultRole,
+          display_name: name,
+        }]).select().single(),
+        5000
+      );
 
-  await ensureStudentRow(userId, email, name);
+      if (error?.code === '23505') {
+        const { data: refetch } = await withTimeout(
+          supabase.from('user_profiles').select('*').eq('id', userId).maybeSingle(),
+          5000
+        );
+        profile = refetch as UserProfile | null;
+      } else if (error) {
+        console.error('Erro ao criar perfil:', error.message);
+      } else {
+        profile = inserted as UserProfile;
+      }
+    }
+
+    await ensureStudentRow(userId, email, name);
+  } catch (err) {
+    console.error('Erro de timeout ou rede em ensureUserSetup:', err);
+  }
 
   return profile;
 }
@@ -138,38 +164,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Listener para TODAS as mudanças de sessão (incluindo INITIAL_SESSION no mount)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-      if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setSession(null);
-        setProfile(null);
-        setLoading(false);
-        return;
-      }
+      try {
+        if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setSession(null);
+          setProfile(null);
+          setLoading(false);
+          return;
+        }
 
-      if (event === 'TOKEN_REFRESHED') {
-        // Apenas atualiza sessão — NÃO roda ensureUserSetup
-        if (newSession) {
-          setSession(newSession);
+        if (event === 'TOKEN_REFRESHED') {
+          // Apenas atualiza sessão — NÃO roda ensureUserSetup
+          if (newSession) {
+            setSession(newSession);
+            setUser(newSession.user);
+          }
+          return;
+        }
+
+        if (newSession?.user) {
           setUser(newSession.user);
-        }
-        return;
-      }
+          setSession(newSession);
 
-      if (newSession?.user) {
-        setUser(newSession.user);
-        setSession(newSession);
-
-        // ensureUserSetup só roda em SIGNED_IN e INITIAL_SESSION
-        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-          const userProfile = await ensureUserSetup(newSession.user);
-          setProfile(userProfile);
+          // ensureUserSetup só roda em SIGNED_IN e INITIAL_SESSION
+          if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+            const userProfile = await ensureUserSetup(newSession.user);
+            setProfile(userProfile);
+          }
+        } else {
+          setUser(null);
+          setSession(null);
+          setProfile(null);
         }
-      } else {
-        setUser(null);
-        setSession(null);
-        setProfile(null);
+      } catch (error) {
+        console.error('Erro no onAuthStateChange:', error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => {
@@ -223,15 +254,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Logout
   const signOut = async () => {
+    // Limpar o estado local imediatamente para evitar travamentos na UI
+    setUser(null);
+    setSession(null);
+    setProfile(null);
+    
     try {
       const { error } = await supabase.auth.signOut({ scope: 'local' });
       if (error) console.error('Erro no signOut:', error.message);
     } catch (e) {
       console.error('Erro ao fazer logout:', e);
-    } finally {
-      setUser(null);
-      setSession(null);
-      setProfile(null);
     }
   };
 
