@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { supabase } from '@/lib/supabase';
+// FinanceiroModule REFATORADO — JSX ORIGINAL preservado, lógica no hook useFinanceiro
+import React, { useState, useMemo } from 'react';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -17,59 +17,41 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { jsPDF } from 'jspdf';
-
-interface Pagamento {
-  id: string;
-  valor: number;
-  data_vencimento: string;
-  status: 'pendente' | 'pago' | 'vencido' | 'atrasado';
-  tipo: 'receita' | 'despesa';
-  descricao: string;
-  forma_pagamento?: string;
-}
-
-interface Boleto {
-  id: string;
-  student_id: string;
-  amount: number;
-  due_date: string;
-  status: 'pending' | 'paid' | 'late';
-  code: string;
-  students: { name: string };
-}
-
-interface Student {
-  id: string;
-  name: string;
-  due_day?: number;
-  plan_id?: string;
-  plans?: {
-    price: number;
-  };
-}
+import { useFinanceiro } from '@/hooks/useFinanceiro';
+import type { Boleto } from '@/types/financeiro';
 
 export default function FinanceiroModule() {
+  const {
+    pagamentos,
+    boletos,
+    alunos,
+    loading,
+    showAddModal,
+    setShowAddModal,
+    showBoletoModal,
+    setShowBoletoModal,
+    deleteConfirmation,
+    setDeleteConfirmation,
+    newPagamento,
+    setNewPagamento,
+    newBoleto,
+    setNewBoleto,
+    handleCreateTransacao,
+    handleGerarBoleto,
+    handleGerar3Boletos,
+    handleGerarLote,
+    handleDarBaixa,
+    handleExcluirBoleto,
+    notification,
+    clearNotification,
+  } = useFinanceiro();
+
+  // Estado local de UI (não afeta dados)
   const [activeTab, setActiveTab] = useState<'geral' | 'alunos'>('geral');
-  const [pagamentos, setPagamentos] = useState<Pagamento[]>([]);
-  const [boletos, setBoletos] = useState<Boleto[]>([]);
-  const [alunos, setAlunos] = useState<Student[]>([]);
-  const [loading, setLoading] = useState(true);
   const [batchLoading, setBatchLoading] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showBoletoModal, setShowBoletoModal] = useState(false);
   const [showConfirmLote, setShowConfirmLote] = useState(false);
   const [boletoToPay, setBoletoToPay] = useState<Boleto | null>(null);
-  const [boletoToDelete, setBoletoToDelete] = useState<Boleto | null>(null); // Novo estado
-  const [selectedStudent, setSelectedStudent] = useState<(Student & { boletos?: Boleto[], displayBoleto?: Boleto }) | null>(null);
-  const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
-  const [newPagamento, setNewPagamento] = useState<Partial<Pagamento>>({
-    valor: 0,
-    data_vencimento: '',
-    status: 'pendente',
-    tipo: 'receita',
-    descricao: ''
-  });
-  const [newBoleto, setNewBoleto] = useState({ student_id: '', amount: 0, due_date: '' });
+  const [selectedStudent, setSelectedStudent] = useState<any>(null);
 
   // Agrupar boletos por aluno
   const boletosPorAluno = useMemo(() => alunos.map(aluno => {
@@ -77,276 +59,12 @@ export default function FinanceiroModule() {
     const sorted = studentBoletos.sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
     const pendingOrLate = sorted.find(b => b.status === 'pending' || b.status === 'late');
     const displayBoleto = pendingOrLate || sorted[sorted.length - 1];
-    return {
-      ...aluno,
-      boletos: studentBoletos,
-      displayBoleto
-    };
+    return { ...aluno, boletos: studentBoletos, displayBoleto };
   }), [alunos, boletos]);
 
-  // Atualizar selectedStudent quando os boletos mudarem
-  useEffect(() => {
-    if (selectedStudent) {
-      const updatedStudent = boletosPorAluno.find(a => a.id === selectedStudent.id);
-      if (updatedStudent && JSON.stringify(updatedStudent.boletos) !== JSON.stringify(selectedStudent.boletos)) {
-        setSelectedStudent(updatedStudent);
-      }
-    }
-  }, [boletosPorAluno, selectedStudent]);
-
-  const gerar3Boletos = async (studentId: string) => {
-    const student = alunos.find(a => a.id === studentId);
-    if (!student) return;
-
-    const studentBoletos = boletos.filter(b => b.student_id === studentId);
-    const newBoletos = [];
-    const now = new Date();
-    
-    // Lógica inteligente: próximos 3 meses sem boleto pendente/atrasado
-    let mesesGerados = 0;
-    let mesAtual = now.getMonth();
-    let anoAtual = now.getFullYear();
-
-    while (mesesGerados < 3) {
-      const dataVencimento = new Date(anoAtual, mesAtual, student.due_day || 10);
-      const dataStr = dataVencimento.toISOString().split('T')[0];
-      
-      const existeBoleto = studentBoletos.some(b => 
-        b.due_date.startsWith(`${dataVencimento.getFullYear()}-${(dataVencimento.getMonth()+1).toString().padStart(2, '0')}`)
-      );
-
-      if (!existeBoleto) {
-        newBoletos.push({
-          student_id: studentId,
-          amount: student.plans?.price || 0,
-          due_date: dataStr,
-          status: 'pending',
-          code: Math.random().toString(36).substring(2, 10).toUpperCase()
-        });
-        mesesGerados++;
-      }
-
-      mesAtual++;
-      if (mesAtual > 11) {
-        mesAtual = 0;
-        anoAtual++;
-      }
-    }
-
-    try {
-      const { error } = await supabase.from('bills').insert(newBoletos);
-      if (error) throw error;
-      showNotify('3 boletos gerados com sucesso!');
-      fetchData();
-    } catch (error) {
-      console.error('Erro ao gerar boletos:', error);
-      showNotify('Erro ao gerar boletos.', 'error');
-    }
-  };
-
-  const handleDeleteBoleto = async () => {
-    if (!boletoToDelete) return;
-    try {
-      const { error } = await supabase.from('bills').delete().eq('id', boletoToDelete.id);
-      
-      if (error) {
-        throw error;
-      }
-      
-      showNotify('Boleto excluído com sucesso!');
-      setBoletoToDelete(null);
-      fetchData();
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Erro desconhecido';
-      console.error('Erro ao excluir boleto:', error);
-      showNotify('Erro ao excluir boleto: ' + msg, 'error');
-      setBoletoToDelete(null);
-    }
-  };
-
-  const showNotify = (message: string, type: 'success' | 'error' = 'success') => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000);
-  };
-
-  const handleGerarBoleto = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const { error } = await supabase
-        .from('bills')
-        .insert([{ 
-          ...newBoleto, 
-          status: 'pending', 
-          code: Math.random().toString(36).substring(2, 10).toUpperCase() 
-        }]);
-      
-      if (error) throw error;
-      
-      setShowBoletoModal(false);
-      setNewBoleto({ student_id: '', amount: 0, due_date: '' });
-      fetchData();
-    } catch (error) {
-      console.error('Erro ao gerar boleto:', error);
-      alert('Erro ao gerar boleto.');
-    }
-  };
-
-  const handleGerarLote = async () => {
-    setBatchLoading(true);
-    setShowConfirmLote(false);
-    try {
-      const now = new Date();
-      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
-
-      // 1. Buscar boletos já existentes no mês atual
-      const { data: existingBills } = await supabase
-        .from('bills')
-        .select('student_id')
-        .gte('due_date', firstDayOfMonth)
-        .lte('due_date', lastDayOfMonth);
-
-      const studentsWithBills = new Set(existingBills?.map(b => b.student_id) || []);
-
-      // 2. Filtrar alunos que NÃO têm boleto no mês
-      const studentsToBill = alunos.filter(a => !studentsWithBills.has(a.id));
-
-      if (studentsToBill.length === 0) {
-        showNotify('Todos os alunos já possuem boletos para este mês.');
-        setBatchLoading(false);
-        return;
-      }
-
-      // 3. Gerar boletos
-      const newBills = studentsToBill.map(student => {
-        const dueDay = student.due_day || 10;
-        const dueDate = new Date(now.getFullYear(), now.getMonth(), dueDay);
-        
-        return {
-          student_id: student.id,
-          amount: student.plans?.price || 0,
-          due_date: dueDate.toISOString().split('T')[0],
-          status: 'pending',
-          code: Math.random().toString(36).substring(2, 10).toUpperCase()
-        };
-      });
-
-      const { error } = await supabase.from('bills').insert(newBills);
-      if (error) throw error;
-
-      showNotify(`${newBills.length} boletos gerados com sucesso!`);
-      fetchData();
-    } catch (error) {
-      console.error('Erro ao gerar lote:', error);
-      showNotify('Erro ao gerar boletos em lote.', 'error');
-    } finally {
-      setBatchLoading(false);
-    }
-  };
-
-  const handleBaixaManual = async () => {
-    if (!boletoToPay) return;
-
-    try {
-      // 1. Atualizar status do boleto
-      const { error: billError } = await supabase
-        .from('bills')
-        .update({ status: 'paid' })
-        .eq('id', boletoToPay.id);
-
-      if (billError) throw billError;
-
-      // 2. Registrar no financeiro como receita paga
-      const { error: finError } = await supabase
-        .from('financeiro')
-        .insert([{
-          valor: boletoToPay.amount,
-          data_vencimento: new Date().toISOString().split('T')[0],
-          status: 'pago',
-          tipo: 'receita',
-          descricao: `Mensalidade - ${boletoToPay.students?.name} (Boleto: ${boletoToPay.code})`
-        }]);
-
-      if (finError) throw finError;
-
-      showNotify('Baixa realizada com sucesso!');
-      setBoletoToPay(null);
-      fetchData();
-    } catch (error) {
-      console.error('Erro ao dar baixa:', error);
-      showNotify('Erro ao processar baixa manual.', 'error');
-    }
-  };
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const [pagamentosRes, boletosRes, alunosRes] = await Promise.all([
-        supabase.from('financeiro').select('*').order('data_vencimento', { ascending: false }),
-        supabase.from('bills').select('*, students(name)').order('due_date', { ascending: false }),
-        supabase.from('students').select('id, name, due_day, plans(price)')
-      ]);
-
-      if (pagamentosRes.data) setPagamentos(pagamentosRes.data);
-      
-      if (boletosRes.data) {
-        const mappedBoletos = (boletosRes.data as any[]).map(b => ({
-          ...b,
-          students: b.students ? { name: b.students.name } : null
-        }));
-        setBoletos(mappedBoletos);
-      } else if (boletosRes.error) {
-        console.warn('Erro ao buscar boletos com join "students", tentando sem join:', boletosRes.error.message);
-        const { data: dataNoJoin } = await supabase.from('bills').select('*').order('due_date', { ascending: false });
-        if (dataNoJoin) setBoletos(dataNoJoin.map(b => ({ ...b, students: null })));
-      }
-
-      if (alunosRes.data) {
-        const mappedAlunos = (alunosRes.data as any[]).map((a: any) => ({
-          id: a.id,
-          name: a.name || a.nome,
-          due_day: a.due_day,
-          plans: a.plans
-        }));
-        setAlunos(mappedAlunos);
-      } else if (alunosRes.error) {
-        console.warn('Erro ao buscar alunos por "name", tentando "nome":', alunosRes.error.message);
-        const { data: dataNome } = await supabase.from('students').select('id, nome, due_day, plans(price)');
-        if (dataNome) {
-          setAlunos(dataNome.map((a: any) => ({
-            id: a.id,
-            name: a.nome,
-            due_day: a.due_day,
-            plans: a.plans
-          })));
-        }
-      }
-    } catch (err) {
-      console.error('Erro fatal ao buscar dados financeiros:', err);
-    }
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const handleAdd = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const { error } = await supabase
-        .from('financeiro')
-        .insert([{ ...newPagamento, valor: Number(newPagamento.valor) }]);
-      
-      if (error) throw error;
-      
-      setShowAddModal(false);
-      setNewPagamento({ valor: 0, data_vencimento: '', status: 'pendente', tipo: 'receita', descricao: '' });
-      fetchData();
-    } catch (error) {
-      console.error('Erro ao cadastrar transação:', error);
-    }
-  };
+  const totalReceitas = pagamentos.filter(p => p.tipo === 'receita' && p.status === 'pago').reduce((acc, curr) => acc + curr.valor, 0);
+  const totalDespesas = pagamentos.filter(p => p.tipo === 'despesa' && p.status === 'pago').reduce((acc, curr) => acc + curr.valor, 0);
+  const saldo = totalReceitas - totalDespesas;
 
   const generatePDF = (boleto: Boleto) => {
     const doc = new jsPDF();
@@ -360,9 +78,26 @@ export default function FinanceiroModule() {
     doc.save(`boleto_${boleto.code}.pdf`);
   };
 
-  const totalReceitas = pagamentos.filter(p => p.tipo === 'receita' && p.status === 'pago').reduce((acc, curr) => acc + curr.valor, 0);
-  const totalDespesas = pagamentos.filter(p => p.tipo === 'despesa' && p.status === 'pago').reduce((acc, curr) => acc + curr.valor, 0);
-  const saldo = totalReceitas - totalDespesas;
+  const onGerarLote = async () => {
+    setBatchLoading(true);
+    setShowConfirmLote(false);
+    await handleGerarLote();
+    setBatchLoading(false);
+  };
+
+  const onDarBaixa = async () => {
+    if (!boletoToPay) return;
+    await handleDarBaixa(boletoToPay);
+    setBoletoToPay(null);
+  };
+
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-screen bg-black">
+        <Loader2 className="animate-spin text-emerald-500" size={40} />
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 space-y-8 bg-black min-h-screen text-white">
@@ -405,26 +140,13 @@ export default function FinanceiroModule() {
               className="relative bg-zinc-900 border border-zinc-800 rounded-3xl p-8 w-full max-w-2xl shadow-2xl"
             >
               <h3 className="text-2xl font-bold mb-6">Gerar Novo Boleto</h3>
-              <form onSubmit={handleGerarBoleto} className="space-y-6">
+              <form onSubmit={(e) => { e.preventDefault(); handleGerarBoleto(); }} className="space-y-6">
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Aluno *</label>
                   <select 
                     required 
                     value={newBoleto.student_id} 
-                    onChange={(e) => {
-                      const studentId = e.target.value;
-                      const student = alunos.find(a => a.id === studentId);
-                      const now = new Date();
-                      const dueDay = student?.due_day || 10;
-                      const defaultDate = new Date(now.getFullYear(), now.getMonth(), dueDay).toISOString().split('T')[0];
-                      
-                      setNewBoleto({
-                        ...newBoleto, 
-                        student_id: studentId,
-                        amount: student?.plans?.price || 0,
-                        due_date: defaultDate
-                      });
-                    }} 
+                    onChange={(e) => setNewBoleto({ ...newBoleto, student_id: e.target.value })}
                     className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 outline-none transition-all"
                   >
                     <option value="">Selecione um aluno...</option>
@@ -592,7 +314,7 @@ export default function FinanceiroModule() {
             >
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-2xl font-bold">{selectedStudent.name}</h3>
-                <button onClick={() => gerar3Boletos(selectedStudent.id)} className="bg-amber-500 hover:bg-amber-600 text-black font-bold py-2 px-4 rounded-xl transition-all">Gerar 3 Boletos</button>
+                <button onClick={() => handleGerar3Boletos(selectedStudent.id)} className="bg-amber-500 hover:bg-amber-600 text-black font-bold py-2 px-4 rounded-xl transition-all">Gerar 3 Boletos</button>
               </div>
               
               <table className="w-full text-left">
@@ -605,7 +327,7 @@ export default function FinanceiroModule() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-800">
-                  {selectedStudent.boletos?.map(b => (
+                  {selectedStudent.boletos.map((b: any) => (
                     <tr key={b.id}>
                       <td className="px-4 py-3 font-mono">{new Date(b.due_date).toLocaleDateString('pt-BR')}</td>
                       <td className="px-4 py-3 font-mono">R$ {b.amount.toFixed(2)}</td>
@@ -621,7 +343,7 @@ export default function FinanceiroModule() {
                         {b.status !== 'paid' && (
                           <button onClick={() => setBoletoToPay(b)} className="text-emerald-500 hover:text-emerald-400 font-bold text-xs">Dar Baixa</button>
                         )}
-                        <button onClick={() => setBoletoToDelete(b)} className="text-rose-500 hover:text-rose-400 font-bold text-xs">Excluir</button>
+                        <button onClick={() => setDeleteConfirmation(b.id)} className="text-rose-500 hover:text-rose-400 font-bold text-xs">Excluir</button>
                       </td>
                     </tr>
                   ))}
@@ -634,7 +356,7 @@ export default function FinanceiroModule() {
           </div>
         )}
       </AnimatePresence>
-      
+
       {/* Modal de Transação */}
       <AnimatePresence>
         {showAddModal && (
@@ -649,7 +371,7 @@ export default function FinanceiroModule() {
               className="relative bg-zinc-900 border border-zinc-800 rounded-3xl p-8 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto"
             >
               <h3 className="text-2xl font-bold mb-6">Nova Transação</h3>
-              <form onSubmit={handleAdd} className="space-y-6">
+              <form onSubmit={(e) => { e.preventDefault(); handleCreateTransacao(); }} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1.5 md:col-span-2">
                     <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Descrição *</label>
@@ -665,14 +387,14 @@ export default function FinanceiroModule() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Tipo *</label>
-                    <select value={newPagamento.tipo || 'receita'} onChange={(e) => setNewPagamento({...newPagamento, tipo: e.target.value as 'receita'|'despesa'})} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all">
+                    <select value={newPagamento.tipo || 'receita'} onChange={(e) => setNewPagamento({...newPagamento, tipo: e.target.value as any})} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all">
                       <option value="receita">Receita</option>
                       <option value="despesa">Despesa</option>
                     </select>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Status *</label>
-                    <select value={newPagamento.status || 'pendente'} onChange={(e) => setNewPagamento({...newPagamento, status: e.target.value as 'pendente'|'pago'|'vencido'|'atrasado'})} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all">
+                    <select value={newPagamento.status || 'pendente'} onChange={(e) => setNewPagamento({...newPagamento, status: e.target.value as any})} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all">
                       <option value="pendente">Pendente</option>
                       <option value="pago">Pago</option>
                       <option value="vencido">Vencido</option>
@@ -689,6 +411,7 @@ export default function FinanceiroModule() {
           </div>
         )}
       </AnimatePresence>
+
       {/* Modal de Confirmação Lote */}
       <AnimatePresence>
         {showConfirmLote && (
@@ -702,7 +425,7 @@ export default function FinanceiroModule() {
               <p className="text-zinc-400 mb-8">O sistema irá gerar boletos para todos os alunos que ainda não possuem cobrança neste mês.</p>
               <div className="flex gap-3">
                 <button onClick={() => setShowConfirmLote(false)} className="flex-1 py-4 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-2xl transition-all">Cancelar</button>
-                <button onClick={handleGerarLote} className="flex-1 py-4 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-2xl transition-all">Confirmar</button>
+                <button onClick={onGerarLote} className="flex-1 py-4 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-2xl transition-all">Confirmar</button>
               </div>
             </motion.div>
           </div>
@@ -723,14 +446,14 @@ export default function FinanceiroModule() {
               <p className="text-xl font-bold text-white mb-8">R$ {boletoToPay.amount.toFixed(2)} - {boletoToPay.students?.name}</p>
               <div className="flex gap-3">
                 <button onClick={() => setBoletoToPay(null)} className="flex-1 py-4 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-2xl transition-all">Cancelar</button>
-                <button onClick={handleBaixaManual} className="flex-1 py-4 bg-emerald-500 hover:bg-emerald-600 text-black font-bold rounded-2xl transition-all">Confirmar</button>
+                <button onClick={onDarBaixa} className="flex-1 py-4 bg-emerald-500 hover:bg-emerald-600 text-black font-bold rounded-2xl transition-all">Confirmar</button>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* Notificações (Toast) */}
+      {/* Notificações (Toast) — posição original: bottom-right */}
       <AnimatePresence>
         {notification && (
           <motion.div 
@@ -748,11 +471,12 @@ export default function FinanceiroModule() {
           </motion.div>
         )}
       </AnimatePresence>
+
       {/* Modal de Confirmação Exclusão */}
       <AnimatePresence>
-        {boletoToDelete && (
+        {deleteConfirmation && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setBoletoToDelete(null)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setDeleteConfirmation(null)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-zinc-900 border border-zinc-800 rounded-3xl p-8 w-full max-w-md shadow-2xl text-center">
               <div className="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6">
                 <AlertCircle size={32} />
@@ -760,8 +484,8 @@ export default function FinanceiroModule() {
               <h3 className="text-2xl font-bold mb-2">Excluir Boleto?</h3>
               <p className="text-zinc-400 mb-8">Esta ação não pode ser desfeita. Deseja realmente excluir este boleto?</p>
               <div className="flex gap-3">
-                <button onClick={() => setBoletoToDelete(null)} className="flex-1 py-4 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-2xl transition-all">Cancelar</button>
-                <button onClick={handleDeleteBoleto} className="flex-1 py-4 bg-rose-500 hover:bg-rose-600 text-black font-bold rounded-2xl transition-all">Excluir</button>
+                <button onClick={() => setDeleteConfirmation(null)} className="flex-1 py-4 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-2xl transition-all">Cancelar</button>
+                <button onClick={handleExcluirBoleto} className="flex-1 py-4 bg-rose-500 hover:bg-rose-600 text-black font-bold rounded-2xl transition-all">Excluir</button>
               </div>
             </motion.div>
           </div>
