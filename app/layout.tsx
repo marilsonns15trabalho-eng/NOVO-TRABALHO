@@ -9,6 +9,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { getActiveIdFromPath, ROLE_ACCESS, type UserRole } from '@/lib/navigation';
 import { Loader2 } from 'lucide-react';
 
+// ⚠️ IMPORTANTE: evita erro de prerender no Vercel
+export const dynamic = 'force-dynamic';
+
 /** Mapa de título por rota */
 const TITLES: Record<string, string> = {
   home: 'Painel de Controle',
@@ -23,11 +26,28 @@ const TITLES: Record<string, string> = {
 };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, profile, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // 🔥 PROTEÇÃO: evita quebrar se não houver AuthProvider no build
+  let user = null;
+  let profile = null;
+  let loading = false;
+
+  try {
+    const auth = useAuth();
+    user = auth.user;
+    profile = auth.profile;
+    loading = auth.loading;
+  } catch (err) {
+    // Durante o build (SSG), o AuthProvider não existe
+    // então ignoramos o erro para não quebrar o deploy
+    user = null;
+    profile = null;
+    loading = false;
+  }
 
   // Redirect para login se não autenticado
   useEffect(() => {
@@ -60,16 +80,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const role = profile?.role || 'aluno';
   const title = TITLES[activeId] || 'Painel de Controle';
 
-  // Proteção de rota por role (evita acesso direto a páginas não permitidas)
+  // Proteção de rota por role
   useEffect(() => {
     if (!user) return;
-    const allowedIds: string[] = (ROLE_ACCESS[role as UserRole] || ROLE_ACCESS.aluno) as string[];
+    const allowedIds: string[] =
+      (ROLE_ACCESS[role as UserRole] || ROLE_ACCESS.aluno) as string[];
+
     if (!allowedIds.includes(activeId)) {
       router.replace('/dashboard');
     }
   }, [activeId, role, router, user]);
 
-  // Navegação via setActiveTab → agora traduz para router.push
+  // Navegação
   const handleNavigate = (id: string) => {
     if (id === 'home') {
       router.push('/dashboard');
@@ -80,12 +102,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-screen bg-black text-white font-sans selection:bg-orange-500 selection:text-black">
-      {/* Sidebar — visível apenas no desktop */}
+      {/* Sidebar */}
       <div className="hidden md:block">
         <Sidebar activeTab={activeId} setActiveTab={handleNavigate} userRole={role} />
       </div>
 
-      {/* Menu Mobile */}
+      {/* Mobile */}
       <MobileMenu
         isOpen={mobileMenuOpen}
         onClose={() => setMobileMenuOpen(false)}
@@ -95,10 +117,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       />
 
       <main className="flex-1 flex flex-col overflow-hidden">
-        <Header
-          title={title}
-          onMenuToggle={() => setMobileMenuOpen(true)}
-        />
+        <Header title={title} onMenuToggle={() => setMobileMenuOpen(true)} />
 
         <div className="flex-1 overflow-y-auto">
           {children}
