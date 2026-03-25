@@ -54,23 +54,28 @@ async function ensureStudentRow(userId: string, email: string, name: string): Pr
         .from('students')
         .update({ user_id: userId, name })
         .eq('id', byEmail.id);
+
       if (error) {
         console.error('Erro ao vincular aluno ao login:', error.message);
       }
     }
+
     return;
   }
 
-  const { error } = await supabase.from('students').insert([{
-    name,
-    email,
-    status: 'ativo',
-    user_id: userId,
-  }]);
+  const { error } = await supabase.from('students').insert([
+    {
+      name,
+      email,
+      status: 'ativo',
+      user_id: userId,
+    },
+  ]);
 
   if (error?.code === '23505') {
     return;
   }
+
   if (error) {
     console.error('Erro ao criar registro de aluno:', error.message);
   }
@@ -101,11 +106,13 @@ async function ensureUserSetup(user: User, displayName?: string): Promise<UserPr
   } else {
     const { data: inserted, error } = await supabase
       .from('user_profiles')
-      .insert([{
-        id: userId,
-        role: defaultRole,
-        display_name: name,
-      }])
+      .insert([
+        {
+          id: userId,
+          role: defaultRole,
+          display_name: name,
+        },
+      ])
       .select()
       .single();
 
@@ -115,6 +122,7 @@ async function ensureUserSetup(user: User, displayName?: string): Promise<UserPr
         .select('*')
         .eq('id', userId)
         .maybeSingle();
+
       profile = refetch as UserProfile | null;
     } else if (error) {
       console.error('Erro ao criar perfil:', error.message);
@@ -123,10 +131,16 @@ async function ensureUserSetup(user: User, displayName?: string): Promise<UserPr
     }
   }
 
-  // Executa a criação do aluno em background para não travar o carregamento inicial
-  ensureStudentRow(userId, email, name).catch(console.error);
+  ensureStudentRow(userId, email, name).catch((error) => {
+    console.error('Erro ao garantir registro de aluno:', error);
+  });
 
   return profile;
+}
+
+async function resolveProfile(user: User | null): Promise<UserProfile | null> {
+  if (!user) return null;
+  return ensureUserSetup(user);
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -135,67 +149,77 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Inicializar sessão via onAuthStateChange (única fonte de verdade)
   useEffect(() => {
-    // Listener para TODAS as mudanças de sessão (incluindo INITIAL_SESSION no mount)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+    let mounted = true;
+
+    const applySession = async (nextSession: Session | null) => {
+      if (!mounted) return;
+
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
+
+      if (!nextSession?.user) {
+        setProfile(null);
+        if (mounted) setLoading(false);
+        return;
+      }
+
+      const nextProfile = await resolveProfile(nextSession.user);
+
+      if (!mounted) return;
+
+      setProfile(nextProfile);
+      setLoading(false);
+    };
+
+    const initialize = async () => {
       try {
-        if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setSession(null);
-          setProfile(null);
-          return;
-        }
+        const {
+          data: { session: initialSession },
+        } = await supabase.auth.getSession();
 
-        if (event === 'TOKEN_REFRESHED') {
-          // Apenas atualiza sessão — NÃO roda ensureUserSetup
-          if (newSession) {
-            setSession(newSession);
-            setUser(newSession.user);
-          }
-          return;
-        }
-
-        if (newSession?.user) {
-          setUser(newSession.user);
-          setSession(newSession);
-
-          // ensureUserSetup só roda em SIGNED_IN e INITIAL_SESSION
-          if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-            const userProfile = await ensureUserSetup(newSession.user);
-            setProfile(userProfile);
-          }
-        } else {
-          setUser(null);
-          setSession(null);
-          setProfile(null);
-        }
+        await applySession(initialSession);
       } catch (error) {
-        console.error('Erro no onAuthStateChange:', error);
-      } finally {
+        console.error('Erro ao inicializar autenticação:', error);
+        if (!mounted) return;
+        setUser(null);
+        setSession(null);
+        setProfile(null);
         setLoading(false);
       }
+    };
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      void applySession(nextSession);
     });
 
+    void initialize();
+
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []);
 
-  // JWT: em aba em segundo plano o navegador suspende timers; ao voltar o access token pode estar expirado.
   useEffect(() => {
     let debounce: ReturnType<typeof setTimeout> | undefined;
+
     const onResume = () => {
       if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+
       clearTimeout(debounce);
       debounce = setTimeout(() => {
         void refreshSessionIfStale();
       }, 150);
     };
+
     document.addEventListener('visibilitychange', onResume);
     window.addEventListener('focus', onResume);
     window.addEventListener('pageshow', onResume);
     window.addEventListener('online', onResume);
+
     return () => {
       clearTimeout(debounce);
       document.removeEventListener('visibilitychange', onResume);
@@ -205,42 +229,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Login — ensureUserSetup roda via onAuthStateChange
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return { error: error.message };
+
+    if (error) {
+      return { error: error.message };
+    }
+
     return { error: null };
   };
 
-  // Cadastro — ensureUserSetup roda via onAuthStateChange + chamada explícita com nome
   const signUp = async (email: string, password: string, name: string) => {
     const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) return { error: error.message };
+
+    if (error) {
+      return { error: error.message };
+    }
 
     const newUser = data.user;
-    if (!newUser) return { error: 'Erro ao criar conta. Tente novamente.' };
+    if (!newUser) {
+      return { error: 'Erro ao criar conta. Tente novamente.' };
+    }
 
-    // Chamada explícita com o nome do formulário
     await ensureUserSetup(newUser, name);
 
     return { error: null };
   };
 
-  // Logout
   const signOut = async () => {
     try {
       const { error } = await supabase.auth.signOut({ scope: 'local' });
-      if (error) console.error('Erro no signOut:', error.message);
-    } catch (e) {
-      console.error('Erro ao fazer logout:', e);
+      if (error) {
+        console.error('Erro no signOut:', error.message);
+      }
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
     } finally {
       setUser(null);
       setSession(null);
       setProfile(null);
+      setLoading(false);
     }
   };
 
-  // Promoção de role (apenas admin)
   const updateRole = async (userId: string, newRole: UserRole) => {
     if (profile?.role !== 'admin') {
       return { error: 'Apenas administradores podem alterar roles.' };
@@ -251,21 +282,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .update({ role: newRole })
       .eq('id', userId);
 
-    if (error) return { error: error.message };
+    if (error) {
+      return { error: error.message };
+    }
+
     return { error: null };
   };
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      session,
-      profile,
-      loading,
-      signIn,
-      signUp,
-      signOut,
-      updateRole,
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        profile,
+        loading,
+        signIn,
+        signUp,
+        signOut,
+        updateRole,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -273,8 +309,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
+
   if (!context) {
     throw new Error('useAuth deve ser usado dentro de um AuthProvider');
   }
+
   return context;
 }

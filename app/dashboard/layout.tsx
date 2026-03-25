@@ -1,15 +1,14 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import React, { Suspense, useEffect, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import MobileMenu from '@/components/MobileMenu';
+import AuthGuard from '@/components/AuthGuard';
 import { useAuth } from '@/hooks/useAuth';
-import { getActiveIdFromPath, ROLE_ACCESS, type UserRole } from '@/lib/navigation';
-import { Loader2 } from 'lucide-react';
+import { getActiveIdFromPath } from '@/lib/navigation';
 
-/** Mapa de título por rota */
 const TITLES: Record<string, string> = {
   home: 'Painel de Controle',
   alunos: 'Gestão de Alunos',
@@ -26,21 +25,24 @@ function TabRedirector() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  // Compatibilidade: redirecionar ?tab=xyz para /dashboard/xyz
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab && tab !== 'home') {
-      router.replace(`/dashboard/${tab}`);
-    } else if (tab === 'home') {
+
+    if (!tab) return;
+
+    if (tab === 'home') {
       router.replace('/dashboard');
+      return;
     }
-  }, [searchParams, router]);
+
+    router.replace(`/dashboard/${tab}`);
+  }, [router, searchParams]);
 
   return null;
 }
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, profile, loading } = useAuth();
+function DashboardShell({ children }: { children: React.ReactNode }) {
+  const { profile } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -49,39 +51,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const role = profile?.role || 'aluno';
   const title = TITLES[activeId] || 'Painel de Controle';
 
-  // Redirect para login se não autenticado
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/auth');
-    }
-  }, [loading, user, router]);
-
-  // Proteção de rota por role (evita acesso direto a páginas não permitidas)
-  useEffect(() => {
-    if (loading || !user) return;
-    const allowedIds: string[] = (ROLE_ACCESS[role as UserRole] || ROLE_ACCESS.aluno) as string[];
-    if (!allowedIds.includes(activeId)) {
-      router.replace('/dashboard');
-    }
-  }, [activeId, role, router, user, loading]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-black">
-        <Loader2 className="text-orange-500 animate-spin" size={48} />
-      </div>
-    );
-  }
-
-  if (!user) return null;
-
-  // Navegação via setActiveTab → agora traduz para router.push
   const handleNavigate = (id: string) => {
     if (id === 'home') {
       router.push('/dashboard');
-    } else {
-      router.push(`/dashboard/${id}`);
+      return;
     }
+
+    router.push(`/dashboard/${id}`);
   };
 
   return (
@@ -90,12 +66,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <TabRedirector />
       </Suspense>
 
-      {/* Sidebar — visível apenas no desktop */}
       <div className="hidden md:block">
         <Sidebar activeTab={activeId} setActiveTab={handleNavigate} userRole={role} />
       </div>
 
-      {/* Menu Mobile */}
       <MobileMenu
         isOpen={mobileMenuOpen}
         onClose={() => setMobileMenuOpen(false)}
@@ -104,16 +78,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         userRole={role}
       />
 
-      <main className="flex-1 flex flex-col overflow-hidden">
-        <Header
-          title={title}
-          onMenuToggle={() => setMobileMenuOpen(true)}
-        />
+      <main className="flex flex-1 flex-col overflow-hidden">
+        <Header title={title} onMenuToggle={() => setMobileMenuOpen(true)} />
 
-        <div className="flex-1 overflow-y-auto">
-          {children}
-        </div>
+        <div className="flex-1 overflow-y-auto">{children}</div>
       </main>
     </div>
+  );
+}
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <AuthGuard>
+      <DashboardShell>{children}</DashboardShell>
+    </AuthGuard>
   );
 }
