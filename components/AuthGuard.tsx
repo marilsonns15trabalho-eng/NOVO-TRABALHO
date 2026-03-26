@@ -34,11 +34,7 @@ export default function AuthGuard({ children }: AuthGuardProps) {
   }, [isAllowed, loading, router, user]);
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-black">
-        <Loader2 className="animate-spin text-orange-500" size={48} />
-      </div>
-    );
+    return <div className="flex items-center justify-center min-h-screen bg-black text-white">Carregando...</div>;
   }
 
   if (!user) {

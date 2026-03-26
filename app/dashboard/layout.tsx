@@ -34,23 +34,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [loading, user, router]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-black">
-        <Loader2 className="text-orange-500 animate-spin" size={48} />
-      </div>
-    );
-  }
-
-  if (!user) return null;
-
   const activeId = getActiveIdFromPath(pathname);
   const role = profile?.role || 'aluno';
   const title = TITLES[activeId] || 'Painel de Controle';
 
   // Proteção por role
   useEffect(() => {
-    if (!user) return;
+    if (loading || !user) return;
 
     const allowedIds: string[] =
       (ROLE_ACCESS[role as UserRole] || ROLE_ACCESS.aluno) as string[];
@@ -58,7 +48,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!allowedIds.includes(activeId)) {
       router.replace('/dashboard');
     }
-  }, [activeId, role, router, user]);
+  }, [activeId, role, router, user, loading]);
+
+  if (loading) {
+    return <div className="flex items-center justify-center min-h-screen bg-black text-white">Carregando...</div>;
+  }
+
+  if (!user) return null;
 
   const handleNavigate = (id: string) => {
     if (id === 'home') {

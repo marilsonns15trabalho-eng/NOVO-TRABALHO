@@ -13,11 +13,7 @@ export default function DashboardPage() {
   const { loading, isAdmin, isProfessor } = useUserRole();
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-black">
-        <div className="animate-spin rounded-full border-2 border-orange-500/30 border-t-orange-500 w-16 h-16" />
-      </div>
-    );
+    return <div className="flex items-center justify-center min-h-screen bg-black text-white">Carregando...</div>;
   }
 
   // setActiveTab agora navega para rotas reais

@@ -160,6 +160,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setLoading(false);
+    }, 5000);
+
+    return () => clearTimeout(timeout);
+  }, []);
+
   // Inicializar sessão via onAuthStateChange (única fonte de verdade)
   useEffect(() => {
     // Listener para TODAS as mudanças de sessão (incluindo INITIAL_SESSION no mount)
@@ -188,7 +196,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           // ensureUserSetup só roda em SIGNED_IN e INITIAL_SESSION
           if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-            const userProfile = await ensureUserSetup(newSession.user);
+            let userProfile = null;
+
+            try {
+              userProfile = await Promise.race([
+                ensureUserSetup(newSession.user),
+                new Promise<UserProfile | null>((_, reject) =>
+                  setTimeout(() => reject(new Error('Timeout em ensureUserSetup')), 4000)
+                )
+              ]);
+            } catch (error) {
+              console.error('Erro de timeout ou rede em ensureUserSetup:', error);
+
+              // fallback seguro (NÃO quebra o sistema)
+              userProfile = {
+                id: newSession.user.id,
+                role: 'aluno',
+                display_name: newSession.user.email?.split('@')[0] ?? 'Usuário',
+                created_at: new Date().toISOString(),
+              };
+            }
+
             setProfile(userProfile);
           }
         } else {
