@@ -3,7 +3,7 @@
 // Componente ConfirmDialog reutilizável
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -14,6 +14,8 @@ interface ConfirmDialogProps {
   confirmText?: string;
   cancelText?: string;
   variant?: 'danger' | 'warning';
+  loading?: boolean;
+  confirmDisabled?: boolean;
 }
 
 export default function ConfirmDialog({
@@ -25,6 +27,8 @@ export default function ConfirmDialog({
   confirmText = 'Confirmar',
   cancelText = 'Cancelar',
   variant = 'danger',
+  loading = false,
+  confirmDisabled = false,
 }: ConfirmDialogProps) {
   const confirmClass = variant === 'danger'
     ? 'bg-red-500 hover:bg-red-600'
@@ -38,7 +42,7 @@ export default function ConfirmDialog({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
+            onClick={loading ? undefined : onClose}
             className="absolute inset-0 bg-black/80 backdrop-blur-sm"
           />
           <motion.div
@@ -57,15 +61,18 @@ export default function ConfirmDialog({
             <div className="flex gap-3">
               <button
                 onClick={onClose}
-                className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl transition-all"
+                disabled={loading}
+                className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl transition-all disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {cancelText}
               </button>
               <button
                 onClick={onConfirm}
-                className={`flex-1 py-3 ${confirmClass} text-white font-bold rounded-xl transition-all`}
+                disabled={loading || confirmDisabled}
+                className={`flex-1 py-3 ${confirmClass} text-white font-bold rounded-xl transition-all disabled:cursor-not-allowed disabled:opacity-60 flex items-center justify-center gap-2`}
               >
-                {confirmText}
+                {loading && <Loader2 size={16} className="animate-spin" />}
+                {loading ? 'Processando...' : confirmText}
               </button>
             </div>
           </motion.div>

@@ -40,6 +40,7 @@ export function mapStudentRowToAluno(row: Record<string, any>): Aluno {
     grupo: row.group || '',
     modalidade: row.modality || '',
     created_at: row.created_at,
+    linked_auth_user_id: row.linked_auth_user_id || null,
   };
 }
 

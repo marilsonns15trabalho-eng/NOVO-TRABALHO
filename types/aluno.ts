@@ -33,6 +33,7 @@ export interface Aluno {
   grupo?: string;
   modalidade?: string;
   created_at: string;
+  linked_auth_user_id?: string | null;
 }
 
 /** Dados para o formulário de criação/edição de aluno */
