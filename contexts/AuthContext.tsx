@@ -248,57 +248,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (cached) {
               console.log('Usando cache local do profile');
               setProfile(cached);
-              setLoading(false);
+            } else {
+              // Fallback imediato para não travar a UI nem redirecionar errado
+              const tempProfile: UserProfile = {
+                id: currentUser.id,
+                role: currentUser.email === SUPER_ADMIN_EMAIL ? 'admin' : 'aluno',
+                display_name: currentUser.email?.split('@')[0] ?? 'Usuário',
+                created_at: new Date().toISOString(),
+              };
+              setProfile(tempProfile);
             }
           }
 
           // ensureUserSetup só roda em SIGNED_IN e INITIAL_SESSION
           if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && !hasInitialized.current) {
             hasInitialized.current = true;
-            let userProfile = null;
 
-            try {
-              userProfile = await Promise.race([
-                ensureUserSetup(currentUser),
-                new Promise<UserProfile | null>((_, reject) =>
-                  setTimeout(() => reject(new Error('Timeout em ensureUserSetup')), 4000)
-                )
-              ]);
-              
+            // Executa em background (não bloqueante)
+            Promise.race([
+              ensureUserSetup(currentUser),
+              new Promise<UserProfile | null>((_, reject) =>
+                setTimeout(() => reject(new Error('Timeout em ensureUserSetup')), 4000)
+              )
+            ])
+            .then((userProfile) => {
               if (userProfile) {
-                // Proteger role (crítico)
-                if (profile && profile.role === 'admin') {
-                  userProfile.role = 'admin';
-                }
-                
-                // Evitar piscadas
-                if (!profile || profile.role !== userProfile.role || profile.display_name !== userProfile.display_name) {
-                  setProfile(userProfile);
-                }
-                saveProfileCache(userProfile);
+                setProfile((prev) => {
+                  // Proteger role (crítico)
+                  if (prev && prev.role === 'admin') {
+                    userProfile.role = 'admin';
+                  }
+                  
+                  // Evitar piscadas
+                  if (!prev || prev.role !== userProfile.role || prev.display_name !== userProfile.display_name) {
+                    saveProfileCache(userProfile);
+                    return userProfile;
+                  }
+                  saveProfileCache(userProfile);
+                  return prev;
+                });
               }
-            } catch (error) {
+            })
+            .catch((error) => {
               console.warn('Erro ao atualizar profile (mantendo cache):', error);
-
-              if (profile) {
-                userProfile = profile;
-              } else {
-                const cached = getProfileCache(currentUser.id);
-                if (cached) {
-                  userProfile = cached;
-                  setProfile(cached);
-                } else {
-                  // Fallback final
-                  userProfile = {
-                    id: currentUser.id,
-                    role: currentUser.email === SUPER_ADMIN_EMAIL ? 'admin' : 'aluno',
-                    display_name: currentUser.email?.split('@')[0] ?? 'Usuário',
-                    created_at: new Date().toISOString(),
-                  };
-                  setProfile(userProfile);
-                }
-              }
-            }
+            });
           }
         } else {
           if (user) {
