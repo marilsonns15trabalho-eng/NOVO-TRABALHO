@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase, refreshSessionIfStale } from '@/lib/supabase';
 import { SUPER_ADMIN_EMAIL } from '@/lib/constants';
 import type { User, Session } from '@supabase/supabase-js';
@@ -26,6 +26,43 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const CACHE_KEY = 'profile_cache';
+
+function saveProfileCache(profile: UserProfile) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      data: {
+        id: profile.id,
+        role: profile.role,
+        display_name: profile.display_name
+      },
+      timestamp: Date.now()
+    }));
+  } catch (e) {
+    console.warn('Erro ao salvar cache', e);
+  }
+}
+
+function getProfileCache(): UserProfile | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    const isValid = Date.now() - parsed.timestamp < 1000 * 60 * 10; // 10 minutos
+
+    return isValid ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearProfileCache() {
+  try {
+    localStorage.removeItem(CACHE_KEY);
+  } catch (e) {}
+}
 
 /**
  * Helper para adicionar timeout a uma promise
@@ -159,6 +196,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const hasInitialized = useRef(false);
+
+  // Carregamento instantâneo (Cache Primeiro)
+  useEffect(() => {
+    const cached = getProfileCache();
+    if (cached) {
+      console.log('Usando cache local do profile');
+      setProfile(cached);
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -177,6 +225,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(null);
           setSession(null);
           setProfile(null);
+          clearProfileCache();
           setLoading(false);
           return;
         }
@@ -195,50 +244,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession(newSession);
 
           // ensureUserSetup só roda em SIGNED_IN e INITIAL_SESSION
-          if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+          if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && !hasInitialized.current) {
+            hasInitialized.current = true;
+            let userProfile = null;
+
             try {
-              const userProfile = await Promise.race([
+              userProfile = await Promise.race([
                 ensureUserSetup(newSession.user),
                 new Promise<UserProfile | null>((_, reject) =>
                   setTimeout(() => reject(new Error('Timeout em ensureUserSetup')), 4000)
                 )
               ]);
               
-              setProfile(userProfile);
-              
               if (userProfile) {
-                try {
-                  localStorage.setItem(`lioness_profile_${newSession.user.id}`, JSON.stringify(userProfile));
-                } catch (e) {}
+                // Proteger role (crítico)
+                if (profile && profile.role === 'admin') {
+                  userProfile.role = 'admin';
+                }
+                
+                setProfile(userProfile);
+                saveProfileCache(userProfile);
               }
             } catch (error) {
-              console.error('Erro de timeout ou rede em ensureUserSetup:', error);
+              console.warn('Erro ao atualizar profile (mantendo cache):', error);
 
-              // fallback seguro (NÃO quebra o sistema)
-              setProfile((prev) => {
-                if (prev) return prev; // Mantém o perfil (admin/professor) se já existir no estado
-                
-                // Tenta recuperar do localStorage como último recurso
-                try {
-                  const cached = localStorage.getItem(`lioness_profile_${newSession.user.id}`);
-                  if (cached) {
-                    return JSON.parse(cached);
-                  }
-                } catch (e) {}
-
-                return {
-                  id: newSession.user.id,
-                  role: newSession.user.email === SUPER_ADMIN_EMAIL ? 'admin' : 'aluno',
-                  display_name: newSession.user.email?.split('@')[0] ?? 'Usuário',
-                  created_at: new Date().toISOString(),
-                };
-              });
+              if (profile) {
+                userProfile = profile;
+              } else {
+                const cached = getProfileCache();
+                if (cached) {
+                  userProfile = cached;
+                  setProfile(cached);
+                } else {
+                  // Fallback final
+                  userProfile = {
+                    id: newSession.user.id,
+                    role: newSession.user.email === SUPER_ADMIN_EMAIL ? 'admin' : 'aluno',
+                    display_name: newSession.user.email?.split('@')[0] ?? 'Usuário',
+                    created_at: new Date().toISOString(),
+                  };
+                  setProfile(userProfile);
+                }
+              }
             }
           }
         } else {
           setUser(null);
           setSession(null);
           setProfile(null);
+          clearProfileCache();
         }
       } catch (error) {
         console.error('Erro no onAuthStateChange:', error);
@@ -250,7 +304,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [profile]);
 
   // JWT: em aba em segundo plano o navegador suspende timers; ao voltar o access token pode estar expirado.
   useEffect(() => {
