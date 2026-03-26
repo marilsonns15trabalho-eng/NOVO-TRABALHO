@@ -21,8 +21,7 @@ export interface Treino {
   exercicios?: Exercicio[];
   ativo?: boolean;
   created_at: string;
-  user_id?: string;
-  students?: { name: string };
+  students?: { id?: string; linked_auth_user_id?: string | null; name: string };
 }
 
 export type TreinoFormData = Partial<Treino>;

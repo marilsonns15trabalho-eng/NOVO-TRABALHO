@@ -60,7 +60,7 @@ export async function updateUserRole(
     const { data: studentRow } = await supabase
       .from('students')
       .select('email')
-      .eq('user_id', targetUserId)
+      .eq('linked_auth_user_id', targetUserId)
       .maybeSingle();
     emailToCheck = studentRow?.email ?? undefined;
   }

@@ -12,7 +12,6 @@ export interface Configuracoes {
   cor_secundaria: string;
   mensagem_boas_vindas: string;
   termos_contrato: string;
-  user_id?: string;
 }
 
 export type ConfiguracoesFormData = Partial<Configuracoes>;

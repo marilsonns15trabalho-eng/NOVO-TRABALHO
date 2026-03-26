@@ -70,7 +70,14 @@ interface Avaliacao {
   protocolo?: 'faulkner' | 'pollock7' | 'pollock3';
   
   created_at: string;
-  students?: { nome: string, sexo?: string, data_nascimento?: string };
+  students?: {
+    id?: string;
+    linked_auth_user_id?: string | null;
+    nome: string;
+    name?: string;
+    sexo?: string;
+    data_nascimento?: string;
+  };
 }
 
 export default function AvaliacaoModule() {
@@ -106,8 +113,12 @@ export default function AvaliacaoModule() {
       .from('avaliacoes')
       .select(`
         *,
-        students (
-          nome: name
+        student:students (
+          id,
+          linked_auth_user_id,
+          nome: name,
+          sexo,
+          data_nascimento
         )
       `)
       .order('data', { ascending: false });
@@ -123,6 +134,13 @@ export default function AvaliacaoModule() {
         
         return {
           ...item,
+          students: item.student
+            ? {
+                ...item.student,
+                nome: item.student.nome ?? item.student.name,
+                name: item.student.name ?? item.student.nome,
+              }
+            : item.students,
           ...item.medidas,
           ...item.dobras,
           percentual_gordura: item.gordura_corporal,
@@ -393,13 +411,12 @@ export default function AvaliacaoModule() {
   const handleEdit = (avaliacao: Avaliacao) => {
     setEditingAvaliacao(avaliacao);
     setNewAvaliacao(avaliacao);
-    setAlunoSearch(avaliacao.students?.name || '');
+    setAlunoSearch(avaliacao.students?.nome || avaliacao.students?.name || '');
     setShowAddModal(true);
   };
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    const mockUserId = '00000000-0000-0000-0000-000000000000';
 
     // Mapeamento para a estrutura JSONB do seu banco de dados
     const payload = {

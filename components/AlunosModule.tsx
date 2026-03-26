@@ -53,7 +53,6 @@ interface Aluno {
   grupo?: string;
   modalidade?: string;
   created_at: string;
-  user_id: string;
 }
 
 interface Plano {
@@ -138,7 +137,6 @@ export default function AlunosModule() {
         grupo: s.group || '',
         modalidade: s.modality || '',
         created_at: s.created_at,
-        user_id: s.user_id
       }));
       
       setAlunos(mappedAlunos);
@@ -218,7 +216,6 @@ export default function AlunosModule() {
 
   const handleAddAluno = async (e: React.FormEvent) => {
     e.preventDefault();
-    const mockUserId = '00000000-0000-0000-0000-000000000000';
 
     if (!newAluno.nome) {
       showNotify('O nome do aluno é obrigatório.', 'error');
@@ -261,7 +258,6 @@ export default function AlunosModule() {
       emergency_relationship: newAluno.contato_emergencia_parentesco || null,
       due_day: newAluno.dia_vencimento || null,
       group: newAluno.grupo || null,
-      user_id: null
     };
 
     try {
@@ -294,7 +290,6 @@ export default function AlunosModule() {
             plan_id: plano.id,
             plan_name: plano.name,
             plan_price: plano.price,
-            user_id: mockUserId
           }]);
         }
       }

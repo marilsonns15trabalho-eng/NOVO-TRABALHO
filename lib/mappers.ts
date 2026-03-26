@@ -40,7 +40,6 @@ export function mapStudentRowToAluno(row: Record<string, any>): Aluno {
     grupo: row.group || '',
     modalidade: row.modality || '',
     created_at: row.created_at,
-    user_id: row.user_id,
   };
 }
 
@@ -50,8 +49,7 @@ export function mapStudentRowToAluno(row: Record<string, any>): Aluno {
 export function mapAlunoToStudentRow(
   aluno: Partial<Aluno>,
   planos: PlanoListItem[],
-  selectedPlanoId: string,
-  userId: string
+  selectedPlanoId: string
 ): Record<string, any> {
   const plano = planos.find((p) => p.id === selectedPlanoId);
 
@@ -88,7 +86,6 @@ export function mapAlunoToStudentRow(
     emergency_relationship: aluno.contato_emergencia_parentesco || null,
     due_day: aluno.dia_vencimento || null,
     group: aluno.grupo || null,
-    user_id: userId,
   };
 }
 

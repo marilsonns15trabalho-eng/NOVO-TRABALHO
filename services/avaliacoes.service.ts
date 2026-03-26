@@ -2,8 +2,9 @@
 import { supabase, getAuthenticatedUser } from '@/lib/supabase';
 import { TABLES } from '@/lib/constants';
 import { calcularBiometria } from '@/lib/biometrics';
+import { findStudentIdByLinkedAuthUserId, resolveStudentIdForWrite } from '@/lib/student-access';
 import type { Avaliacao, AvaliacaoFormData, AvaliacaoAlunoItem } from '@/types/avaliacao';
-import { assertNotProfessorForUserId } from '@/lib/authz';
+import { assertCanManageStudentDataForUserId } from '@/lib/authz';
 
 /** Numérico opcional para o banco (preserva 0; evita "" e undefined virarem bug) */
 function n(v: unknown): number | null {
@@ -28,8 +29,17 @@ function logSupabaseError(context: string, error: unknown) {
  * Fonte primária: colunas flat. Fallback: JSONB.
  */
 function mapAvaliacaoRow(item: any): Avaliacao {
+  const student = item.student ?? item.students;
+
   return {
     ...item,
+    students: student
+      ? {
+          ...student,
+          nome: student.nome ?? student.name,
+          name: student.name ?? student.nome,
+        }
+      : undefined,
     // Perímetros: flat primeiro, JSONB como fallback
     ombro: item.ombro ?? item.medidas?.ombro,
     torax: item.torax ?? item.medidas?.torax,
@@ -51,20 +61,22 @@ function mapAvaliacaoRow(item: any): Avaliacao {
     // Campo unificado: gordura_corporal (DB) = percentual_gordura (UI)
     percentual_gordura: item.percentual_gordura ?? item.gordura_corporal,
     // massa_gorda: usar valor salvo, ou calcular
-    massa_gorda: item.massa_gorda ?? (item.peso && item.massa_magra
-      ? parseFloat((item.peso - item.massa_magra).toFixed(2))
-      : undefined),
+    massa_gorda:
+      item.massa_gorda ??
+      (item.peso && item.massa_magra
+        ? parseFloat((item.peso - item.massa_magra).toFixed(2))
+        : undefined),
   };
 }
 
 /** Busca todas as avaliações com join do aluno */
-export async function fetchAvaliacoes(userId?: string): Promise<Avaliacao[]> {
+export async function fetchAvaliacoes(linkedAuthUserId?: string): Promise<Avaliacao[]> {
   let query = supabase
     .from(TABLES.AVALIACOES)
-    .select(`*, students(nome: name)`)
+    .select(`*, student:students(id, linked_auth_user_id, nome:name, sexo, data_nascimento)`)
     .order('data', { ascending: false });
 
-  if (userId) query = query.eq('user_id', userId);
+  if (linkedAuthUserId) query = query.eq('student.linked_auth_user_id', linkedAuthUserId);
 
   const { data, error } = await query;
 
@@ -77,13 +89,13 @@ export async function fetchAvaliacoes(userId?: string): Promise<Avaliacao[]> {
 }
 
 /** Busca lista de alunos para o seletor de avaliação */
-export async function fetchAlunosParaAvaliacao(userId?: string): Promise<AvaliacaoAlunoItem[]> {
+export async function fetchAlunosParaAvaliacao(linkedAuthUserId?: string): Promise<AvaliacaoAlunoItem[]> {
   let query = supabase
     .from(TABLES.STUDENTS)
-    .select('id, name')
+    .select('id, name, linked_auth_user_id')
     .order('name', { ascending: true });
 
-  if (userId) query = query.eq('user_id', userId);
+  if (linkedAuthUserId) query = query.eq('linked_auth_user_id', linkedAuthUserId);
 
   const { data, error } = await query;
 
@@ -99,16 +111,17 @@ export async function fetchAlunosParaAvaliacao(userId?: string): Promise<Avaliac
 }
 
 /** Busca histórico de avaliações de um aluno */
-export async function fetchHistoricoAluno(studentId: string, userId?: string): Promise<Avaliacao[]> {
-  let query = supabase
+export async function fetchHistoricoAluno(studentId: string, linkedAuthUserId?: string): Promise<Avaliacao[]> {
+  if (linkedAuthUserId) {
+    const allowedStudentId = await findStudentIdByLinkedAuthUserId(linkedAuthUserId);
+    if (!allowedStudentId || allowedStudentId !== studentId) return [];
+  }
+
+  const { data, error } = await supabase
     .from(TABLES.AVALIACOES)
-    .select('*')
+    .select(`*, student:students(id, linked_auth_user_id, nome:name, sexo, data_nascimento)`)
     .eq('student_id', studentId)
     .order('data', { ascending: true });
-
-  if (userId) query = query.eq('user_id', userId);
-
-  const { data, error } = await query;
 
   if (error) throw error;
 
@@ -120,19 +133,15 @@ export async function salvarAvaliacao(
   avaliacaoData: AvaliacaoFormData,
   editingId?: string
 ): Promise<void> {
-  // Obter user_id autenticado
   const user = await getAuthenticatedUser();
-  await assertNotProfessorForUserId(user.id);
+  await assertCanManageStudentDataForUserId(user.id);
 
   const dadosCalculados = calcularBiometria(avaliacaoData as Record<string, unknown>);
   const data = { ...avaliacaoData, ...dadosCalculados };
-
-  const studentIdRaw = data.student_id;
-  const studentId =
-    typeof studentIdRaw === 'string' ? studentIdRaw.trim() : String(studentIdRaw ?? '').trim();
-  if (!studentId) {
-    throw new Error('Selecione um aluno na lista (toque no nome após buscar).');
-  }
+  const studentId = await resolveStudentIdForWrite(
+    typeof data.student_id === 'string' ? data.student_id : undefined,
+    user.id
+  );
 
   const rawData = data.data != null && String(data.data).trim() !== '' ? String(data.data).trim() : '';
   const dataAvaliacao = rawData.includes('T') ? rawData.split('T')[0] : rawData;
@@ -140,19 +149,20 @@ export async function salvarAvaliacao(
     throw new Error('Informe a data da avaliação.');
   }
 
-  /** INSERT exige user_id; em UPDATE manter o dono original evita violar RLS (WITH CHECK). */
   const rowId =
     editingId ??
-    (typeof (avaliacaoData as AvaliacaoFormData).id === 'string' ? (avaliacaoData as AvaliacaoFormData).id : undefined);
+    (typeof (avaliacaoData as AvaliacaoFormData).id === 'string'
+      ? (avaliacaoData as AvaliacaoFormData).id
+      : undefined);
 
-  // Payload unificado: colunas FLAT como fonte primária (valores biométricos sempre recalculados)
+  // Payload unificado: colunas flat como fonte primária (valores biométricos sempre recalculados)
   const payload: Record<string, any> = {
     student_id: studentId,
     data: dataAvaliacao,
     peso: n(data.peso) ?? 0,
     altura: n(data.altura) ?? 0,
     imc: n(data.imc) ?? 0,
-    // Campo unificado: salva em AMBOS para compatibilidade
+    // Campo unificado: salva em ambos para compatibilidade
     percentual_gordura: n(data.percentual_gordura) ?? 0,
     gordura_corporal: n(data.percentual_gordura) ?? 0,
     massa_magra: n(data.massa_magra) ?? 0,
@@ -160,7 +170,6 @@ export async function salvarAvaliacao(
     soma_dobras: n(data.soma_dobras) ?? 0,
     protocolo: data.protocolo || 'faulkner',
     observacoes: data.observacoes || null,
-    user_id: user.id,
     // Colunas flat de perímetros
     ombro: n(data.ombro),
     torax: n(data.torax),
@@ -202,12 +211,9 @@ export async function salvarAvaliacao(
   };
 
   if (rowId) {
-    const updatePayload = { ...payload };
-    delete updatePayload.user_id;
-
     const { error } = await supabase
       .from(TABLES.AVALIACOES)
-      .update(updatePayload)
+      .update(payload)
       .eq('id', rowId);
     if (error) {
       logSupabaseError('Erro ao atualizar avaliação:', error);
@@ -223,4 +229,3 @@ export async function salvarAvaliacao(
     }
   }
 }
-

@@ -27,8 +27,8 @@ import { SUPER_ADMIN_EMAIL } from '@/lib/constants';
 import { supabase } from '@/lib/supabase';
 
 export default function AlunosModule() {
-  const { user, profile } = useAuth();
-  const userRole = profile?.role || 'aluno';
+  const { user, role } = useAuth();
+  const userRole = role;
   const isAdmin = userRole === 'admin';
   const isReadOnly = userRole === 'professor';
 
@@ -44,13 +44,15 @@ export default function AlunosModule() {
     setLoadingRoles(true);
     const profiles = await usersService.fetchAllProfiles();
     setUserProfiles(profiles);
-    // Buscar o user_id do super admin via students
+    // Buscar o vinculo auth do super admin via students
     const { data: saStudent } = await supabase
       .from('students')
-      .select('user_id')
+      .select('linked_auth_user_id')
       .eq('email', SUPER_ADMIN_EMAIL)
       .single();
-    if (saStudent) setSuperAdminId(saStudent.user_id);
+    if (saStudent?.linked_auth_user_id) {
+      setSuperAdminId(saStudent.linked_auth_user_id);
+    }
     setLoadingRoles(false);
   }, [isAdmin]);
 
@@ -139,6 +141,10 @@ export default function AlunosModule() {
   };
 
   // --- RENDERIZAÇÃO ---
+
+  if (!userRole) {
+    return <LoadingSpinner message="Carregando acessos..." />;
+  }
 
   if (loading) {
     return <LoadingSpinner message="Carregando alunos..." />;

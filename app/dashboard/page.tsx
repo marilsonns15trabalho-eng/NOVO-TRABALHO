@@ -4,25 +4,24 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
 import Dashboard from '@/modules/dashboard/Dashboard';
-import { useUserRole } from '@/hooks/useUserRole';
-import AlunoDashboard from '@/modules/aluno/AlunoDashboard';
 import ProfessorDashboard from '@/modules/professor/ProfessorDashboard';
+import { useUserRole } from '@/hooks/useUserRole';
 
 export default function DashboardPage() {
   const router = useRouter();
   const { loading, isAdmin, isProfessor } = useUserRole();
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen bg-black text-white">Carregando...</div>;
+    return <div className="flex min-h-screen items-center justify-center bg-black text-white">Carregando...</div>;
   }
 
-  // setActiveTab agora navega para rotas reais
   const handleNavigate = (id: string) => {
     if (id === 'home') {
       router.push('/dashboard');
-    } else {
-      router.push(`/dashboard/${id}`);
+      return;
     }
+
+    router.push(`/dashboard/${id}`);
   };
 
   if (isAdmin) {
@@ -42,5 +41,5 @@ export default function DashboardPage() {
     return <ProfessorDashboard onNavigate={handleNavigate} />;
   }
 
-  return <AlunoDashboard onNavigate={handleNavigate} />;
+  return null;
 }

@@ -55,8 +55,7 @@ export interface Anamnese {
   preferencia_dietas?: string;
   expectativas?: string;
   created_at: string;
-  user_id?: string;
-  students?: { id: string; nome: string };
+  students?: { id: string; linked_auth_user_id?: string | null; nome: string };
 }
 
 export type AnamneseFormData = Partial<Anamnese>;

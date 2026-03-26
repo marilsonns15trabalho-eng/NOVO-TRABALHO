@@ -1,28 +1,53 @@
-import { supabase, getAuthenticatedUser } from '@/lib/supabase';
+import { getAuthenticatedUser, supabase } from '@/lib/supabase';
 import type { UserRole } from '@/contexts/AuthContext';
 
-/**
- * A checagem de permissão real deve estar no RLS do Supabase.
- * Este helper é só uma barreira extra no frontend (UX + segurança adicional).
- */
-async function getRoleForUserId(userId: string): Promise<UserRole> {
+async function getRoleForUserId(userId: string): Promise<UserRole | null> {
   const { data, error } = await supabase
     .from('user_profiles')
     .select('role')
     .eq('id', userId)
     .maybeSingle();
 
-  if (error || !data?.role) return 'aluno';
-  return data.role as UserRole;
+  if (error || !data?.role) return null;
+
+  const role = data.role;
+  if (role === 'admin' || role === 'professor' || role === 'aluno') {
+    return role;
+  }
+
+  return null;
 }
 
-export async function assertNotProfessor(): Promise<void> {
+export async function assertAdmin(): Promise<void> {
   const user = await getAuthenticatedUser();
-  await assertNotProfessorForUserId(user.id);
+  await assertAdminForUserId(user.id);
 }
 
-export async function assertNotProfessorForUserId(userId: string): Promise<void> {
+export async function assertAdminForUserId(userId: string): Promise<void> {
   const role = await getRoleForUserId(userId);
-  if (role === 'professor') throw new Error('Sem permissão para editar.');
+
+  if (!role) {
+    throw new Error('Perfil de acesso nao encontrado.');
+  }
+
+  if (role !== 'admin') {
+    throw new Error('Ação restrita a administradores');
+  }
 }
 
+export async function assertCanManageStudentData(): Promise<void> {
+  const user = await getAuthenticatedUser();
+  await assertCanManageStudentDataForUserId(user.id);
+}
+
+export async function assertCanManageStudentDataForUserId(userId: string): Promise<void> {
+  const role = await getRoleForUserId(userId);
+
+  if (!role) {
+    throw new Error('Perfil de acesso nao encontrado.');
+  }
+
+  if (role === 'aluno') {
+    throw new Error('Ação não permitida para aluno');
+  }
+}

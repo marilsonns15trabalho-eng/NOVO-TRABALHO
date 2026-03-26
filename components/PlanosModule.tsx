@@ -68,7 +68,6 @@ export default function PlanosModule() {
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    const mockUserId = '00000000-0000-0000-0000-000000000000';
 
     try {
       if (editingPlano) {
@@ -90,7 +89,6 @@ export default function PlanosModule() {
             ...newPlano,
             price: parseFloat(newPlano.price),
             frequency: parseInt(newPlano.frequency, 10),
-            user_id: mockUserId
           }]);
         if (error) throw error;
       }

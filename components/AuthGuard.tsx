@@ -4,36 +4,35 @@ import React, { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { getActiveIdFromPath, ROLE_ACCESS, type UserRole } from '@/lib/navigation';
+import { getActiveIdFromPath, getDefaultRouteForRole, ROLE_ACCESS } from '@/lib/navigation';
 
 interface AuthGuardProps {
   children: React.ReactNode;
 }
 
 export default function AuthGuard({ children }: AuthGuardProps) {
-  const { user, profile, loading } = useAuth();
+  const { user, role, isReady } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   const activeId = getActiveIdFromPath(pathname);
-  const role = profile?.role || 'aluno';
-  const allowedIds = (ROLE_ACCESS[role as UserRole] || ROLE_ACCESS.aluno) as string[];
-  const isAllowed = allowedIds.includes(activeId);
+  const allowedIds = role ? ROLE_ACCESS[role] : [];
+  const isAllowed = !!role && allowedIds.includes(activeId);
 
   useEffect(() => {
-    if (loading) return;
+    if (!isReady) return;
 
     if (!user) {
       router.replace('/auth');
       return;
     }
 
-    if (!isAllowed) {
-      router.replace('/dashboard');
+    if (role && !isAllowed) {
+      router.replace(getDefaultRouteForRole(role));
     }
-  }, [isAllowed, loading, router, user]);
+  }, [isAllowed, isReady, role, router, user]);
 
-  if (loading) {
+  if (!isReady) {
     return <div className="flex items-center justify-center min-h-screen bg-black text-white">Carregando...</div>;
   }
 

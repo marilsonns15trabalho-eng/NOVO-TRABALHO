@@ -37,7 +37,8 @@ import { Toast } from '@/components/ui';
 import { calcularBiometria } from '@/lib/biometrics';
 
 export default function AvaliacaoModule() {
-  const { isReadOnly } = useUserRole();
+  const { isAdmin, isProfessor } = useUserRole();
+  const canManageRecords = isAdmin || isProfessor;
   const {
     avaliacoes,
     alunos,
@@ -182,7 +183,7 @@ export default function AvaliacaoModule() {
           <h2 className="text-3xl font-bold tracking-tight">Avaliação Física</h2>
           <p className="text-zinc-500">Acompanhe a evolução corporal e os resultados dos seus alunos.</p>
         </div>
-        {!isReadOnly && (
+        {canManageRecords && (
           <button
             type="button"
             onClick={handleOpenNovaAvaliacao}
@@ -273,7 +274,7 @@ export default function AvaliacaoModule() {
                       >
                         Ver Relatório
                       </button>
-                      {!isReadOnly && (
+                      {canManageRecords && (
                         <button
                           onClick={() => startEdit(avaliacao)}
                           className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-xs font-bold transition-all mr-2"
@@ -475,7 +476,7 @@ export default function AvaliacaoModule() {
           </div>
         )}
 
-        {!isReadOnly && showAddModal && (
+        {canManageRecords && showAddModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}

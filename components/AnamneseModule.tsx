@@ -19,6 +19,7 @@ import { motion, AnimatePresence } from 'motion/react';
 interface Aluno {
   id: string;
   nome: string;
+  linked_auth_user_id?: string | null;
 }
 
 interface Anamnese {
@@ -113,7 +114,7 @@ export default function AnamneseModule() {
           .from('anamneses')
           .select(`
             *,
-            students:students(id, nome:name)
+            student:students(id, linked_auth_user_id, nome:name)
           `)
           .order('data', { ascending: false });
 
@@ -130,7 +131,9 @@ export default function AnamneseModule() {
             setAnamneses(dataNoJoin || []);
           }
         } else {
-          setAnamneses(anamnesesData?.map(a => ({ ...a, students: a.students })) || []);
+          setAnamneses(
+            anamnesesData?.map((a: any) => ({ ...a, students: a.student ?? a.students })) || []
+          );
         }
       } catch (err) {
         console.error('Erro fatal ao buscar dados de anamnese:', err);
@@ -158,9 +161,11 @@ export default function AnamneseModule() {
       // Recarregar dados
       const { data } = await supabase
         .from('anamneses')
-        .select('*, students:students(id, nome:name)')
+        .select('*, student:students(id, linked_auth_user_id, nome:name)')
         .order('data', { ascending: false });
-      if (data) setAnamneses(data);
+      if (data) {
+        setAnamneses(data.map((item: any) => ({ ...item, students: item.student ?? item.students })));
+      }
       
     } catch (error) {
       console.error('Erro ao salvar anamnese:', error);

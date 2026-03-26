@@ -20,7 +20,8 @@ import { useUserRole } from '@/hooks/useUserRole';
 import { Toast } from '@/components/ui';
 
 export default function AnamneseModule() {
-  const { isReadOnly } = useUserRole();
+  const { isAdmin, isProfessor } = useUserRole();
+  const canManageRecords = isAdmin || isProfessor;
   const {
     anamneses,
     alunos,
@@ -121,7 +122,7 @@ export default function AnamneseModule() {
           <h2 className="text-3xl font-bold tracking-tight">Anamnese Nutricional</h2>
           <p className="text-zinc-500">Gerencie o histórico de saúde e hábitos alimentares dos alunos.</p>
         </div>
-        {!isReadOnly && (
+        {canManageRecords && (
           <button
             onClick={() => setShowAddModal(true)}
             className="flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-black font-bold px-6 py-3 rounded-2xl transition-all active:scale-95 shadow-lg shadow-orange-500/20"
@@ -331,7 +332,7 @@ export default function AnamneseModule() {
           </div>
         )}
 
-        {!isReadOnly && showAddModal && (
+        {canManageRecords && showAddModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}

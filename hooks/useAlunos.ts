@@ -10,7 +10,7 @@ import type { Aluno, AlunoFormData } from '@/types/aluno';
 import type { PlanoListItem } from '@/types/common';
 import type { UserRole } from '@/contexts/AuthContext';
 
-export function useAlunos(userRole: UserRole = 'admin') {
+export function useAlunos(userRole: UserRole | null) {
   const { user } = useAuth();
   const [alunos, setAlunos] = useState<Aluno[]>([]);
   const [planos, setPlanos] = useState<PlanoListItem[]>([]);
@@ -86,7 +86,7 @@ export function useAlunos(userRole: UserRole = 'admin') {
   const handleSave = useCallback(async (formData: AlunoFormData) => {
     try {
       if (editingAluno) {
-        await alunosService.updateAluno(editingAluno.id, formData, planos, selectedPlanoId, userRole);
+        await alunosService.updateAluno(editingAluno.id, formData, planos, selectedPlanoId, userRole ?? undefined);
         showNotification('Aluno atualizado com sucesso!', 'success');
       } else {
         await alunosService.createAluno(formData, planos, selectedPlanoId);
@@ -99,7 +99,7 @@ export function useAlunos(userRole: UserRole = 'admin') {
     } catch (error: any) {
       showNotification(`Erro ao salvar: ${error.message || 'Erro desconhecido'}`, 'error');
     }
-  }, [editingAluno, planos, selectedPlanoId, loadData, showNotification]);
+  }, [editingAluno, loadData, planos, selectedPlanoId, showNotification, userRole]);
 
   /** Exclui um aluno (cascade) */
   const handleDelete = useCallback(async () => {

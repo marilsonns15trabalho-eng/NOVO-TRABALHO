@@ -1,19 +1,26 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { supabase, refreshSessionIfStale } from '@/lib/supabase';
 import { SUPER_ADMIN_EMAIL } from '@/lib/constants';
-import type { User, Session } from '@supabase/supabase-js';
-
+import type { Session, User } from '@supabase/supabase-js';
 import { clearAlunosCache } from '@/lib/cache/alunosCache';
 import { clearTreinosCache } from '@/lib/cache/treinosCache';
 
-export type UserRole = 'admin' | 'professor' | 'aluno' | 'unknown';
+export type UserRole = 'admin' | 'professor' | 'aluno';
 
 export interface UserProfile {
   id: string;
   role: UserRole;
-  display_name?: string;
+  display_name?: string | null;
   created_at?: string;
 }
 
@@ -21,7 +28,14 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: UserProfile | null;
+  role: UserRole | null;
   loading: boolean;
+  loadingSession: boolean;
+  loadingProfile: boolean;
+  isReady: boolean;
+  isAdmin: boolean;
+  isProfessor: boolean;
+  isAluno: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string, name: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
@@ -33,7 +47,26 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const CACHE_KEY = (userId: string) => `profile_cache_${userId}`;
 const CACHE_TTL = 1000 * 60 * 10;
 
-// ================= CACHE =================
+function isValidRole(value: unknown): value is UserRole {
+  return value === 'admin' || value === 'professor' || value === 'aluno';
+}
+
+function normalizeProfile(raw: unknown): UserProfile | null {
+  if (!raw || typeof raw !== 'object') return null;
+
+  const candidate = raw as Record<string, unknown>;
+  if (typeof candidate.id !== 'string' || !isValidRole(candidate.role)) return null;
+
+  return {
+    id: candidate.id,
+    role: candidate.role,
+    display_name:
+      typeof candidate.display_name === 'string' || candidate.display_name === null
+        ? candidate.display_name
+        : undefined,
+    created_at: typeof candidate.created_at === 'string' ? candidate.created_at : undefined,
+  };
+}
 
 function saveProfileCache(profile: UserProfile) {
   try {
@@ -41,7 +74,7 @@ function saveProfileCache(profile: UserProfile) {
       CACHE_KEY(profile.id),
       JSON.stringify({
         data: profile,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       })
     );
   } catch {}
@@ -52,10 +85,11 @@ function getProfileCache(userId: string): UserProfile | null {
     const raw = localStorage.getItem(CACHE_KEY(userId));
     if (!raw) return null;
 
-    const parsed = JSON.parse(raw);
+    const parsed = JSON.parse(raw) as { data?: unknown; timestamp?: number };
+    if (typeof parsed.timestamp !== 'number') return null;
     if (Date.now() - parsed.timestamp > CACHE_TTL) return null;
 
-    return parsed.data;
+    return normalizeProfile(parsed.data);
   } catch {
     return null;
   }
@@ -67,140 +101,163 @@ function clearProfileCache(userId: string) {
   } catch {}
 }
 
-// ================= BACKEND =================
-
 async function ensureUserSetup(user: User, displayName?: string): Promise<UserProfile | null> {
   try {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('user_profiles')
-      .select('*')
+      .select('id, role, display_name, created_at')
       .eq('id', user.id)
       .maybeSingle();
 
-    if (data) return data;
+    if (error) {
+      console.warn('Erro ao buscar user_profiles:', error);
+      return null;
+    }
 
-    const role = user.email === SUPER_ADMIN_EMAIL ? 'admin' : 'aluno';
+    const existingProfile = normalizeProfile(data);
+    if (existingProfile) return existingProfile;
 
-    const { data: created } = await supabase
+    const role: UserRole = user.email === SUPER_ADMIN_EMAIL ? 'admin' : 'aluno';
+
+    const { data: created, error: createError } = await supabase
       .from('user_profiles')
-      .insert([{
-        id: user.id,
-        role,
-        display_name: displayName || user.email
-      }])
-      .select()
+      .insert([
+        {
+          id: user.id,
+          role,
+          display_name: displayName || user.user_metadata?.name || user.email,
+        },
+      ])
+      .select('id, role, display_name, created_at')
       .single();
 
-    return created;
+    if (createError) {
+      console.warn('Erro ao criar user_profiles:', createError);
+      return null;
+    }
+
+    return normalizeProfile(created);
   } catch (err) {
     console.warn('ensureUserSetup falhou:', err);
     return null;
   }
 }
 
-// ================= PROVIDER =================
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadingSession, setLoadingSession] = useState(true);
+  const [loadingProfile, setLoadingProfile] = useState(false);
 
-  const initialized = useRef<string | null>(null);
+  const latestRequestRef = useRef(0);
+  const currentUserIdRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+  const clearUserCaches = useCallback((userId: string) => {
+    clearProfileCache(userId);
+    clearAlunosCache(userId);
+    clearTreinosCache(userId);
+  }, []);
 
-      // ===== LOGOUT =====
-      if (event === 'SIGNED_OUT') {
-        if (user) {
-          clearProfileCache(user.id);
-          clearAlunosCache(user.id);
-          clearTreinosCache(user.id);
-        }
+  const resetAuthState = useCallback(() => {
+    currentUserIdRef.current = null;
+    setUser(null);
+    setSession(null);
+    setProfile(null);
+    setLoadingProfile(false);
+  }, []);
 
-        initialized.current = null;
-        setUser(null);
-        setSession(null);
-        setProfile(null);
-        setLoading(false);
-        return;
-      }
+  const syncProfileForUser = useCallback(
+    async (currentUser: User, displayName?: string) => {
+      const requestId = latestRequestRef.current + 1;
+      latestRequestRef.current = requestId;
+      currentUserIdRef.current = currentUser.id;
 
-      // ===== LOGIN / RESTORE =====
-      if (newSession?.user) {
-        const currentUser = newSession.user;
+      const cachedProfile = getProfileCache(currentUser.id);
+      setProfile(cachedProfile);
+      setLoadingProfile(true);
 
-        setUser(currentUser);
-        setSession(newSession);
-
-        // 🔥 evita reprocessar mesmo usuário
-        if (initialized.current === currentUser.id) {
-          setLoading(false);
+      try {
+        const syncedProfile = await ensureUserSetup(currentUser, displayName);
+        if (latestRequestRef.current !== requestId || currentUserIdRef.current !== currentUser.id) {
           return;
         }
 
-        initialized.current = currentUser.id;
-
-        // ===== CACHE FIRST =====
-        const cached = getProfileCache(currentUser.id);
-
-        if (cached) {
-          setProfile(cached);
-        } else {
-          // fallback seguro
-          setProfile({
-            id: currentUser.id,
-            role: 'unknown',
-            display_name: currentUser.email ?? 'Usuário'
-          });
+        if (!syncedProfile) {
+          clearProfileCache(currentUser.id);
+          setProfile(null);
+          return;
         }
 
-        // ===== BACKGROUND SYNC =====
-        Promise.race([
-          ensureUserSetup(currentUser),
-          new Promise<null>((_, reject) =>
-            setTimeout(() => reject(new Error('timeout')), 4000)
-          )
-        ])
-        .then((data) => {
-          if (!data) return;
+        saveProfileCache(syncedProfile);
+        setProfile(syncedProfile);
+      } finally {
+        if (latestRequestRef.current === requestId && currentUserIdRef.current === currentUser.id) {
+          setLoadingProfile(false);
+        }
+      }
+    },
+    []
+  );
 
-          setProfile((prev) => {
-            if (!prev) {
-              saveProfileCache(data);
-              return data;
-            }
+  useEffect(() => {
+    let active = true;
 
-            // 🔥 NÃO SOBRESCREVE ADMIN
-            if (prev.role === 'admin') {
-              data.role = 'admin';
-            }
+    const applySession = async (newSession: Session | null) => {
+      if (!active) return;
 
-            const changed =
-              prev.role !== data.role ||
-              prev.display_name !== data.display_name;
+      setSession(newSession);
+      const nextUser = newSession?.user ?? null;
+      setUser(nextUser);
 
-            if (changed) {
-              saveProfileCache(data);
-              return data;
-            }
-
-            return prev;
-          });
-        })
-        .catch((err) => {
-          console.warn('Profile sync falhou (ok):', err);
-        });
+      if (!nextUser) {
+        resetAuthState();
+        if (active) setLoadingSession(false);
+        return;
       }
 
-      setLoading(false);
+      await syncProfileForUser(nextUser);
+      if (active) setLoadingSession(false);
+    };
+
+    void (async () => {
+      try {
+        const {
+          data: { session: initialSession },
+        } = await supabase.auth.getSession();
+        await applySession(initialSession);
+      } catch (error) {
+        console.warn('Falha ao recuperar sessao inicial:', error);
+        if (active) {
+          resetAuthState();
+          setLoadingSession(false);
+        }
+      }
+    })();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      if (!active) return;
+
+      if (!newSession?.user) {
+        const previousUserId = currentUserIdRef.current;
+        if (previousUserId) clearUserCaches(previousUserId);
+        latestRequestRef.current += 1;
+        resetAuthState();
+        setLoadingSession(false);
+        return;
+      }
+
+      void applySession(newSession);
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, [clearUserCaches, resetAuthState, syncProfileForUser]);
 
-  // ===== SESSION RECOVERY =====
   useEffect(() => {
     const handler = () => {
       if (document.visibilityState === 'visible') {
@@ -217,68 +274,105 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // ===== ACTIONS =====
-
-  const signIn = async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error: error?.message ?? null };
-  };
+  }, []);
 
-  const signUp = async (email: string, password: string, name: string) => {
-    const { data, error } = await supabase.auth.signUp({ email, password });
+  const signUp = useCallback(async (email: string, password: string, name: string) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name,
+        },
+      },
+    });
 
     if (error) return { error: error.message };
 
     if (data.user) {
-      ensureUserSetup(data.user, name);
+      await ensureUserSetup(data.user, name);
     }
 
     return { error: null };
-  };
+  }, []);
 
-  const signOut = async () => {
-    if (user) {
-      clearProfileCache(user.id);
-      clearAlunosCache(user.id);
-      clearTreinosCache(user.id);
+  const signOut = useCallback(async () => {
+    if (currentUserIdRef.current) {
+      clearUserCaches(currentUserIdRef.current);
     }
 
-    initialized.current = null;
-
-    setUser(null);
-    setSession(null);
-    setProfile(null);
-
+    latestRequestRef.current += 1;
+    resetAuthState();
     await supabase.auth.signOut();
-  };
+  }, [clearUserCaches, resetAuthState]);
 
-  const updateRole = async (userId: string, newRole: UserRole) => {
-    if (profile?.role !== 'admin') {
-      return { error: 'Sem permissão' };
-    }
+  const updateRole = useCallback(
+    async (userId: string, newRole: UserRole) => {
+      if (profile?.role !== 'admin') {
+        return { error: 'Sem permissao' };
+      }
 
-    const { error } = await supabase
-      .from('user_profiles')
-      .update({ role: newRole })
-      .eq('id', userId);
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ role: newRole })
+        .eq('id', userId);
 
-    return { error: error?.message ?? null };
-  };
+      if (!error && user?.id === userId) {
+        const updatedProfile =
+          profile && profile.id === userId ? { ...profile, role: newRole } : profile;
+        if (updatedProfile) {
+          saveProfileCache(updatedProfile);
+          setProfile(updatedProfile);
+        }
+      }
 
-  return (
-    <AuthContext.Provider value={{
+      return { error: error?.message ?? null };
+    },
+    [profile, user]
+  );
+
+  const role = profile?.role ?? null;
+  const isReady = !loadingSession && (!user || (!loadingProfile && role !== null));
+  const loading = !isReady;
+
+  const value = useMemo<AuthContextType>(
+    () => ({
       user,
       session,
       profile,
+      role,
       loading,
+      loadingSession,
+      loadingProfile,
+      isReady,
+      isAdmin: role === 'admin',
+      isProfessor: role === 'professor',
+      isAluno: role === 'aluno',
       signIn,
       signUp,
       signOut,
-      updateRole
-    }}>
-      {children}
-    </AuthContext.Provider>
+      updateRole,
+    }),
+    [
+      isReady,
+      loading,
+      loadingProfile,
+      loadingSession,
+      profile,
+      role,
+      session,
+      signIn,
+      signOut,
+      signUp,
+      updateRole,
+      user,
+    ]
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

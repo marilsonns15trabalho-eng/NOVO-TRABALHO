@@ -37,7 +37,7 @@ interface Treino {
   exercicios?: Exercicio[];
   ativo?: boolean;
   created_at: string;
-  students?: { name: string }; // Join
+  students?: { id?: string; linked_auth_user_id?: string | null; name: string }; // Join
 }
 
 export default function TreinosModule() {
@@ -65,7 +65,9 @@ export default function TreinosModule() {
         .from('treinos')
         .select(`
           *,
-          students (
+          student:students (
+            id,
+            linked_auth_user_id,
             name
           )
         `)
@@ -84,7 +86,7 @@ export default function TreinosModule() {
           setTreinos(dataNoJoin || []);
         }
       } else {
-        setTreinos(data || []);
+        setTreinos((data || []).map((item: any) => ({ ...item, students: item.student ?? item.students })));
       }
       setLoading(false);
     };
@@ -113,15 +115,11 @@ export default function TreinosModule() {
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    const mockUserId = '00000000-0000-0000-0000-000000000000';
 
     try {
       const { error } = await supabase
         .from('treinos')
-        .insert([{
-          ...newTreino,
-          user_id: mockUserId
-        }]);
+        .insert([{ ...newTreino }]);
       
       if (error) throw error;
       
@@ -129,8 +127,11 @@ export default function TreinosModule() {
       setNewTreino({ student_id: '', nome: '', descricao: '', ativo: true, duracao_minutos: 60, exercicios: [] });
       
       // Recarregar
-      const { data } = await supabase.from('treinos').select(`*, students(name)`).order('created_at', { ascending: false });
-      setTreinos(data || []);
+      const { data } = await supabase
+        .from('treinos')
+        .select(`*, student:students(id, linked_auth_user_id, name)`)
+        .order('created_at', { ascending: false });
+      setTreinos((data || []).map((item: any) => ({ ...item, students: item.student ?? item.students })));
     } catch (error) {
       console.error('Erro ao cadastrar treino:', error);
     }

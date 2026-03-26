@@ -1,11 +1,10 @@
 'use client';
 
-// Hook customizado para o módulo de Avaliação Física
-import { useState, useEffect, useCallback } from 'react';
-import * as avaliacoesService from '@/services/avaliacoes.service';
-import { useNotification } from '@/hooks/useNotification';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import type { Avaliacao, AvaliacaoFormData, AvaliacaoAlunoItem } from '@/types/avaliacao';
+import { useNotification } from '@/hooks/useNotification';
+import * as avaliacoesService from '@/services/avaliacoes.service';
+import type { Avaliacao, AvaliacaoAlunoItem, AvaliacaoFormData } from '@/types/avaliacao';
 
 function createDefaultAvaliacaoForm(): AvaliacaoFormData {
   return {
@@ -17,114 +16,134 @@ function createDefaultAvaliacaoForm(): AvaliacaoFormData {
 }
 
 export function useAvaliacoes() {
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, isAluno, isReady } = useAuth();
+  const { notification, showNotification, clearNotification } = useNotification();
+
+  const restrictLinkedAuthUserId = isAluno ? user?.id : undefined;
+
   const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([]);
   const [alunos, setAlunos] = useState<AvaliacaoAlunoItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-
-  // Modais e formulário
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingAvaliacao, setEditingAvaliacao] = useState<Avaliacao | null>(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedAvaliacao, setSelectedAvaliacao] = useState<Avaliacao | null>(null);
   const [historico, setHistorico] = useState<Avaliacao[]>([]);
-
   const [newAvaliacao, setNewAvaliacao] = useState<AvaliacaoFormData>(createDefaultAvaliacaoForm);
 
-  const { notification, showNotification, clearNotification } = useNotification();
-
-  const role = profile?.role || 'aluno';
-  const restrictUserId = role === 'aluno' ? user?.id : undefined;
-
   const loadData = useCallback(async () => {
-    if (authLoading) return;
+    if (!isReady) return;
 
     setLoading(true);
     try {
-      if (role === 'aluno' && !restrictUserId) {
+      if (isAluno && !restrictLinkedAuthUserId) {
         setAvaliacoes([]);
         setAlunos([]);
         return;
       }
 
       const [avaliacoesData, alunosData] = await Promise.all([
-        avaliacoesService.fetchAvaliacoes(restrictUserId),
-        avaliacoesService.fetchAlunosParaAvaliacao(restrictUserId),
+        avaliacoesService.fetchAvaliacoes(restrictLinkedAuthUserId),
+        avaliacoesService.fetchAlunosParaAvaliacao(restrictLinkedAuthUserId),
       ]);
+
       setAvaliacoes(avaliacoesData);
       setAlunos(alunosData);
     } catch (error) {
-      console.error('Erro ao carregar avaliações:', error);
+      console.error('Erro ao carregar avaliacoes:', error);
     } finally {
       setLoading(false);
     }
-  }, [authLoading, role, restrictUserId]);
+  }, [isAluno, isReady, restrictLinkedAuthUserId]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (!isReady) return;
+    if (!user) {
+      setAvaliacoes([]);
+      setAlunos([]);
+      setLoading(false);
+      return;
+    }
 
-  /** Avaliações filtradas por busca */
-  const filteredAvaliacoes = avaliacoes.filter((a) => {
-    const nome = a.students?.nome || '';
+    void loadData();
+  }, [isReady, loadData, user]);
+
+  const filteredAvaliacoes = avaliacoes.filter((avaliacao) => {
+    const nome = avaliacao.students?.nome || '';
     return nome.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
-  /** Inicia edição */
   const startEdit = useCallback((avaliacao: Avaliacao) => {
-    setEditingAvaliacao(avaliacao);
-    setNewAvaliacao({ ...avaliacao });
-    setShowAddModal(true);
-  }, []);
+    try {
+      if (isAluno) {
+        throw new Error('Ação não permitida para aluno');
+      }
 
-  /** Visualiza avaliação e carrega histórico */
+      setEditingAvaliacao(avaliacao);
+      setNewAvaliacao({ ...avaliacao });
+      setShowAddModal(true);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Erro ao abrir avaliacao.';
+      showNotification(message, 'error');
+    }
+  }, [isAluno, showNotification]);
+
   const viewAvaliacao = useCallback(async (avaliacao: Avaliacao) => {
     setSelectedAvaliacao(avaliacao);
     setShowViewModal(true);
 
     try {
-      const hist = await avaliacoesService.fetchHistoricoAluno(avaliacao.student_id, restrictUserId);
+      const hist = await avaliacoesService.fetchHistoricoAluno(
+        avaliacao.student_id,
+        restrictLinkedAuthUserId
+      );
       setHistorico(hist);
     } catch (error) {
-      console.error('Erro ao buscar histórico:', error);
+      console.error('Erro ao buscar historico:', error);
     }
-  }, [restrictUserId]);
+  }, [restrictLinkedAuthUserId]);
 
-  /** Salva avaliação */
   const handleSave = useCallback(async () => {
     try {
+      if (isAluno) {
+        throw new Error('Ação não permitida para aluno');
+      }
+
       await avaliacoesService.salvarAvaliacao(
         newAvaliacao,
         editingAvaliacao?.id ?? newAvaliacao.id
       );
-      showNotification(editingAvaliacao ? 'Avaliação atualizada!' : 'Avaliação salva!', 'success');
+
+      showNotification(editingAvaliacao ? 'Avaliacao atualizada!' : 'Avaliacao salva!', 'success');
       setShowAddModal(false);
       setEditingAvaliacao(null);
       setNewAvaliacao(createDefaultAvaliacaoForm());
       await loadData();
-    } catch (error: unknown) {
-      const msg =
+    } catch (error) {
+      const message =
         error instanceof Error
           ? error.message
-          : typeof error === 'object' &&
-              error !== null &&
-              'message' in error &&
-              typeof (error as { message: unknown }).message === 'string'
-            ? (error as { message: string }).message
-            : 'Erro ao salvar a avaliação.';
-      showNotification(`Erro: ${msg}`, 'error');
+          : 'Erro ao salvar a avaliacao.';
+      showNotification(message, 'error');
     }
-  }, [newAvaliacao, editingAvaliacao, loadData, showNotification]);
+  }, [editingAvaliacao, isAluno, loadData, newAvaliacao, showNotification]);
 
-  /** Abre modal de nova avaliação */
   const openAddModal = useCallback(() => {
-    setEditingAvaliacao(null);
-    setNewAvaliacao(createDefaultAvaliacaoForm());
-    setShowAddModal(true);
-  }, []);
+    try {
+      if (isAluno) {
+        throw new Error('Ação não permitida para aluno');
+      }
 
-  /** Fecha o modal e limpa edição / rascunho */
+      setEditingAvaliacao(null);
+      setNewAvaliacao(createDefaultAvaliacaoForm());
+      setShowAddModal(true);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Erro ao abrir formulario.';
+      showNotification(message, 'error');
+    }
+  }, [isAluno, showNotification]);
+
   const closeAddModal = useCallback(() => {
     setShowAddModal(false);
     setEditingAvaliacao(null);

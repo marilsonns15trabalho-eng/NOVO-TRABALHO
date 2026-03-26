@@ -1,71 +1,82 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import React, { useEffect, useMemo, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import MobileMenu from '@/components/MobileMenu';
 import { useAuth } from '@/hooks/useAuth';
-import { getActiveIdFromPath, ROLE_ACCESS, type UserRole } from '@/lib/navigation';
-import { Loader2 } from 'lucide-react';
+import { getActiveIdFromPath, getDefaultRouteForRole, ROLE_ACCESS } from '@/lib/navigation';
 
 const TITLES: Record<string, string> = {
   home: 'Painel de Controle',
-  alunos: 'Gestão de Alunos',
-  financeiro: 'Gestão Financeira',
-  planos: 'Gestão de Planos',
-  treinos: 'Gestão de Treinos',
+  alunos: 'Gestao de Alunos',
+  financeiro: 'Gestao Financeira',
+  planos: 'Gestao de Planos',
+  treinos: 'Gestao de Treinos',
   anamnese: 'Anamnese Nutricional',
-  avaliacao: 'Avaliação Física',
-  relatorios: 'Relatórios e Estatísticas',
-  configuracoes: 'Configurações do Sistema',
+  avaliacao: 'Avaliacao Fisica',
+  relatorios: 'Relatorios e Estatisticas',
+  configuracoes: 'Configuracoes do Sistema',
 };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, profile, loading } = useAuth();
+  const { user, role, isReady } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Redirect para login
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/auth');
-    }
-  }, [loading, user, router]);
-
-  const activeId = getActiveIdFromPath(pathname);
-  const role = profile?.role || 'aluno';
+  const activeId = useMemo(() => getActiveIdFromPath(pathname), [pathname]);
   const title = TITLES[activeId] || 'Painel de Controle';
 
-  // Proteção por role
   useEffect(() => {
-    if (loading || !user) return;
+    if (!isReady) return;
 
-    const allowedIds: string[] =
-      (ROLE_ACCESS[role as UserRole] || ROLE_ACCESS.aluno) as string[];
-
-    if (!allowedIds.includes(activeId)) {
-      router.replace('/dashboard');
+    if (!user) {
+      router.replace('/auth');
+      return;
     }
-  }, [activeId, role, router, user, loading]);
 
-  if (loading) {
-    return <div className="flex items-center justify-center min-h-screen bg-black text-white">Carregando...</div>;
+    if (!role) return;
+
+    if (role === 'aluno') {
+      router.replace('/aluno');
+      return;
+    }
+
+    if (!ROLE_ACCESS[role].includes(activeId)) {
+      router.replace(getDefaultRouteForRole(role));
+    }
+  }, [activeId, isReady, role, router, user]);
+
+  if (!isReady) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-black text-white">
+        <Loader2 className="animate-spin text-orange-500" size={40} />
+      </div>
+    );
   }
 
-  if (!user) return null;
+  if (!user || !role || role === 'aluno') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-black text-zinc-400">
+        Redirecionando...
+      </div>
+    );
+  }
 
   const handleNavigate = (id: string) => {
     if (id === 'home') {
       router.push('/dashboard');
-    } else {
-      router.push(`/dashboard/${id}`);
+      return;
     }
+
+    router.push(`/dashboard/${id}`);
   };
 
   return (
-    <div className="flex min-h-screen bg-black text-white font-sans selection:bg-orange-500 selection:text-black">
+    <div className="flex min-h-screen bg-black font-sans text-white selection:bg-orange-500 selection:text-black">
       <div className="hidden md:block">
         <Sidebar activeTab={activeId} setActiveTab={handleNavigate} userRole={role} />
       </div>
@@ -78,15 +89,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         userRole={role}
       />
 
-      <main className="flex-1 flex flex-col overflow-hidden">
-        <Header
-          title={title}
-          onMenuToggle={() => setMobileMenuOpen(true)}
-        />
-
-        <div className="flex-1 overflow-y-auto">
-          {children}
-        </div>
+      <main className="flex flex-1 flex-col overflow-hidden">
+        <Header title={title} onMenuToggle={() => setMobileMenuOpen(true)} />
+        <div className="flex-1 overflow-y-auto">{children}</div>
       </main>
     </div>
   );

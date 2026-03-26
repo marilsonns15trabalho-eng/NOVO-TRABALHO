@@ -1,13 +1,12 @@
 'use client';
 
-// Hook customizado para o módulo de Treinos
-import { useState, useEffect, useCallback } from 'react';
-import * as treinosService from '@/services/treinos.service';
-import { useNotification } from '@/hooks/useNotification';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useNotification } from '@/hooks/useNotification';
+import * as treinosService from '@/services/treinos.service';
 import { getTreinosCache, saveTreinosCache } from '@/lib/cache/treinosCache';
-import type { Treino, TreinoFormData, Exercicio } from '@/types/treino';
 import type { StudentListItem } from '@/types/common';
+import type { Exercicio, Treino, TreinoFormData } from '@/types/treino';
 
 const EMPTY_EXERCICIO: Exercicio = {
   nome: '',
@@ -20,9 +19,10 @@ const EMPTY_EXERCICIO: Exercicio = {
 };
 
 export function useTreinos() {
-  const { user, profile, loading: authLoading } = useAuth();
-  const role = profile?.role || 'aluno';
-  const restrictUserId = role === 'aluno' ? user?.id : undefined;
+  const { user, isAluno, isReady } = useAuth();
+  const { notification, showNotification, clearNotification } = useNotification();
+
+  const restrictLinkedAuthUserId = isAluno ? user?.id : undefined;
 
   const [treinos, setTreinos] = useState<Treino[]>([]);
   const [alunos, setAlunos] = useState<StudentListItem[]>([]);
@@ -31,7 +31,6 @@ export function useTreinos() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedTreino, setSelectedTreino] = useState<Treino | null>(null);
-
   const [newTreino, setNewTreino] = useState<TreinoFormData>({
     nome: '',
     student_id: '',
@@ -43,14 +42,11 @@ export function useTreinos() {
     ativo: true,
   });
 
-  const { notification, showNotification, clearNotification } = useNotification();
-
   const loadData = useCallback(async () => {
-    if (authLoading || !user) return;
+    if (!isReady || !user) return;
 
     const cached = getTreinosCache(user.id);
     if (cached) {
-      console.log('Usando cache de treinos');
       setTreinos(cached);
       setLoading(false);
     } else {
@@ -58,89 +54,101 @@ export function useTreinos() {
     }
 
     try {
-      if (role === 'aluno' && !restrictUserId) {
+      if (isAluno && !restrictLinkedAuthUserId) {
         setTreinos([]);
         setAlunos([]);
         return;
       }
 
       const [treinosData, alunosData] = await Promise.all([
-        treinosService.fetchTreinos(restrictUserId),
-        treinosService.fetchAlunosParaTreino(restrictUserId),
+        treinosService.fetchTreinos(restrictLinkedAuthUserId),
+        treinosService.fetchAlunosParaTreino(restrictLinkedAuthUserId),
       ]);
+
       setTreinos(treinosData);
       setAlunos(alunosData);
       saveTreinosCache(user.id, treinosData);
     } catch (error) {
       console.error('Erro ao carregar treinos:', error);
-      if (cached) {
-        console.warn('Mantendo cache de treinos');
-      }
     } finally {
       setLoading(false);
     }
-  }, [authLoading, role, restrictUserId, user]);
+  }, [isAluno, isReady, restrictLinkedAuthUserId, user]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (!isReady) return;
+    if (!user) {
+      setTreinos([]);
+      setAlunos([]);
+      setLoading(false);
+      return;
+    }
 
-  /** Treinos filtrados por busca */
-  const filteredTreinos = treinos.filter((t) => {
-    const nomeAluno = t.students?.name || '';
+    void loadData();
+  }, [isReady, loadData, user]);
+
+  const filteredTreinos = treinos.filter((treino) => {
+    const nomeAluno = treino.students?.name || '';
     return (
-      t.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      treino.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
       nomeAluno.toLowerCase().includes(searchTerm.toLowerCase())
     );
   });
 
-  /** Adicionar exercício ao formulário */
   const addExercicio = useCallback(() => {
-    setNewTreino((prev) => ({
-      ...prev,
-      exercicios: [...(prev.exercicios || []), { ...EMPTY_EXERCICIO }],
+    setNewTreino((current) => ({
+      ...current,
+      exercicios: [...(current.exercicios || []), { ...EMPTY_EXERCICIO }],
     }));
   }, []);
 
-  /** Remover exercício do formulário */
   const removeExercicio = useCallback((index: number) => {
-    setNewTreino((prev) => ({
-      ...prev,
-      exercicios: (prev.exercicios || []).filter((_, i) => i !== index),
+    setNewTreino((current) => ({
+      ...current,
+      exercicios: (current.exercicios || []).filter((_, currentIndex) => currentIndex !== index),
     }));
   }, []);
 
-  /** Atualizar exercício no formulário */
   const updateExercicio = useCallback((index: number, field: keyof Exercicio, value: any) => {
-    setNewTreino((prev) => ({
-      ...prev,
-      exercicios: (prev.exercicios || []).map((ex, i) => i === index ? { ...ex, [field]: value } : ex),
+    setNewTreino((current) => ({
+      ...current,
+      exercicios: (current.exercicios || []).map((exercicio, currentIndex) =>
+        currentIndex === index ? { ...exercicio, [field]: value } : exercicio
+      ),
     }));
   }, []);
 
-  /** Salva treino novo */
   const handleSave = useCallback(async () => {
-    if (!newTreino.student_id || !newTreino.nome) {
-      showNotification('Preencha os campos obrigatórios.', 'error');
-      return;
-    }
-
     try {
+      if (isAluno) {
+        throw new Error('Ação não permitida para aluno');
+      }
+
+      if (!newTreino.student_id || !newTreino.nome) {
+        showNotification('Preencha os campos obrigatorios.', 'error');
+        return;
+      }
+
       await treinosService.createTreino(newTreino);
       showNotification('Treino criado com sucesso!', 'success');
       setShowAddModal(false);
       setNewTreino({
-        nome: '', student_id: '', objetivo: '', nivel: 'iniciante',
-        duracao_minutos: 60, descricao: '',
-        exercicios: [{ ...EMPTY_EXERCICIO }], ativo: true,
+        nome: '',
+        student_id: '',
+        objetivo: '',
+        nivel: 'iniciante',
+        duracao_minutos: 60,
+        descricao: '',
+        exercicios: [{ ...EMPTY_EXERCICIO }],
+        ativo: true,
       });
       await loadData();
-    } catch (error: any) {
-      showNotification(`Erro ao salvar: ${error.message}`, 'error');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Erro ao salvar treino.';
+      showNotification(message, 'error');
     }
-  }, [newTreino, loadData, showNotification]);
+  }, [isAluno, loadData, newTreino, showNotification]);
 
-  /** Abre modal de visualização */
   const viewTreino = useCallback((treino: Treino) => {
     setSelectedTreino(treino);
     setShowViewModal(true);

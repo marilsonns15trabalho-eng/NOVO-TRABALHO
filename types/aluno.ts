@@ -33,7 +33,6 @@ export interface Aluno {
   grupo?: string;
   modalidade?: string;
   created_at: string;
-  user_id: string;
 }
 
 /** Dados para o formulário de criação/edição de aluno */
@@ -75,5 +74,5 @@ export interface StudentDBRow {
   group?: string | null;
   modality?: string | null;
   created_at: string;
-  user_id?: string | null;
+  linked_auth_user_id?: string | null;
 }

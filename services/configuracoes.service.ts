@@ -2,7 +2,7 @@
 import { supabase, getAuthenticatedUser } from '@/lib/supabase';
 import { TABLES } from '@/lib/constants';
 import type { Configuracoes, ConfiguracoesFormData } from '@/types/configuracoes';
-import { assertNotProfessorForUserId } from '@/lib/authz';
+import { assertAdminForUserId } from '@/lib/authz';
 
 /** Busca as configurações do sistema (retorna a primeira row) */
 export async function fetchConfiguracoes(): Promise<Partial<Configuracoes> | null> {
@@ -23,7 +23,7 @@ export async function fetchConfiguracoes(): Promise<Partial<Configuracoes> | nul
 /** Salva configurações (cria ou atualiza) */
 export async function salvarConfiguracoes(config: ConfiguracoesFormData): Promise<Configuracoes | null> {
   const user = await getAuthenticatedUser();
-  await assertNotProfessorForUserId(user.id);
+  await assertAdminForUserId(user.id);
 
   if (config.id) {
     // Update
@@ -38,7 +38,7 @@ export async function salvarConfiguracoes(config: ConfiguracoesFormData): Promis
     // Insert
     const { data, error } = await supabase
       .from(TABLES.CONFIGURACOES)
-      .insert([{ ...config, user_id: user.id }])
+      .insert([{ ...config }])
       .select()
       .single();
 

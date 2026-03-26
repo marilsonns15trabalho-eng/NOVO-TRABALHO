@@ -39,10 +39,6 @@ CREATE POLICY "avaliacoes_delete" ON avaliacoes FOR DELETE USING (
 );
 
 -- Aluno órfão: mesma linha students (email) sem user_id — permite UPDATE no primeiro login
+-- FASE 1 de seguranca: user_id tornou-se imutavel em UPDATE.
+-- Este script nao deve recriar a policy de claim legado.
 DROP POLICY IF EXISTS "students_update_claim" ON students;
-CREATE POLICY "students_update_claim" ON students FOR UPDATE USING (
-    user_id IS NULL
-    AND email IS NOT NULL
-    AND lower(trim(email)) = lower(trim((auth.jwt() ->> 'email')))
-)
-WITH CHECK (user_id = auth.uid());

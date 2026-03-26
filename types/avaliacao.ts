@@ -41,8 +41,14 @@ export interface Avaliacao {
   protocolo?: ProtocoloAvaliacao;
 
   created_at: string;
-  user_id?: string;
-  students?: { nome: string; sexo?: string; data_nascimento?: string };
+  students?: {
+    id?: string;
+    linked_auth_user_id?: string | null;
+    nome: string;
+    name?: string;
+    sexo?: string;
+    data_nascimento?: string;
+  };
 }
 
 export type AvaliacaoFormData = Partial<Avaliacao>;

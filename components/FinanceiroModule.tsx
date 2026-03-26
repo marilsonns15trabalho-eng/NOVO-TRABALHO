@@ -48,6 +48,11 @@ interface Student {
   };
 }
 
+interface StudentWithBoletos extends Student {
+  boletos: Boleto[];
+  displayBoleto?: Boleto;
+}
+
 export default function FinanceiroModule() {
   const [activeTab, setActiveTab] = useState<'geral' | 'alunos'>('geral');
   const [pagamentos, setPagamentos] = useState<Pagamento[]>([]);
@@ -60,7 +65,7 @@ export default function FinanceiroModule() {
   const [showConfirmLote, setShowConfirmLote] = useState(false);
   const [boletoToPay, setBoletoToPay] = useState<Boleto | null>(null);
   const [boletoToDelete, setBoletoToDelete] = useState<Boleto | null>(null); // Novo estado
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<StudentWithBoletos | null>(null);
   const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
   const [newPagamento, setNewPagamento] = useState<Partial<Pagamento>>({
     valor: 0,
@@ -72,7 +77,7 @@ export default function FinanceiroModule() {
   const [newBoleto, setNewBoleto] = useState({ student_id: '', amount: 0, due_date: '' });
 
   // Agrupar boletos por aluno
-  const boletosPorAluno = useMemo(() => alunos.map(aluno => {
+  const boletosPorAluno = useMemo<StudentWithBoletos[]>(() => alunos.map(aluno => {
     const studentBoletos = boletos.filter(b => b.student_id === aluno.id);
     const sorted = studentBoletos.sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
     const pendingOrLate = sorted.find(b => b.status === 'pending' || b.status === 'late');
@@ -605,7 +610,7 @@ export default function FinanceiroModule() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-800">
-                  {selectedStudent.boletos.map(b => (
+                  {selectedStudent.boletos.map((b) => (
                     <tr key={b.id}>
                       <td className="px-4 py-3 font-mono">{new Date(b.due_date).toLocaleDateString('pt-BR')}</td>
                       <td className="px-4 py-3 font-mono">R$ {b.amount.toFixed(2)}</td>

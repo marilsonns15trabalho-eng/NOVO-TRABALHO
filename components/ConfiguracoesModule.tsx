@@ -70,8 +70,6 @@ export default function ConfiguracoesModule() {
     e.preventDefault();
     setSaving(true);
     setMessage({ type: '', text: '' });
-    
-    const mockUserId = '00000000-0000-0000-0000-000000000000';
 
     if (!config.nome_academia) {
       setMessage({ type: 'error', text: 'O nome da academia é obrigatório.' });
@@ -92,7 +90,7 @@ export default function ConfiguracoesModule() {
         // Insert
         const { data, error } = await supabase
           .from('configuracoes')
-          .insert([{ ...config, user_id: mockUserId }])
+          .insert([{ ...config }])
           .select()
           .single();
           

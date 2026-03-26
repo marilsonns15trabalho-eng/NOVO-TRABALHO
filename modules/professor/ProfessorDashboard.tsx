@@ -2,13 +2,13 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { useUserRole } from '@/hooks/useUserRole';
-import { Activity, Dumbbell, Users, Utensils, Loader2, Calendar, Scale } from 'lucide-react';
-import { fetchProfessorDashboardData, type ProfessorDashboardData } from '@/services/professorDashboard.service';
+import { Activity, Calendar, Dumbbell, Loader2, Scale, Users, Utensils } from 'lucide-react';
+import {
+  fetchProfessorDashboardData,
+  type ProfessorDashboardData,
+} from '@/services/professorDashboard.service';
 
 export default function ProfessorDashboard({ onNavigate }: { onNavigate: (id: string) => void }) {
-  const { isReadOnly } = useUserRole();
-
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<ProfessorDashboardData | null>(null);
 
@@ -16,14 +16,15 @@ export default function ProfessorDashboard({ onNavigate }: { onNavigate: (id: st
     const run = async () => {
       try {
         setLoading(true);
-        const res = await fetchProfessorDashboardData();
-        setData(res);
+        const result = await fetchProfessorDashboardData();
+        setData(result);
       } catch {
         setData(null);
       } finally {
         setLoading(false);
       }
     };
+
     void run();
   }, []);
 
@@ -31,7 +32,7 @@ export default function ProfessorDashboard({ onNavigate }: { onNavigate: (id: st
     () => [
       { id: 'alunos', label: 'Alunos', icon: Users },
       { id: 'treinos', label: 'Treinos', icon: Dumbbell },
-      { id: 'avaliacao', label: 'Avaliações', icon: Activity },
+      { id: 'avaliacao', label: 'Avaliacoes', icon: Activity },
       { id: 'anamnese', label: 'Anamnese', icon: Utensils },
     ],
     []
@@ -44,13 +45,11 @@ export default function ProfessorDashboard({ onNavigate }: { onNavigate: (id: st
       transition={{ duration: 0.3, ease: 'easeInOut' }}
       className="h-full"
     >
-      <div className="p-8 space-y-8 bg-black min-h-screen text-white">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="min-h-screen space-y-8 bg-black p-8 text-white">
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">Visão do Professor</h2>
-            <p className="text-zinc-500">
-              {isReadOnly ? 'Somente visualização nas telas de edição.' : ''}
-            </p>
+            <h2 className="text-3xl font-bold tracking-tight">Visao do Professor</h2>
+            <p className="text-zinc-500">Acesso operacional para alunos, treinos, avaliacoes e anamneses.</p>
           </div>
         </div>
 
@@ -61,40 +60,40 @@ export default function ProfessorDashboard({ onNavigate }: { onNavigate: (id: st
         )}
 
         {!loading && data && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5">
-              <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest">Total Alunos</p>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
+            <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
+              <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">Total Alunos</p>
               <p className="text-3xl font-bold">{data.stats.totalAlunos}</p>
             </div>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5">
-              <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest">Ativos</p>
+            <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
+              <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">Ativos</p>
               <p className="text-3xl font-bold text-emerald-500">{data.stats.alunosAtivos}</p>
             </div>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5">
-              <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest">Inativos</p>
+            <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
+              <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">Inativos</p>
               <p className="text-3xl font-bold text-rose-500">{data.stats.alunosInativos}</p>
             </div>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5">
-              <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest">Treinos Ativos</p>
+            <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
+              <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">Treinos Ativos</p>
               <p className="text-3xl font-bold text-blue-500">{data.stats.treinosAtivos}</p>
             </div>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 md:col-span-1 lg:col-span-1">
-              <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest">Avaliações (30d)</p>
+            <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
+              <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">Avaliacoes (30d)</p>
               <p className="text-3xl font-bold text-purple-500">{data.stats.avaliacoesRecentes30d}</p>
             </div>
           </div>
         )}
 
         {!loading && data && (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
-            <div className="flex items-center justify-between gap-4 mb-4">
-              <h3 className="text-xl font-bold flex items-center gap-2">
+          <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6">
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <h3 className="flex items-center gap-2 text-xl font-bold">
                 <Calendar size={20} className="text-blue-500" />
-                Últimas avaliações
+                Ultimas avaliacoes
               </h3>
               <button
                 onClick={() => onNavigate('avaliacao')}
-                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-black font-bold rounded-xl transition-all active:scale-95"
+                className="rounded-xl bg-blue-500 px-4 py-2 font-bold text-black transition-all active:scale-95 hover:bg-blue-600"
               >
                 Abrir
               </button>
@@ -102,29 +101,35 @@ export default function ProfessorDashboard({ onNavigate }: { onNavigate: (id: st
 
             <div className="space-y-3">
               {data.ultimasAvaliacoes.length === 0 ? (
-                <p className="text-zinc-500 text-sm">Nenhuma avaliação encontrada.</p>
+                <p className="text-sm text-zinc-500">Nenhuma avaliacao encontrada.</p>
               ) : (
-                data.ultimasAvaliacoes.map((a) => (
+                data.ultimasAvaliacoes.map((avaliacao) => (
                   <div
-                    key={a.id}
-                    className="flex items-center justify-between gap-4 p-3 rounded-2xl border border-zinc-800 bg-black/30"
+                    key={avaliacao.id}
+                    className="flex items-center justify-between gap-4 rounded-2xl border border-zinc-800 bg-black/30 p-3"
                   >
                     <div>
-                      <p className="text-sm font-bold text-white">{a.students?.nome || 'Aluno'}</p>
+                      <p className="text-sm font-bold text-white">{avaliacao.students?.nome || 'Aluno'}</p>
                       <p className="text-xs text-zinc-500">
-                        {a.data ? new Date(a.data).toLocaleDateString('pt-BR') : '-'}
+                        {avaliacao.data ? new Date(avaliacao.data).toLocaleDateString('pt-BR') : '-'}
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="text-right">
                         <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Peso</p>
-                        <p className="text-sm font-bold">{typeof a.peso === 'number' ? `${a.peso} kg` : '-'}</p>
+                        <p className="text-sm font-bold">
+                          {typeof avaliacao.peso === 'number' ? `${avaliacao.peso} kg` : '-'}
+                        </p>
                       </div>
                       <div className="text-right">
                         <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">BF</p>
                         <div className="flex items-center justify-end gap-1">
                           <Scale size={14} className="text-purple-500" />
-                          <p className="text-sm font-bold">{typeof a.percentual_gordura === 'number' ? `${a.percentual_gordura}%` : '-'}</p>
+                          <p className="text-sm font-bold">
+                            {typeof avaliacao.percentual_gordura === 'number'
+                              ? `${avaliacao.percentual_gordura}%`
+                              : '-'}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -135,22 +140,25 @@ export default function ProfessorDashboard({ onNavigate }: { onNavigate: (id: st
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {cards.map((c, idx) => {
-            const Icon = c.icon;
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {cards.map((card) => {
+            const Icon = card.icon;
+
             return (
               <button
-                key={`${c.id}-${idx}`}
-                onClick={() => onNavigate(c.id)}
-                className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl hover:border-blue-500/50 transition-all text-left group"
+                key={card.id}
+                onClick={() => onNavigate(card.id)}
+                className="group rounded-3xl border border-zinc-800 bg-zinc-900 p-6 text-left transition-all hover:border-blue-500/50"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest">Acesso</p>
-                    <h3 className="text-xl font-bold group-hover:text-blue-400 transition-colors">{c.label}</h3>
+                    <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">Acesso</p>
+                    <h3 className="text-xl font-bold transition-colors group-hover:text-blue-400">
+                      {card.label}
+                    </h3>
                   </div>
-                  <div className="p-3 bg-zinc-800 rounded-2xl group-hover:bg-blue-500 transition-colors">
-                    <Icon size={24} className="text-blue-500 group-hover:text-black transition-colors" />
+                  <div className="rounded-2xl bg-zinc-800 p-3 transition-colors group-hover:bg-blue-500">
+                    <Icon size={24} className="text-blue-500 transition-colors group-hover:text-black" />
                   </div>
                 </div>
               </button>
@@ -161,4 +169,3 @@ export default function ProfessorDashboard({ onNavigate }: { onNavigate: (id: st
     </motion.div>
   );
 }
-
