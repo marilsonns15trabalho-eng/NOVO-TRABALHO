@@ -196,28 +196,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           // ensureUserSetup só roda em SIGNED_IN e INITIAL_SESSION
           if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-            let userProfile = null;
-
             try {
-              userProfile = await Promise.race([
+              const userProfile = await Promise.race([
                 ensureUserSetup(newSession.user),
                 new Promise<UserProfile | null>((_, reject) =>
                   setTimeout(() => reject(new Error('Timeout em ensureUserSetup')), 4000)
                 )
               ]);
+              
+              setProfile(userProfile);
+              
+              if (userProfile) {
+                try {
+                  localStorage.setItem(`lioness_profile_${newSession.user.id}`, JSON.stringify(userProfile));
+                } catch (e) {}
+              }
             } catch (error) {
               console.error('Erro de timeout ou rede em ensureUserSetup:', error);
 
               // fallback seguro (NÃO quebra o sistema)
-              userProfile = {
-                id: newSession.user.id,
-                role: 'aluno',
-                display_name: newSession.user.email?.split('@')[0] ?? 'Usuário',
-                created_at: new Date().toISOString(),
-              };
-            }
+              setProfile((prev) => {
+                if (prev) return prev; // Mantém o perfil (admin/professor) se já existir no estado
+                
+                // Tenta recuperar do localStorage como último recurso
+                try {
+                  const cached = localStorage.getItem(`lioness_profile_${newSession.user.id}`);
+                  if (cached) {
+                    return JSON.parse(cached);
+                  }
+                } catch (e) {}
 
-            setProfile(userProfile);
+                return {
+                  id: newSession.user.id,
+                  role: newSession.user.email === SUPER_ADMIN_EMAIL ? 'admin' : 'aluno',
+                  display_name: newSession.user.email?.split('@')[0] ?? 'Usuário',
+                  created_at: new Date().toISOString(),
+                };
+              });
+            }
           }
         } else {
           setUser(null);
@@ -283,6 +299,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Logout
   const signOut = async () => {
     // Limpar o estado local imediatamente para evitar travamentos na UI
+    if (user) {
+      try {
+        localStorage.removeItem(`lioness_profile_${user.id}`);
+      } catch (e) {}
+    }
     setUser(null);
     setSession(null);
     setProfile(null);
