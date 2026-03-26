@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import * as treinosService from '@/services/treinos.service';
 import { useNotification } from '@/hooks/useNotification';
 import { useAuth } from '@/hooks/useAuth';
+import { getTreinosCache, saveTreinosCache } from '@/lib/cache/treinosCache';
 import type { Treino, TreinoFormData, Exercicio } from '@/types/treino';
 import type { StudentListItem } from '@/types/common';
 
@@ -45,8 +46,17 @@ export function useTreinos() {
   const { notification, showNotification, clearNotification } = useNotification();
 
   const loadData = useCallback(async () => {
-    if (authLoading) return;
-    setLoading(true);
+    if (authLoading || !user) return;
+
+    const cached = getTreinosCache(user.id);
+    if (cached) {
+      console.log('Usando cache de treinos');
+      setTreinos(cached);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
     try {
       if (role === 'aluno' && !restrictUserId) {
         setTreinos([]);
@@ -60,12 +70,16 @@ export function useTreinos() {
       ]);
       setTreinos(treinosData);
       setAlunos(alunosData);
+      saveTreinosCache(user.id, treinosData);
     } catch (error) {
       console.error('Erro ao carregar treinos:', error);
+      if (cached) {
+        console.warn('Mantendo cache de treinos');
+      }
     } finally {
       setLoading(false);
     }
-  }, [authLoading, role, restrictUserId]);
+  }, [authLoading, role, restrictUserId, user]);
 
   useEffect(() => {
     loadData();

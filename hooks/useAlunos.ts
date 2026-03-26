@@ -4,11 +4,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as alunosService from '@/services/alunos.service';
 import { useNotification } from '@/hooks/useNotification';
+import { useAuth } from '@/contexts/AuthContext';
+import { getAlunosCache, saveAlunosCache } from '@/lib/cache/alunosCache';
 import type { Aluno, AlunoFormData } from '@/types/aluno';
 import type { PlanoListItem } from '@/types/common';
 import type { UserRole } from '@/contexts/AuthContext';
 
 export function useAlunos(userRole: UserRole = 'admin') {
+  const { user } = useAuth();
   const [alunos, setAlunos] = useState<Aluno[]>([]);
   const [planos, setPlanos] = useState<PlanoListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,7 +29,17 @@ export function useAlunos(userRole: UserRole = 'admin') {
 
   /** Carrega alunos e planos do banco */
   const loadData = useCallback(async () => {
-    setLoading(true);
+    if (!user) return;
+
+    const cached = getAlunosCache(user.id);
+    if (cached) {
+      console.log('Usando cache de alunos');
+      setAlunos(cached);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
     try {
       const [alunosData, planosData] = await Promise.all([
         alunosService.fetchAlunos(),
@@ -34,12 +47,16 @@ export function useAlunos(userRole: UserRole = 'admin') {
       ]);
       setAlunos(alunosData);
       setPlanos(planosData);
+      saveAlunosCache(user.id, alunosData);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
+      if (cached) {
+        console.warn('Mantendo cache de alunos');
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     loadData();
