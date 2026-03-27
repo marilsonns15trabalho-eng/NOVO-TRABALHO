@@ -1,17 +1,15 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Activity,
   Plus,
   Loader2,
   Search,
-  Filter,
   Calendar,
   User,
   Scale,
   Ruler,
   TrendingUp,
-  Download,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAvaliacoes } from '@/hooks/useAvaliacoes';
@@ -24,9 +22,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  BarChart,
-  Bar,
-  Cell,
 } from 'recharts';
 import { Toast } from '@/components/ui';
 import {
@@ -38,6 +33,8 @@ import {
 
 import { calcularBiometria } from '@/lib/biometrics';
 import { exportAvaliacaoPdf } from '@/lib/pdf/exportAvaliacaoPdf';
+import { exportAvaliacaoEvolutionPdf } from '@/lib/pdf/exportAvaliacaoEvolutionPdf';
+import type { Avaliacao } from '@/types/avaliacao';
 
 export default function AvaliacaoModule() {
   const { isAdmin, isProfessor } = useUserRole();
@@ -72,6 +69,18 @@ export default function AvaliacaoModule() {
   // Busca de aluno no formulário
   const [alunoSearch, setAlunoSearch] = useState('');
   const [showAlunoDropdown, setShowAlunoDropdown] = useState(false);
+
+  const comparisonBase = useMemo(() => {
+    if (!selectedReport) {
+      return null;
+    }
+
+    const currentIndex = historicoAluno.findIndex(
+      (item: Avaliacao) => item.id === selectedReport.id
+    );
+
+    return currentIndex > 0 ? historicoAluno[currentIndex - 1] : null;
+  }, [historicoAluno, selectedReport]);
 
   const handleAvaliacaoFieldChange = (campo: string, valor: unknown) => {
     setNewAvaliacao((prev) => {
@@ -212,12 +221,6 @@ export default function AvaliacaoModule() {
                 accent="rose"
                 filled
                 onClick={handleOpenNovaAvaliacao}
-              />
-              <ModuleHeroAction
-                label="Relatorio PDF"
-                subtitle="Gerar relatorio em PDF."
-                icon={Download}
-                accent="rose"
               />
             </>
           ) : undefined
@@ -392,7 +395,23 @@ export default function AvaliacaoModule() {
                     onClick={() => exportAvaliacaoPdf(selectedReport)}
                     className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 rounded-xl font-bold transition-all flex items-center gap-2"
                   >
-                    Exportar PDF
+                    PDF avaliacao
+                  </button>
+                  <button
+                    onClick={() => comparisonBase && exportAvaliacaoEvolutionPdf(comparisonBase, selectedReport)}
+                    disabled={!comparisonBase}
+                    className={`px-6 py-2 rounded-xl font-bold transition-all flex items-center gap-2 ${
+                      comparisonBase
+                        ? 'bg-white/10 text-white hover:bg-white/15'
+                        : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+                    }`}
+                    title={
+                      comparisonBase
+                        ? 'Gerar relatorio comparativo entre esta avaliacao e a anterior.'
+                        : 'Esta avaliacao ainda nao possui registro anterior para comparacao.'
+                    }
+                  >
+                    PDF evolucao
                   </button>
                   <button onClick={() => setShowReportModal(false)} className="text-zinc-500 hover:text-white p-2">
                     <Plus className="rotate-45" size={24} />
@@ -606,7 +625,6 @@ export default function AvaliacaoModule() {
                       className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 outline-none transition-all"
                     >
                       <option value="faulkner">Faulkner (4 Dobras)</option>
-                      <option value="pollock7">Pollock (7 Dobras) - Em breve</option>
                     </select>
                   </div>
                 </div>

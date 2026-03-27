@@ -56,9 +56,9 @@ export async function fetchDashboardData() {
       .eq('tipo', 'receita')
       .gte('data_vencimento', firstDayOfMonth),
     supabase
-      .from(TABLES.STUDENTS)
+      .from(TABLES.PLANS)
       .select('id', { count: 'exact', head: true })
-      .not('plan_id', 'is', null),
+      .eq('active', true),
     supabase
       .from(TABLES.TREINOS)
       .select('id', { count: 'exact', head: true })

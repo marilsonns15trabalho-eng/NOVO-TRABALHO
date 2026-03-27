@@ -97,6 +97,34 @@ function EmptyState({ title, description, icon }: EmptyStateProps) {
   );
 }
 
+interface SnapshotCardProps {
+  label: string;
+  value: string;
+  icon: React.ReactNode;
+  accentClassName: string;
+}
+
+function SnapshotCard({ label, value, icon, accentClassName }: SnapshotCardProps) {
+  return (
+    <div className="relative overflow-hidden rounded-[22px] border border-white/8 bg-white/[0.04] px-4 py-4 backdrop-blur-sm">
+      <div className={`absolute inset-x-0 top-0 h-px ${accentClassName}`} />
+
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">
+            {label}
+          </p>
+          <p className="mt-3 text-2xl font-bold text-white">{value}</p>
+        </div>
+
+        <div className="rounded-2xl border border-white/6 bg-black/20 p-3 text-white/90">
+          {icon}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AlunoDashboard() {
   const { user, profile, signOut, isReady } = useAuth();
   const router = useRouter();
@@ -216,13 +244,18 @@ export default function AlunoDashboard() {
     return baseName.split(' ')[0];
   }, [profile?.display_name, user?.email]);
 
+  const hour = new Date().getHours();
+  const salutation = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
+  const todayWorkout = useMemo(() => pickTodayWorkout(treinos), [treinos]);
   const heroTitle = mustChangePassword
     ? 'Seu primeiro acesso esta quase pronto'
-    : 'Seu painel pessoal esta organizado';
+    : `${salutation}, ${firstName}`;
 
   const heroDescription = mustChangePassword
     ? 'Atualize sua senha e escolha uma pergunta secreta para liberar o uso completo do painel com seguranca.'
-    : 'Acompanhe seus treinos, avaliacoes e informacoes do plano em um ambiente mais claro e profissional.';
+    : todayWorkout
+      ? `Seu treino de hoje ja esta separado. Veja o progresso do mes e avance com a execucao quando estiver pronta.`
+      : 'Comece pelo seu painel de progresso e acompanhe plano, treinos e avaliacoes em blocos mais organizados.';
 
   const statusItems = [
     {
@@ -243,7 +276,32 @@ export default function AlunoDashboard() {
     },
   ];
 
-  const todayWorkout = useMemo(() => pickTodayWorkout(treinos), [treinos]);
+  const heroSnapshots = [
+    {
+      label: 'Dias treinados',
+      value: String(trainingProgress?.trained_days ?? 0),
+      icon: <CheckCircle2 size={18} className="text-emerald-400" />,
+      accentClassName: 'bg-gradient-to-r from-emerald-500/90 via-emerald-400/70 to-transparent',
+    },
+    {
+      label: 'Faltas no mes',
+      value: String(trainingProgress?.missed_days ?? 0),
+      icon: <XCircle size={18} className="text-rose-400" />,
+      accentClassName: 'bg-gradient-to-r from-rose-500/90 via-rose-400/70 to-transparent',
+    },
+    {
+      label: 'Treinos concluidos',
+      value: String(trainingProgress?.completed_workouts_count ?? 0),
+      icon: <Dumbbell size={18} className="text-sky-400" />,
+      accentClassName: 'bg-gradient-to-r from-sky-500/90 via-sky-400/70 to-transparent',
+    },
+    {
+      label: 'Sequencia',
+      value: `${trainingProgress?.current_streak ?? 0} dia(s)`,
+      icon: <Sparkles size={18} className="text-orange-400" />,
+      accentClassName: 'bg-gradient-to-r from-orange-500/90 via-orange-400/70 to-transparent',
+    },
+  ];
 
   const refreshStudentTrainingState = async () => {
     if (!user) {
@@ -404,59 +462,141 @@ export default function AlunoDashboard() {
               </div>
             </div>
 
-            <div data-lioness-hero-actions className="grid gap-3 sm:grid-cols-3 xl:w-[460px]">
-              <div className="rounded-2xl border border-white/8 bg-white/[0.04] px-4 py-4 backdrop-blur-sm">
-                <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-zinc-500">
-                  Minha conta
-                </p>
-                <p className="mt-3 text-lg font-bold text-white">
-                  {mustChangePassword ? 'Protecao pendente' : 'Tudo em ordem'}
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-white/8 bg-white/[0.04] px-4 py-4 backdrop-blur-sm">
-                <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-zinc-500">
-                  Treinos
-                </p>
-                <p className="mt-3 text-lg font-bold text-white">{treinos.length} disponiveis</p>
-              </div>
-
-              <div className="rounded-2xl border border-white/8 bg-white/[0.04] px-4 py-4 backdrop-blur-sm">
-                <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-zinc-500">
-                  Avaliacoes
-                </p>
-                <p className="mt-3 text-lg font-bold text-white">{avaliacoes.length} registros</p>
-              </div>
+            <div data-lioness-hero-actions className="grid gap-3 sm:grid-cols-2 xl:w-[520px]">
+              {heroSnapshots.map((item) => (
+                <SnapshotCard
+                  key={item.label}
+                  label={item.label}
+                  value={item.value}
+                  icon={item.icon}
+                  accentClassName={item.accentClassName}
+                />
+              ))}
             </div>
           </div>
         </section>
 
-        {!mustChangePassword && (
-          <section className="space-y-4">
-            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">
-                  Conta
-                </p>
-                <h2 className="mt-2 text-3xl font-bold text-white">Seguranca do acesso</h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
-                  Atualize sua senha quando quiser e mantenha uma pergunta secreta configurada para recuperar a conta com rapidez.
-                </p>
-              </div>
-
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-emerald-300">
-                <ShieldCheck size={14} />
-                Protecao ativa
-              </div>
+        <section className="rounded-[32px] border border-zinc-800 bg-zinc-950/85 p-6 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)]">
+          <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">
+                Progresso
+              </p>
+              <h2 className="mt-2 text-3xl font-bold text-white">Painel de progresso</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
+                Visao mensal com dias treinados, faltas estimadas, treinos concluidos e ritmo da semana.
+              </p>
             </div>
 
-            <section className="rounded-[32px] border border-zinc-800 bg-zinc-950/70 p-3 shadow-[0_30px_90px_-60px_rgba(0,0,0,0.95)]">
-              <AccountSecurityForm compact />
-            </section>
-          </section>
-        )}
+            <div className="rounded-2xl border border-white/6 bg-white/[0.03] p-3 text-emerald-400">
+              <ShieldCheck size={22} />
+            </div>
+          </div>
 
-        <div className="grid grid-cols-1 gap-5 xl:grid-cols-4">
+          {!trainingProgress ? (
+            <EmptyState
+              title="Progresso ainda indisponivel"
+              description="Assim que houver plano ativo e treinos concluidos, o acompanhamento mensal aparecera aqui."
+              icon={<ShieldCheck size={18} />}
+            />
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+                <OverviewCard
+                  eyebrow="Dias treinados"
+                  title={String(trainingProgress.trained_days)}
+                  description="Dias do mes em que houve ao menos uma conclusao registrada."
+                  icon={<CheckCircle2 size={24} className="text-emerald-400" />}
+                  accentClassName="bg-gradient-to-r from-emerald-500/90 via-emerald-400/70 to-transparent"
+                />
+
+                <OverviewCard
+                  eyebrow="Dias faltados"
+                  title={String(trainingProgress.missed_days)}
+                  description="Faltas estimadas com base na frequencia semanal do plano atual."
+                  icon={<XCircle size={24} className="text-rose-400" />}
+                  accentClassName="bg-gradient-to-r from-rose-500/90 via-rose-400/70 to-transparent"
+                />
+
+                <OverviewCard
+                  eyebrow="Treinos concluidos"
+                  title={String(trainingProgress.completed_workouts_count)}
+                  description="Quantidade total de registros de treino concluidos no mes."
+                  icon={<Dumbbell size={24} className="text-sky-400" />}
+                  accentClassName="bg-gradient-to-r from-sky-500/90 via-sky-400/70 to-transparent"
+                />
+
+                <OverviewCard
+                  eyebrow="Progresso geral"
+                  title={`${trainingProgress.completion_rate}%`}
+                  description="Percentual mensal calculado a partir da previsao do plano de treino."
+                  icon={<Sparkles size={24} className="text-orange-400" />}
+                  accentClassName="bg-gradient-to-r from-orange-500/90 via-orange-400/70 to-transparent"
+                />
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="rounded-[24px] border border-zinc-800 bg-black/25 p-5">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                    Frequencia nesta semana
+                  </p>
+                  <p className="mt-3 text-2xl font-bold text-white">
+                    {trainingProgress.this_week_trained_days} dia(s)
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-zinc-500">
+                    Dias da semana atual com pelo menos um treino concluido.
+                  </p>
+                </div>
+                <div className="rounded-[24px] border border-zinc-800 bg-black/25 p-5">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                    Sequencia atual
+                  </p>
+                  <p className="mt-3 text-2xl font-bold text-white">
+                    {trainingProgress.current_streak} dia(s)
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-zinc-500">
+                    Dias consecutivos com treino registrado ate hoje.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 rounded-[26px] border border-zinc-800 bg-black/25 p-5">
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-zinc-500">
+                  Treinos realizados no mes
+                </p>
+
+                {trainingProgress.completed_workouts.length === 0 ? (
+                  <p className="mt-4 text-sm text-zinc-500">
+                    Nenhum treino concluido ainda neste mes.
+                  </p>
+                ) : (
+                  <div className="mt-4 grid gap-3">
+                    {trainingProgress.completed_workouts.map((item, index) => (
+                      <div
+                        key={`${item.treino_id}-${item.completed_on}-${index}`}
+                        className="flex flex-col gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/50 px-4 py-4 md:flex-row md:items-center md:justify-between"
+                      >
+                        <div>
+                          <p className="font-bold text-white">{item.treino_nome}</p>
+                          <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">
+                            treino concluido
+                          </p>
+                        </div>
+
+                        <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-zinc-400">
+                          <Calendar size={14} />
+                          {new Date(item.completed_on).toLocaleDateString('pt-BR')}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </section>
+
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
           <OverviewCard
             eyebrow="Meu plano"
             title={plan?.plan_name || 'Sem plano ativo'}
@@ -479,18 +619,6 @@ export default function AlunoDashboard() {
             }
             icon={<Dumbbell size={24} className="text-sky-400" />}
             accentClassName="bg-gradient-to-r from-sky-500/90 via-sky-400/70 to-transparent"
-          />
-
-          <OverviewCard
-            eyebrow="Treinos"
-            title={String(treinos.length)}
-            description={
-              studentId
-                ? 'Seus programas de treino ficam organizados aqui para consulta rapida.'
-                : 'Seu ambiente ainda esta sendo preparado para exibir os treinos.'
-            }
-            icon={<ShieldCheck size={24} className="text-emerald-400" />}
-            accentClassName="bg-gradient-to-r from-emerald-500/90 via-emerald-400/70 to-transparent"
           />
 
           <OverviewCard
@@ -731,126 +859,6 @@ export default function AlunoDashboard() {
           <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">
-                Progresso
-              </p>
-              <h2 className="mt-2 text-3xl font-bold text-white">Meu mes de treino</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
-                Acompanhamento mensal com dias treinados, faltas estimadas e treinos concluidos.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-white/6 bg-white/[0.03] p-3 text-emerald-400">
-              <ShieldCheck size={22} />
-            </div>
-          </div>
-
-          {!trainingProgress ? (
-            <EmptyState
-              title="Progresso ainda indisponivel"
-              description="Assim que houver plano ativo e treinos concluidos, o acompanhamento mensal aparecera aqui."
-              icon={<ShieldCheck size={18} />}
-            />
-          ) : (
-            <>
-              <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
-                <OverviewCard
-                  eyebrow="Dias treinados"
-                  title={String(trainingProgress.trained_days)}
-                  description="Dias do mes em que houve ao menos uma conclusao registrada."
-                  icon={<CheckCircle2 size={24} className="text-emerald-400" />}
-                  accentClassName="bg-gradient-to-r from-emerald-500/90 via-emerald-400/70 to-transparent"
-                />
-
-                <OverviewCard
-                  eyebrow="Dias faltados"
-                  title={String(trainingProgress.missed_days)}
-                  description="Faltas estimadas com base na frequencia semanal do plano atual."
-                  icon={<XCircle size={24} className="text-rose-400" />}
-                  accentClassName="bg-gradient-to-r from-rose-500/90 via-rose-400/70 to-transparent"
-                />
-
-                <OverviewCard
-                  eyebrow="Treinos concluidos"
-                  title={String(trainingProgress.completed_workouts_count)}
-                  description="Quantidade total de registros de treino concluidos no mes."
-                  icon={<Dumbbell size={24} className="text-sky-400" />}
-                  accentClassName="bg-gradient-to-r from-sky-500/90 via-sky-400/70 to-transparent"
-                />
-
-                <OverviewCard
-                  eyebrow="Progresso geral"
-                  title={`${trainingProgress.completion_rate}%`}
-                  description="Percentual mensal calculado a partir da previsao do plano de treino."
-                  icon={<Sparkles size={24} className="text-orange-400" />}
-                  accentClassName="bg-gradient-to-r from-orange-500/90 via-orange-400/70 to-transparent"
-                />
-              </div>
-
-              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="rounded-[24px] border border-zinc-800 bg-black/25 p-5">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
-                    Frequencia nesta semana
-                  </p>
-                  <p className="mt-3 text-2xl font-bold text-white">
-                    {trainingProgress.this_week_trained_days} dia(s)
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-zinc-500">
-                    Dias da semana atual com pelo menos um treino concluido.
-                  </p>
-                </div>
-                <div className="rounded-[24px] border border-zinc-800 bg-black/25 p-5">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
-                    Sequencia atual
-                  </p>
-                  <p className="mt-3 text-2xl font-bold text-white">
-                    {trainingProgress.current_streak} dia(s)
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-zinc-500">
-                    Dias consecutivos com treino registrado ate hoje.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-6 rounded-[26px] border border-zinc-800 bg-black/25 p-5">
-                <p className="text-xs font-bold uppercase tracking-[0.22em] text-zinc-500">
-                  Treinos realizados no mes
-                </p>
-
-                {trainingProgress.completed_workouts.length === 0 ? (
-                  <p className="mt-4 text-sm text-zinc-500">
-                    Nenhum treino concluido ainda neste mes.
-                  </p>
-                ) : (
-                  <div className="mt-4 grid gap-3">
-                    {trainingProgress.completed_workouts.map((item, index) => (
-                      <div
-                        key={`${item.treino_id}-${item.completed_on}-${index}`}
-                        className="flex flex-col gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/50 px-4 py-4 md:flex-row md:items-center md:justify-between"
-                      >
-                        <div>
-                          <p className="font-bold text-white">{item.treino_nome}</p>
-                          <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">
-                            treino concluido
-                          </p>
-                        </div>
-
-                        <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-zinc-400">
-                          <Calendar size={14} />
-                          {new Date(item.completed_on).toLocaleDateString('pt-BR')}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </section>
-
-        <section className="rounded-[32px] border border-zinc-800 bg-zinc-950/85 p-6 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)]">
-          <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">
                 Evolucao
               </p>
               <h2 className="mt-2 text-3xl font-bold text-white">Minhas Avaliacoes</h2>
@@ -947,6 +955,31 @@ export default function AlunoDashboard() {
             </div>
           )}
         </section>
+
+        {!mustChangePassword && (
+          <section className="space-y-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">
+                  Conta
+                </p>
+                <h2 className="mt-2 text-3xl font-bold text-white">Seguranca do acesso</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
+                  Atualize sua senha quando quiser e mantenha uma pergunta secreta configurada para recuperar a conta com rapidez.
+                </p>
+              </div>
+
+              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-emerald-300">
+                <ShieldCheck size={14} />
+                Protecao ativa
+              </div>
+            </div>
+
+            <section className="rounded-[32px] border border-zinc-800 bg-zinc-950/70 p-3 shadow-[0_30px_90px_-60px_rgba(0,0,0,0.95)]">
+              <AccountSecurityForm compact />
+            </section>
+          </section>
+        )}
       </div>
 
       {executionSession && executionTreino && (

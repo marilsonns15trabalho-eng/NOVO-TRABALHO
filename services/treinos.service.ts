@@ -368,6 +368,43 @@ async function fetchActiveTrainingPlanVersions(planIds?: string[]) {
   return map;
 }
 
+async function resolveTrainingPlanVersionId(
+  trainingPlanId?: string | null,
+  requestedVersionId?: string | null,
+) {
+  const normalizedPlanId = trainingPlanId?.trim() || '';
+  const normalizedVersionId = requestedVersionId?.trim() || '';
+
+  if (!normalizedPlanId) {
+    return null;
+  }
+
+  if (normalizedVersionId) {
+    const { data, error } = await supabase
+      .from(TABLES.TRAINING_PLAN_VERSIONS)
+      .select('id, training_plan_id, is_active')
+      .eq('id', normalizedVersionId)
+      .limit(1);
+
+    assertNoTreinoError('Treinos.requestedPlanVersion', error);
+
+    const versionRow = (data || [])[0] as
+      | { id: string; training_plan_id: string; is_active: boolean | null }
+      | undefined;
+
+    if (
+      versionRow?.id &&
+      versionRow.training_plan_id === normalizedPlanId &&
+      versionRow.is_active !== false
+    ) {
+      return versionRow.id;
+    }
+  }
+
+  const versionMap = await fetchActiveTrainingPlanVersions([normalizedPlanId]);
+  return versionMap.get(normalizedPlanId)?.id || null;
+}
+
 async function fetchCompletionLogsForMonth(studentId?: string) {
   const bounds = monthBounds();
   let query = supabase
@@ -444,6 +481,16 @@ async function fetchTreinosForStudent(linkedAuthUserId: string): Promise<Treino[
   if (!studentId) {
     return [];
   }
+
+  const { data: studentRows, error: studentError } = await supabase
+    .from(TABLES.STUDENTS)
+    .select('id, name, linked_auth_user_id')
+    .eq('id', studentId)
+    .limit(1);
+
+  assertNoTreinoError('Treinos.studentIdentity', studentError);
+  const studentRow = (studentRows || [])[0] as RawStudent | undefined;
+  const studentName = studentRow?.name || 'Aluno';
 
   const treinoSelect = `
     id,
@@ -577,7 +624,7 @@ async function fetchTreinosForStudent(linkedAuthUserId: string): Promise<Treino[
         directStudents: [
           {
             id: studentId,
-            name: item.legacy_student?.name || 'Aluno',
+            name: item.legacy_student?.name || studentName,
             linked_auth_user_id: linkedAuthUserId,
             assignment_source:
               directTreinoIds.includes(item.id) || item.student_id === studentId ? 'direct' : 'plan',
@@ -970,13 +1017,11 @@ export async function saveTreino(treinoData: TreinoFormData, editingId?: string)
     new Set((treinoData.assigned_student_ids || []).filter(Boolean)),
   );
 
-  let trainingPlanVersionId = treinoData.training_plan_version_id || null;
-
-  if (!trainingPlanVersionId && treinoData.training_plan_id) {
-    const versionMap = await fetchActiveTrainingPlanVersions([treinoData.training_plan_id]);
-    trainingPlanVersionId = versionMap.get(treinoData.training_plan_id)?.id || null;
-  }
-
+  const trainingPlanId = treinoData.training_plan_id?.trim() || null;
+  const trainingPlanVersionId = await resolveTrainingPlanVersionId(
+    trainingPlanId,
+    treinoData.training_plan_version_id || null,
+  );
   const payload = {
     nome,
     objetivo: treinoData.objetivo?.trim() || null,
@@ -985,7 +1030,7 @@ export async function saveTreino(treinoData: TreinoFormData, editingId?: string)
     descricao: treinoData.descricao?.trim() || null,
     exercicios: Array.isArray(treinoData.exercicios) ? treinoData.exercicios : [],
     ativo: treinoData.ativo !== false,
-    training_plan_id: treinoData.training_plan_id || null,
+    training_plan_id: trainingPlanId,
     training_plan_version_id: trainingPlanVersionId,
     created_by_auth_user_id: user.id,
     sort_order: treinoData.sort_order || 0,
@@ -995,8 +1040,7 @@ export async function saveTreino(treinoData: TreinoFormData, editingId?: string)
         ? null
         : Number(treinoData.day_of_week),
     coach_notes: treinoData.coach_notes?.trim() || null,
-    student_id:
-      assignedStudentIds.length === 1 && !treinoData.training_plan_id ? assignedStudentIds[0] : null,
+    student_id: null,
   };
 
   let treinoId = editingId || treinoData.id;

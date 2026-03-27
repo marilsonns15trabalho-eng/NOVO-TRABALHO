@@ -10,7 +10,7 @@ import type {
 import { assertAdmin } from '@/lib/authz';
 
 export async function fetchFinanceiroData() {
-  const [pagamentosRes, boletosRes, alunosRes] = await Promise.all([
+  const [pagamentosRes, boletosRes, alunosRes, planosRes] = await Promise.all([
     supabase
       .from(TABLES.FINANCEIRO)
       .select('id, valor, data_vencimento, status, tipo, descricao')
@@ -19,7 +19,8 @@ export async function fetchFinanceiroData() {
       .from(TABLES.BILLS)
       .select('id, student_id, amount, due_date, status, code, students(name)')
       .order('due_date', { ascending: false }),
-    supabase.from(TABLES.STUDENTS).select('id, name, due_day, plans(price)'),
+    supabase.from(TABLES.STUDENTS).select('id, name, due_day, plan_id'),
+    supabase.from(TABLES.PLANS).select('id, price'),
   ]);
 
   if (pagamentosRes.error) {
@@ -34,17 +35,29 @@ export async function fetchFinanceiroData() {
     throw new Error(`Financeiro.alunos: ${alunosRes.error.message}`);
   }
 
+  if (planosRes.error) {
+    throw new Error(`Financeiro.planos: ${planosRes.error.message}`);
+  }
+
   const pagamentos: Pagamento[] = pagamentosRes.data || [];
   const boletos: Boleto[] = (boletosRes.data as any[]).map((b) => ({
     ...b,
     students: b.students ? { name: b.students.name } : null,
   }));
 
+  const planPriceById = new Map<string, number>();
+  (planosRes.data || []).forEach((plan: any) => {
+    if (plan?.id) {
+      planPriceById.set(plan.id, Number(plan.price) || 0);
+    }
+  });
+
   const alunos: FinanceiroStudent[] = (alunosRes.data as any[]).map((a: any) => ({
     id: a.id,
     name: a.name,
     due_day: a.due_day,
-    plans: a.plans,
+    plan_id: a.plan_id || undefined,
+    plans: a.plan_id ? { price: planPriceById.get(a.plan_id) || 0 } : undefined,
   }));
 
   return { pagamentos, boletos, alunos };

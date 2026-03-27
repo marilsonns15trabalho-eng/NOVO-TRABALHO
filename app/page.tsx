@@ -20,28 +20,28 @@ const featureCards = [
   {
     icon: Users,
     title: 'Alunos',
-    description: 'Cadastro, status, acesso e historico em uma base unica.',
+    description: 'Cadastro, plano ativo, acesso e historico individual.',
     accent: 'text-sky-300',
     bg: 'bg-sky-500/10',
   },
   {
     icon: Dumbbell,
     title: 'Treinos',
-    description: 'Planos, fichas e progresso mensal por aluno.',
+    description: 'Planos semanais, execucao e progresso mensal por aluno.',
     accent: 'text-orange-300',
     bg: 'bg-orange-500/10',
   },
   {
     icon: CreditCard,
     title: 'Financeiro',
-    description: 'Cobrancas, boletos e movimentacao do periodo.',
+    description: 'Vencimentos, boletos e acompanhamento de recebimento.',
     accent: 'text-emerald-300',
     bg: 'bg-emerald-500/10',
   },
   {
     icon: Activity,
     title: 'Avaliacoes',
-    description: 'Registros corporais e consulta rapida da evolucao.',
+    description: 'Historico corporal, comparacao e PDF de evolucao.',
     accent: 'text-fuchsia-300',
     bg: 'bg-fuchsia-500/10',
   },
@@ -50,15 +50,15 @@ const featureCards = [
 const roleCards = [
   {
     title: 'Administracao',
-    description: 'Controla cadastros, planos, financeiro e acessos.',
+    description: 'Controla cadastros, acessos, planos, cobrancas e configuracoes.',
   },
   {
     title: 'Professor',
-    description: 'Acompanha alunos, treinos, anamneses e avaliacoes.',
+    description: 'Acompanha alunos, treinos, anamneses e avaliacoes da carteira.',
   },
   {
     title: 'Aluno',
-    description: 'Consulta plano, treino, progresso e historico pessoal.',
+    description: 'Consulta treino, progresso, avaliacoes e dados pessoais.',
   },
 ];
 
@@ -90,7 +90,7 @@ export default function LandingPage() {
             </div>
             <div>
               <h1 className="text-sm font-bold tracking-[0.2em] text-white md:text-base">LIONESS</h1>
-              <p className="text-[10px] font-bold uppercase tracking-[0.32em] text-orange-400">Prime</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-orange-400">Personal Studio</p>
             </div>
           </button>
 
@@ -121,16 +121,16 @@ export default function LandingPage() {
           >
             <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/10 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.28em] text-orange-300">
               <BriefcaseBusiness size={14} />
-              Sistema de gestao
+              Painel do estudio
             </div>
 
             <h2 className="mt-5 max-w-3xl text-4xl font-bold leading-[1.02] tracking-tight text-white md:text-6xl">
-              Operacao do estudio, acompanhamento de alunos e rotina da equipe.
+              Cadastro, treinos, avaliacoes, anamnese e financeiro no mesmo sistema.
             </h2>
 
             <p className="mt-5 max-w-2xl text-sm leading-7 text-zinc-300 md:text-base">
-              Uma plataforma unica para controlar acessos, treinos, avaliacoes, historico
-              nutricional e financeiro sem espalhar informacoes em varias ferramentas.
+              O painel concentra a rotina do estudio: cadastro de alunos, acesso individual,
+              prescricao de treino, acompanhamento corporal, historico nutricional e cobranca.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -152,21 +152,21 @@ export default function LandingPage() {
             <div className="mt-8 grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-4">
                 <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-500">
-                  Fluxo diario
+                  Cadastro
                 </p>
-                <p className="mt-3 text-lg font-bold text-white">Equipe, alunos e operacao</p>
+                <p className="mt-3 text-lg font-bold text-white">Alunos, acessos e planos</p>
               </div>
               <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-4">
                 <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-500">
-                  Acompanhamento
+                  Treino
                 </p>
-                <p className="mt-3 text-lg font-bold text-white">Treino, progresso e historico</p>
+                <p className="mt-3 text-lg font-bold text-white">Execucao, progresso e historico</p>
               </div>
               <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-4">
                 <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-500">
                   Financeiro
                 </p>
-                <p className="mt-3 text-lg font-bold text-white">Cobrancas e caixa</p>
+                <p className="mt-3 text-lg font-bold text-white">Vencimentos e recebimentos</p>
               </div>
             </div>
           </motion.div>
@@ -214,13 +214,13 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-500">
-                      Rotina
+                      Atendimento
                     </p>
-                    <p className="mt-1 text-lg font-bold text-white">Fluxo organizado</p>
+                    <p className="mt-1 text-lg font-bold text-white">Da ficha ao acompanhamento</p>
                   </div>
                 </div>
                 <p className="mt-4 text-sm leading-6 text-zinc-500">
-                  Cadastro, atendimento, treinos, registros corporais e cobrancas em um fluxo unico.
+                  Cadastro, anamnese, avaliacao, treino e consulta do historico do aluno em um fluxo unico.
                 </p>
               </div>
 
@@ -231,13 +231,13 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-500">
-                      Acesso
+                      Permissoes
                     </p>
-                    <p className="mt-1 text-lg font-bold text-white">Perfis separados</p>
+                    <p className="mt-1 text-lg font-bold text-white">Leitura separada por perfil</p>
                   </div>
                 </div>
                 <p className="mt-4 text-sm leading-6 text-zinc-500">
-                  Permissoes para administracao, professor e aluno com leitura apropriada para cada area.
+                  Administracao, professor e aluno acessam apenas as areas que fazem parte da propria rotina.
                 </p>
               </div>
             </div>
@@ -270,7 +270,7 @@ export default function LandingPage() {
 
       <footer className="border-t border-zinc-800/70 px-4 py-6 text-center md:px-6">
         <p className="text-xs uppercase tracking-[0.18em] text-zinc-600">
-          {new Date().getFullYear()} Lioness Prime
+          {new Date().getFullYear()} Lioness Personal Studio
         </p>
       </footer>
     </div>

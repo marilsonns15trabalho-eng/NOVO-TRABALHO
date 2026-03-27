@@ -422,7 +422,7 @@ export default function TreinosModule() {
               <form onSubmit={(e) => { e.preventDefault(); void handleSave(); }} className="mt-6 space-y-6">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <input value={newTreino.nome || ''} onChange={(e) => setNewTreino((c) => ({ ...c, nome: e.target.value }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Nome do treino" />
-                  <select value={newTreino.training_plan_id || ''} onChange={(e) => setNewTreino((c) => ({ ...c, training_plan_id: e.target.value }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30">
+                  <select value={newTreino.training_plan_id || ''} onChange={(e) => setNewTreino((c) => ({ ...c, training_plan_id: e.target.value, training_plan_version_id: '' }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30">
                     <option value="">Sem plano especifico</option>
                     {trainingPlans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} ({plan.weekly_frequency}x/semana)</option>)}
                   </select>
@@ -454,7 +454,7 @@ export default function TreinosModule() {
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">Alunos vinculados diretamente</p>
-                      <p className="mt-1 text-sm text-zinc-500">Opcional. O treino tambem pode ser liberado apenas pelo plano.</p>
+                      <p className="mt-1 text-sm text-zinc-500">Opcional. Selecione quantos alunos quiser ou deixe vazio para liberar apenas pelo plano.</p>
                     </div>
                     <div className="rounded-full border border-white/6 bg-white/[0.03] px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-zinc-400">{(newTreino.assigned_student_ids || []).length} selecionados</div>
                   </div>
