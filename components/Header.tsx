@@ -56,6 +56,10 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
     router.push('/');
   };
 
+  const handleOpenLateBills = () => {
+    router.push('/dashboard/financeiro');
+  };
+
   const displayName = profile?.display_name || user?.email?.split('@')[0] || 'Usuario';
   const firstName = displayName.split(' ')[0];
   const initials = useMemo(
@@ -114,7 +118,12 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
 
         <div className="flex items-center gap-3">
           {isAdmin && (
-            <button className="relative rounded-2xl border border-zinc-800 bg-zinc-900/80 p-3 text-zinc-400 transition-colors hover:text-orange-400">
+            <button
+              onClick={handleOpenLateBills}
+              className="relative rounded-2xl border border-zinc-800 bg-zinc-900/80 p-3 text-zinc-400 transition-colors hover:text-orange-400"
+              title="Abrir financeiro"
+              aria-label="Abrir financeiro"
+            >
               {loadingLateCount ? <Loader2 className="animate-spin" size={18} /> : <Bell size={18} />}
               {lateCount > 0 && (
                 <span className="absolute right-2 top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">

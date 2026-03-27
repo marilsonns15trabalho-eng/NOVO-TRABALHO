@@ -21,6 +21,21 @@ import { formatDatePtBr } from '@/lib/date';
 import { formatTrainingDay } from '@/lib/training';
 import type { TrainingPlan, Treino } from '@/types/treino';
 
+const SPLIT_PRESETS = [
+  { value: 'A', label: 'A: superiores' },
+  { value: 'B', label: 'B: inferiores' },
+  { value: 'C', label: 'C: cardio + core' },
+];
+
+function getSplitDisplayLabel(splitLabel?: string | null) {
+  if (!splitLabel) {
+    return '-';
+  }
+
+  const preset = SPLIT_PRESETS.find((item) => item.value === splitLabel.trim().toUpperCase());
+  return preset?.label || splitLabel;
+}
+
 function SectionTitle({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
   return (
     <div>
@@ -194,7 +209,7 @@ function TreinoCard({
         <div className="flex flex-wrap gap-2 text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">
           {treino.split_label ? (
             <span className="rounded-full border border-orange-500/20 px-3 py-1.5 text-orange-300">
-              Split {treino.split_label}
+              {getSplitDisplayLabel(treino.split_label)}
             </span>
           ) : null}
           {treino.day_of_week != null ? (
@@ -427,7 +442,30 @@ export default function TreinosModule() {
                     <option value="">Sem plano especifico</option>
                     {trainingPlans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} ({plan.weekly_frequency}x/semana)</option>)}
                   </select>
-                  <input value={newTreino.split_label || ''} onChange={(e) => setNewTreino((c) => ({ ...c, split_label: e.target.value.toUpperCase() }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Split (A, B, C...)" />
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">Split pronto</p>
+                    <select
+                      value={SPLIT_PRESETS.some((item) => item.value === (newTreino.split_label || '').trim().toUpperCase()) ? (newTreino.split_label || '').trim().toUpperCase() : ''}
+                      onChange={(e) => setNewTreino((c) => ({ ...c, split_label: e.target.value }))}
+                      className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30"
+                    >
+                      <option value="">Selecionar sugestao</option>
+                      {SPLIT_PRESETS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">Entrada livre</p>
+                    <input
+                      value={newTreino.split_label || ''}
+                      onChange={(e) => setNewTreino((c) => ({ ...c, split_label: e.target.value }))}
+                      className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30"
+                      placeholder="Ex.: superiores / inferiores"
+                    />
+                  </div>
                   <select value={newTreino.day_of_week ?? ''} onChange={(e) => setNewTreino((c) => ({ ...c, day_of_week: e.target.value === '' ? null : Number(e.target.value) }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30">
                     <option value="">Sem dia fixo</option>
                     <option value="0">Domingo</option>
@@ -517,7 +555,7 @@ export default function TreinosModule() {
                 <div className="rounded-2xl border border-zinc-800 bg-black/25 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Duracao</p><p className="mt-2 text-lg font-bold text-white">{selectedTreino.duracao_minutos || 0} min</p></div>
               </div>
               <div className="mt-4 grid gap-4 md:grid-cols-3">
-                <div className="rounded-2xl border border-zinc-800 bg-black/25 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Split</p><p className="mt-2 text-lg font-bold text-white">{selectedTreino.split_label || '-'}</p></div>
+                <div className="rounded-2xl border border-zinc-800 bg-black/25 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Split</p><p className="mt-2 text-lg font-bold text-white">{getSplitDisplayLabel(selectedTreino.split_label)}</p></div>
                 <div className="rounded-2xl border border-zinc-800 bg-black/25 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Dia sugerido</p><p className="mt-2 text-lg font-bold text-white">{formatTrainingDay(selectedTreino.day_of_week)}</p></div>
                 <div className="rounded-2xl border border-zinc-800 bg-black/25 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Versao</p><p className="mt-2 text-lg font-bold text-white">{selectedTreino.training_plan_version?.version_number ? `v${selectedTreino.training_plan_version.version_number}` : '-'}</p></div>
               </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   Building2,
   FileText,
@@ -34,6 +34,7 @@ export default function ConfiguracoesModule() {
     clearNotification,
     handleSave,
   } = useConfiguracoes();
+  const visualSectionRef = useRef<HTMLDivElement | null>(null);
 
   if (loading) {
     return (
@@ -72,6 +73,7 @@ export default function ConfiguracoesModule() {
               subtitle="Revisar logo, cores e textos base do app."
               icon={Settings}
               accent="sky"
+              onClick={() => visualSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
             />
           </>
         }
@@ -189,7 +191,7 @@ export default function ConfiguracoesModule() {
               </div>
             </div>
 
-            <div className="space-y-6 border-t border-zinc-800 pt-8">
+            <div ref={visualSectionRef} className="space-y-6 border-t border-zinc-800 pt-8">
               <ModuleSectionHeading
                 eyebrow="Visual"
                 title="Aparencia"

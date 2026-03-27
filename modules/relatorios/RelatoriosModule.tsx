@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Activity,
   BarChart3,
@@ -41,6 +41,7 @@ export default function RelatoriosModule() {
     avaliacoesPendentes: 0,
   });
   const { notification, showNotification, clearNotification } = useNotification();
+  const managementSectionRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const fetchMetrics = async () => {
@@ -98,6 +99,10 @@ export default function RelatoriosModule() {
       currency: 'BRL',
     }).format(value);
 
+  const handleOpenManagementView = () => {
+    managementSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-transparent p-8">
@@ -147,12 +152,13 @@ export default function RelatoriosModule() {
                 subtitle="Conferir carteira, documentos pendentes e ritmo do mes."
                 icon={BarChart3}
                 accent="emerald"
+                onClick={handleOpenManagementView}
               />
             </>
           }
         />
 
-        <div className="grid gap-4 lg:grid-cols-4">
+        <div ref={managementSectionRef} className="grid gap-4 lg:grid-cols-4">
           <ModuleStatCard
             label="Receitas do mes"
             value={formatCurrency(metrics.receitas)}

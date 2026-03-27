@@ -5,8 +5,6 @@ import {
   Plus,
   Loader2,
   Search,
-  Filter,
-  MoreVertical,
   Calendar,
   ArrowLeft,
   Save,
@@ -258,9 +256,6 @@ export default function AnamneseModule() {
                           title="Exportar PDF"
                         >
                           <Save size={20} />
-                        </button>
-                        <button className="p-2 text-zinc-500 hover:text-orange-500 hover:bg-orange-500/10 rounded-xl transition-colors">
-                          <MoreVertical size={20} />
                         </button>
                       </div>
                     </td>

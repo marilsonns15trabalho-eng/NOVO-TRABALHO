@@ -5,7 +5,6 @@ import {
   Users,
   UserPlus,
   Search,
-  Filter,
   Mail,
   Phone,
   Calendar,
@@ -100,6 +99,8 @@ export default function AlunosModule() {
     loading,
     searchTerm,
     setSearchTerm,
+    statusFilter,
+    setStatusFilter,
     showAddModal,
     openAddModal,
     closeAddModal,
@@ -315,10 +316,15 @@ export default function AlunosModule() {
               className="w-full rounded-2xl border border-zinc-800 bg-black/40 py-3 pl-12 pr-4 text-white transition-all focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/30"
             />
           </div>
-          <button className="flex items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-6 py-3 text-zinc-400 transition-all hover:border-zinc-700 hover:text-white">
-            <Filter size={20} />
-            Filtros
-          </button>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as 'todos' | 'ativo' | 'inativo')}
+            className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition-all focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/30"
+          >
+            <option value="todos">Todos os status</option>
+            <option value="ativo">Somente ativos</option>
+            <option value="inativo">Somente inativos</option>
+          </select>
         </div>
       </ModuleSurface>
 

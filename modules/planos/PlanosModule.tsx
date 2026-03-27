@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { ClipboardList, Loader2, Plus, Sparkles, Wallet } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { usePlanos } from '@/hooks/usePlanos';
@@ -32,6 +32,7 @@ export default function PlanosModule() {
     notification,
     clearNotification,
   } = usePlanos();
+  const catalogSectionRef = useRef<HTMLDivElement | null>(null);
 
   const totalPlanos = planos.length;
   const planosAtivos = planos.filter((plano) => plano.active).length;
@@ -69,6 +70,7 @@ export default function PlanosModule() {
               subtitle="Veja rapidamente quais pacotes estao prontos para venda."
               icon={Sparkles}
               accent="indigo"
+              onClick={() => catalogSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
             />
           </>
         }
@@ -99,6 +101,7 @@ export default function PlanosModule() {
       </div>
 
       <ModuleSurface className="space-y-5">
+        <div ref={catalogSectionRef} />
         <ModuleSectionHeading
           eyebrow="Catalogo"
           title="Planos cadastrados"
