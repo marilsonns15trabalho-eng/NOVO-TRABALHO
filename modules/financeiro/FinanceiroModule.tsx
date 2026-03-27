@@ -25,6 +25,7 @@ export default function FinanceiroModule() {
     pagamentos,
     boletos,
     alunos,
+    error,
     loading,
     showAddModal,
     setShowAddModal,
@@ -42,6 +43,7 @@ export default function FinanceiroModule() {
     handleGerarLote,
     handleDarBaixa,
     handleExcluirBoleto,
+    loadData,
     notification,
     clearNotification,
   } = useFinanceiro();
@@ -99,8 +101,40 @@ export default function FinanceiroModule() {
     );
   }
 
+  if (error && pagamentos.length === 0 && boletos.length === 0 && alunos.length === 0) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-black p-8 text-white">
+        <div className="w-full max-w-xl rounded-3xl border border-zinc-800 bg-zinc-900 p-8 text-center">
+          <h3 className="mb-3 text-2xl font-bold">Falha ao carregar o financeiro</h3>
+          <p className="mb-6 text-sm text-zinc-400">{error}</p>
+          <button
+            onClick={() => void loadData()}
+            className="rounded-2xl bg-emerald-500 px-6 py-3 font-bold text-black transition-all hover:bg-emerald-600"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-8 space-y-8 bg-black min-h-screen text-white">
+      {error && (
+        <div className="flex items-center justify-between gap-4 rounded-3xl border border-rose-500/20 bg-rose-500/10 p-5">
+          <div>
+            <p className="font-bold text-rose-400">Falha ao carregar o financeiro</p>
+            <p className="text-sm text-zinc-300">{error}</p>
+          </div>
+          <button
+            onClick={() => void loadData()}
+            className="rounded-2xl bg-zinc-800 px-5 py-3 font-bold text-white transition-all hover:bg-zinc-700"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Financeiro Completo</h2>

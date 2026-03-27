@@ -22,7 +22,7 @@ const TITLES: Record<string, string> = {
 };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, role, isReady } = useAuth();
+  const { user, role, isReady, authError, signOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -59,6 +59,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   if (!user || !role || role === 'aluno') {
+    if (user && !role) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-black px-6 text-white">
+          <div className="w-full max-w-lg rounded-3xl border border-zinc-800 bg-zinc-900 p-8 text-center">
+            <h2 className="mb-3 text-2xl font-bold">Perfil de acesso indisponivel</h2>
+            <p className="mb-6 text-sm text-zinc-400">
+              {authError || 'Nao foi possivel validar o perfil desta sessao. Entre novamente para continuar.'}
+            </p>
+            <button
+              onClick={async () => {
+                await signOut();
+                router.replace('/auth');
+              }}
+              className="rounded-2xl bg-orange-500 px-6 py-3 font-bold text-black transition-all hover:bg-orange-600"
+            >
+              Entrar novamente
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex min-h-screen items-center justify-center bg-black text-zinc-400">
         Redirecionando...

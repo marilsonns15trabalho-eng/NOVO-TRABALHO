@@ -11,15 +11,18 @@ import {
 export default function ProfessorDashboard({ onNavigate }: { onNavigate: (id: string) => void }) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<ProfessorDashboardData | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const run = async () => {
       try {
         setLoading(true);
+        setError(null);
         const result = await fetchProfessorDashboardData();
         setData(result);
-      } catch {
+      } catch (err: any) {
         setData(null);
+        setError(err?.message || 'Nao foi possivel carregar a visao do professor.');
       } finally {
         setLoading(false);
       }
@@ -59,7 +62,14 @@ export default function ProfessorDashboard({ onNavigate }: { onNavigate: (id: st
           </div>
         )}
 
-        {!loading && data && (
+        {!loading && error && (
+          <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6 text-center">
+            <p className="text-lg font-bold text-white">Falha ao carregar o painel do professor</p>
+            <p className="mt-2 text-sm text-zinc-400">{error}</p>
+          </div>
+        )}
+
+        {!loading && !error && data && (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
             <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
               <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">Total Alunos</p>
@@ -84,7 +94,7 @@ export default function ProfessorDashboard({ onNavigate }: { onNavigate: (id: st
           </div>
         )}
 
-        {!loading && data && (
+        {!loading && !error && data && (
           <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6">
             <div className="mb-4 flex items-center justify-between gap-4">
               <h3 className="flex items-center gap-2 text-xl font-bold">

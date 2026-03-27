@@ -34,6 +34,7 @@ interface AuthContextType {
   session: Session | null;
   profile: UserProfile | null;
   role: UserRole | null;
+  authError: string | null;
   loading: boolean;
   loadingSession: boolean;
   loadingProfile: boolean;
@@ -41,6 +42,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isProfessor: boolean;
   isAluno: boolean;
+  clearAuthError: () => void;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string, name: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
@@ -152,6 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [loadingSession, setLoadingSession] = useState(true);
   const [loadingProfile, setLoadingProfile] = useState(false);
 
@@ -169,17 +172,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setSession(null);
     setProfile(null);
+    setAuthError(null);
     setLoadingProfile(false);
   }, []);
 
+  const clearAuthError = useCallback(() => {
+    setAuthError(null);
+  }, []);
+
   const syncProfileForUser = useCallback(
-    async (currentUser: User, displayName?: string) => {
+    async (currentUser: User) => {
       const requestId = latestRequestRef.current + 1;
       latestRequestRef.current = requestId;
       currentUserIdRef.current = currentUser.id;
 
       const cachedProfile = getProfileCache(currentUser.id);
       setProfile(cachedProfile);
+      setAuthError(null);
       setLoadingProfile(true);
 
       try {
@@ -192,10 +201,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } catch (error) {
           console.warn('Falha ao buscar profile seguro:', error);
-        }
-
-        if (!syncedProfile) {
-          syncedProfile = await ensureUserSetup(currentUser, displayName);
+          if (!cachedProfile) {
+            setAuthError('Nao foi possivel carregar seu perfil de acesso. Faca login novamente.');
+          }
         }
 
         if (latestRequestRef.current !== requestId || currentUserIdRef.current !== currentUser.id) {
@@ -203,13 +211,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (!syncedProfile) {
-          clearProfileCache(currentUser.id);
-          setProfile(null);
+          if (!cachedProfile) {
+            clearProfileCache(currentUser.id);
+            setProfile(null);
+          }
           return;
         }
 
         saveProfileCache(syncedProfile);
         setProfile(syncedProfile);
+        setAuthError(null);
       } finally {
         if (latestRequestRef.current === requestId && currentUserIdRef.current === currentUser.id) {
           setLoadingProfile(false);
@@ -294,11 +305,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
+    setAuthError(null);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error: error?.message ?? null };
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, name: string) => {
+    setAuthError(null);
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -354,7 +367,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const role = profile?.role ?? null;
-  const isReady = !loadingSession && (!user || (!loadingProfile && role !== null));
+  const isReady = !loadingSession && (!user || !loadingProfile);
   const loading = !isReady;
 
   const value = useMemo<AuthContextType>(
@@ -363,6 +376,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       session,
       profile,
       role,
+      authError,
       loading,
       loadingSession,
       loadingProfile,
@@ -370,12 +384,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAdmin: role === 'admin',
       isProfessor: role === 'professor',
       isAluno: role === 'aluno',
+      clearAuthError,
       signIn,
       signUp,
       signOut,
       updateRole,
     }),
     [
+      authError,
+      clearAuthError,
       isReady,
       loading,
       loadingProfile,

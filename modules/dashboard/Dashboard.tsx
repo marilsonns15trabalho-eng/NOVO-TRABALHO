@@ -28,12 +28,14 @@ interface DashboardProps {
 
 export default function Dashboard({ setActiveTab }: DashboardProps) {
   const {
+    error,
     loading,
     stats,
     chartData,
     activities,
     proximosVencimentos,
     formatCurrency,
+    loadData,
   } = useDashboard();
 
   const [chartView, setChartView] = useState<'mensal' | 'anual'>('mensal');
@@ -59,6 +61,23 @@ export default function Dashboard({ setActiveTab }: DashboardProps) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-black">
         <Loader2 className="animate-spin text-orange-500" size={48} />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-black p-8 text-white">
+        <div className="w-full max-w-xl rounded-3xl border border-zinc-800 bg-zinc-900 p-8 text-center">
+          <h3 className="mb-3 text-2xl font-bold">Falha ao carregar o dashboard</h3>
+          <p className="mb-6 text-sm text-zinc-400">{error}</p>
+          <button
+            onClick={() => void loadData()}
+            className="rounded-2xl bg-orange-500 px-6 py-3 font-bold text-black transition-all hover:bg-orange-600"
+          >
+            Tentar novamente
+          </button>
+        </div>
       </div>
     );
   }

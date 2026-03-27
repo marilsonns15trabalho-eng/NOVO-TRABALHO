@@ -1,4 +1,3 @@
-// Camada de serviço para Dashboard e Relatórios
 import { supabase } from '@/lib/supabase';
 import { TABLES } from '@/lib/constants';
 
@@ -30,12 +29,16 @@ export interface RecentActivity {
   type: 'payment' | 'new_user';
 }
 
-/** Busca todos os dados do dashboard */
+function assertNoQueryError(label: string, error: { message?: string } | null) {
+  if (error) {
+    throw new Error(`${label}: ${error.message || 'erro desconhecido'}`);
+  }
+}
+
 export async function fetchDashboardData() {
   const now = new Date();
   const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
-  // ⚡ Todas as queries rodam em PARALELO para máxima velocidade
   const [
     alunosResult,
     pagamentosMesResult,
@@ -45,71 +48,72 @@ export async function fetchDashboardData() {
     allFinanceiroResult,
     proximosVencimentosResult,
   ] = await Promise.all([
-    // 1. Total de Alunos
-    supabase
-      .from(TABLES.STUDENTS)
-      .select('*', { count: 'exact', head: true }),
-
-    // 2. Receita Mensal
+    supabase.from(TABLES.STUDENTS).select('id', { count: 'exact', head: true }),
     supabase
       .from(TABLES.FINANCEIRO)
       .select('valor')
       .eq('status', 'pago')
       .eq('tipo', 'receita')
       .gte('data_vencimento', firstDayOfMonth),
-
-    // 3. Planos Ativos
     supabase
       .from(TABLES.STUDENTS)
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .not('plan_id', 'is', null),
-
-    // 4. Treinos Ativos
     supabase
       .from(TABLES.TREINOS)
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('ativo', true),
-
-    // 5. Atividades Recentes
     supabase
       .from(TABLES.BILLS)
-      .select('*, students(name)')
+      .select('id, status, created_at, students(name)')
       .order('created_at', { ascending: false })
       .limit(5),
-
-    // 6. Dados financeiros para gráfico
     supabase
       .from(TABLES.FINANCEIRO)
-      .select('valor, data_vencimento, status, tipo')
+      .select('valor, data_vencimento, status')
       .eq('tipo', 'receita'),
-
-    // 7. Próximos vencimentos
     supabase
       .from(TABLES.BILLS)
-      .select('*, students(name, phone)')
+      .select('id, amount, due_date, students(name, phone)')
       .eq('status', 'pending')
       .gte('due_date', now.toISOString().split('T')[0])
       .order('due_date', { ascending: true })
       .limit(5),
   ]);
 
-  // Processar resultados
-  const totalAlunos = alunosResult.count;
-  const receitaMensal = pagamentosMesResult.data?.reduce((acc: number, curr: any) => acc + curr.valor, 0) || 0;
-  const planosAtivos = planosResult.count;
-  const treinosAtivos = treinosResult.count;
+  assertNoQueryError('Dashboard.totalAlunos', alunosResult.error);
+  assertNoQueryError('Dashboard.receitaMensal', pagamentosMesResult.error);
+  assertNoQueryError('Dashboard.planosAtivos', planosResult.error);
+  assertNoQueryError('Dashboard.treinosAtivos', treinosResult.error);
+  assertNoQueryError('Dashboard.atividadesRecentes', recentBillsResult.error);
+  assertNoQueryError('Dashboard.graficoFinanceiro', allFinanceiroResult.error);
+  assertNoQueryError('Dashboard.proximosVencimentos', proximosVencimentosResult.error);
 
-  const activities: RecentActivity[] = (recentBillsResult.data || []).map((b: any) => ({
-    id: b.id,
-    user: b.students?.name || 'Sistema',
-    action: b.status === 'paid' ? 'Pagamento realizado' : 'Boleto gerado',
-    time: new Date(b.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-    type: b.status === 'paid' ? 'payment' : 'new_user',
-  }));
+  const totalAlunos = alunosResult.count ?? 0;
+  const receitaMensal =
+    pagamentosMesResult.data?.reduce((acc: number, curr: any) => acc + curr.valor, 0) || 0;
+  const planosAtivos = planosResult.count ?? 0;
+  const treinosAtivos = treinosResult.count ?? 0;
 
-  // Dados do gráfico (últimos 6 meses)
+  const activities: RecentActivity[] = (recentBillsResult.data || []).map((b: any) => {
+    const studentsRaw = b.students;
+    const student = Array.isArray(studentsRaw) ? studentsRaw[0] : studentsRaw;
+
+    return {
+      id: b.id,
+      user: student?.name || 'Sistema',
+      action: b.status === 'paid' ? 'Pagamento realizado' : 'Boleto gerado',
+      time: new Date(b.created_at).toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      type: b.status === 'paid' ? 'payment' : 'new_user',
+    };
+  });
+
   const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
   const last6Months = [];
+
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     last6Months.push({
@@ -119,53 +123,78 @@ export async function fetchDashboardData() {
     });
   }
 
-  const allFinanceiro = allFinanceiroResult.data;
+  const allFinanceiro = allFinanceiroResult.data || [];
 
   const chartData: DashboardChartData[] = last6Months.map((m) => {
-    const total = allFinanceiro?.filter((f: any) => {
-      const d = new Date(f.data_vencimento);
-      return d.getMonth() === m.monthNum && d.getFullYear() === m.year && f.status === 'pago';
-    }).reduce((acc: number, curr: any) => acc + curr.valor, 0) || 0;
+    const total =
+      allFinanceiro
+        .filter((f: any) => {
+          const d = new Date(f.data_vencimento);
+          return d.getMonth() === m.monthNum && d.getFullYear() === m.year && f.status === 'pago';
+        })
+        .reduce((acc: number, curr: any) => acc + curr.valor, 0) || 0;
+
     return { name: m.month, value: total };
   });
 
-  // Calcular variação de receita
   const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const receitaLastMonth = allFinanceiro?.filter((f: any) => {
-    const d = new Date(f.data_vencimento);
-    return d.getMonth() === lastMonth.getMonth() && d.getFullYear() === lastMonth.getFullYear() && f.status === 'pago';
-  }).reduce((acc: number, curr: any) => acc + curr.valor, 0) || 0;
+  const receitaLastMonth =
+    allFinanceiro
+      .filter((f: any) => {
+        const d = new Date(f.data_vencimento);
+        return (
+          d.getMonth() === lastMonth.getMonth() &&
+          d.getFullYear() === lastMonth.getFullYear() &&
+          f.status === 'pago'
+        );
+      })
+      .reduce((acc: number, curr: any) => acc + curr.valor, 0) || 0;
 
-  const receitaChange = receitaLastMonth > 0
-    ? `${(((receitaMensal - receitaLastMonth) / receitaLastMonth) * 100).toFixed(0)}%`
-    : '+0%';
+  const receitaChange =
+    receitaLastMonth > 0
+      ? `${(((receitaMensal - receitaLastMonth) / receitaLastMonth) * 100).toFixed(0)}%`
+      : '+0%';
+
+  const proximosVencimentos: ProximoVencimento[] = (proximosVencimentosResult.data || []).map((b: any) => {
+    const studentsRaw = b.students;
+    const student = Array.isArray(studentsRaw) ? studentsRaw[0] : studentsRaw;
+
+    return {
+      id: b.id,
+      amount: b.amount,
+      due_date: b.due_date,
+      students: student ? { name: student.name, phone: student.phone ?? undefined } : null,
+    };
+  });
 
   return {
     stats: {
-      totalAlunos: totalAlunos || 0,
+      totalAlunos,
       receitaMensal,
-      planosAtivos: planosAtivos || 0,
-      treinosAtivos: treinosAtivos || 0,
+      planosAtivos,
+      treinosAtivos,
       receitaChange: receitaChange.startsWith('-') ? receitaChange : `+${receitaChange}`,
     },
     chartData,
     activities,
-    proximosVencimentos: (proximosVencimentosResult.data || []) as ProximoVencimento[],
+    proximosVencimentos,
   };
 }
 
-/** Busca contagem de boletos atrasados (para o badge do Header) */
 export async function fetchLateBillsCount(): Promise<number> {
   const { count, error } = await supabase
     .from(TABLES.BILLS)
-    .select('*', { count: 'exact', head: true })
+    .select('id', { count: 'exact', head: true })
     .eq('status', 'late');
 
-  if (error) return 0;
+  if (error) {
+    console.error('Erro ao buscar boletos atrasados:', error.message);
+    return 0;
+  }
+
   return count || 0;
 }
 
-/** Subscrição realtime para boletos (Header) */
 export function subscribeToBillsChanges(callback: () => void) {
   const channel = supabase
     .channel('bills_changes')
@@ -177,50 +206,56 @@ export function subscribeToBillsChanges(callback: () => void) {
   };
 }
 
-/** Busca métricas para o módulo de Relatórios */
 export async function fetchRelatoriosMetrics() {
   const now = new Date();
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
 
-  // ⚡ Todas as queries rodam em PARALELO
   const [alunosResult, financeiroResult, inadimplentesResult] = await Promise.all([
-    supabase.from(TABLES.STUDENTS).select('*'),
-    supabase.from(TABLES.FINANCEIRO).select('*'),
+    supabase.from(TABLES.STUDENTS).select('status, created_at'),
+    supabase.from(TABLES.FINANCEIRO).select('valor, data_vencimento, status, tipo'),
     supabase
       .from(TABLES.BILLS)
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('status', 'late'),
   ]);
 
-  // Alunos
-  const alunos = alunosResult.data;
-  const totalAlunos = alunos?.length || 0;
-  const alunosAtivos = alunos?.filter((a: any) => a.status === 'ativo').length || 0;
-  const alunosInativos = totalAlunos - alunosAtivos;
+  assertNoQueryError('Relatorios.alunos', alunosResult.error);
+  assertNoQueryError('Relatorios.financeiro', financeiroResult.error);
+  assertNoQueryError('Relatorios.inadimplentes', inadimplentesResult.error);
 
-  const novosAlunos = alunos?.filter((a: any) => {
+  const alunos = alunosResult.data || [];
+  const totalAlunos = alunos.length;
+  const alunosAtivos = alunos.filter((a: any) => a.status === 'ativo').length;
+  const alunosInativos = totalAlunos - alunosAtivos;
+  const novosAlunos = alunos.filter((a: any) => {
     const d = new Date(a.created_at);
     return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-  }).length || 0;
+  }).length;
 
-  // Financeiro
-  const financeiro = financeiroResult.data;
-
-  const receitasMes = financeiro?.filter((p: any) => {
+  const financeiro = financeiroResult.data || [];
+  const receitasMes = financeiro.filter((p: any) => {
     const d = new Date(p.data_vencimento);
-    return d.getMonth() === currentMonth && d.getFullYear() === currentYear && p.tipo === 'receita' && p.status === 'pago';
-  }) || [];
+    return (
+      d.getMonth() === currentMonth &&
+      d.getFullYear() === currentYear &&
+      p.tipo === 'receita' &&
+      p.status === 'pago'
+    );
+  });
 
-  const despesasMes = financeiro?.filter((p: any) => {
+  const despesasMes = financeiro.filter((p: any) => {
     const d = new Date(p.data_vencimento);
-    return d.getMonth() === currentMonth && d.getFullYear() === currentYear && p.tipo === 'despesa' && p.status === 'pago';
-  }) || [];
+    return (
+      d.getMonth() === currentMonth &&
+      d.getFullYear() === currentYear &&
+      p.tipo === 'despesa' &&
+      p.status === 'pago'
+    );
+  });
 
   const receitas = receitasMes.reduce((acc: number, curr: any) => acc + (curr.valor || 0), 0);
   const despesas = despesasMes.reduce((acc: number, curr: any) => acc + (curr.valor || 0), 0);
-
-  // Inadimplentes (já buscado no Promise.all acima)
 
   return {
     receitas,
@@ -236,16 +271,19 @@ export async function fetchRelatoriosMetrics() {
   };
 }
 
-/** Exporta dados financeiros para CSV */
 export async function exportFinanceiroCSV(): Promise<string | null> {
-  const { data: financeiro } = await supabase
+  const { data: financeiro, error } = await supabase
     .from(TABLES.FINANCEIRO)
     .select('*')
     .order('data_vencimento', { ascending: false });
 
+  if (error) {
+    throw new Error(`Exportacao financeiro: ${error.message}`);
+  }
+
   if (!financeiro || financeiro.length === 0) return null;
 
-  const headers = ['Descrição', 'Valor', 'Data', 'Tipo', 'Status'];
+  const headers = ['Descricao', 'Valor', 'Data', 'Tipo', 'Status'];
   const rows = financeiro.map((item: any) => [
     item.descricao,
     item.valor.toString(),
@@ -254,8 +292,5 @@ export async function exportFinanceiroCSV(): Promise<string | null> {
     item.status,
   ]);
 
-  return [
-    headers.join(','),
-    ...rows.map((r: string[]) => r.join(',')),
-  ].join('\n');
+  return [headers.join(','), ...rows.map((r: string[]) => r.join(','))].join('\n');
 }

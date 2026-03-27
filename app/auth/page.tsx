@@ -16,7 +16,7 @@ function translateError(message: string): string {
 }
 
 function AuthContent() {
-  const { user, role, isReady, signIn, signUp } = useAuth();
+  const { user, role, isReady, authError, signIn, signOut, signUp } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -80,6 +80,28 @@ function AuthContent() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black">
         <Loader2 className="animate-spin text-orange-500" size={48} />
+      </div>
+    );
+  }
+
+  if (user && !role) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-black px-6 text-white">
+        <div className="w-full max-w-md rounded-3xl border border-zinc-800 bg-zinc-900 p-8 text-center">
+          <h2 className="mb-3 text-2xl font-bold">Sessao incompleta</h2>
+          <p className="mb-6 text-sm text-zinc-400">
+            {authError || 'Nao foi possivel carregar seu perfil de acesso. Saia e tente novamente.'}
+          </p>
+          <button
+            onClick={async () => {
+              await signOut();
+              router.replace('/auth');
+            }}
+            className="rounded-2xl bg-orange-500 px-6 py-3 font-bold text-black transition-all hover:bg-orange-600"
+          >
+            Sair e tentar novamente
+          </button>
+        </div>
       </div>
     );
   }

@@ -7,6 +7,7 @@ import type { DashboardStats, DashboardChartData, ProximoVencimento, RecentActiv
 
 export function useDashboard() {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<DashboardStats>({
     totalAlunos: 0,
     receitaMensal: 0,
@@ -20,14 +21,16 @@ export function useDashboard() {
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await dashboardService.fetchDashboardData();
       setStats(data.stats);
       setChartData(data.chartData);
       setActivities(data.activities);
       setProximosVencimentos(data.proximosVencimentos);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar dashboard:', error);
+      setError(error?.message || 'Nao foi possivel carregar o dashboard.');
     } finally {
       setLoading(false);
     }
@@ -45,6 +48,7 @@ export function useDashboard() {
   }, []);
 
   return {
+    error,
     loading,
     stats,
     chartData,

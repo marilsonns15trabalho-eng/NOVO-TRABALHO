@@ -33,11 +33,28 @@ let refreshSessionPromise: Promise<Session | null> | null = null;
 
 /** Segundos antes do fim da validade do access token em que ja forcamos refresh (rede + relogio). */
 const SESSION_REFRESH_LEEWAY_SEC = 120;
+const MAX_CONSECUTIVE_REFRESH_FAILURES = 2;
+
+let consecutiveRefreshFailures = 0;
 
 function isSessionStale(session: { expires_at?: number } | null): boolean {
   if (!session?.expires_at) return false;
   const now = Math.floor(Date.now() / 1000);
   return session.expires_at <= now + SESSION_REFRESH_LEEWAY_SEC;
+}
+
+async function clearLocalSessionState() {
+  try {
+    await supabase.auth.signOut({ scope: 'local' });
+  } catch (error) {
+    console.warn('Falha ao limpar sessao local do Supabase:', error);
+  }
+
+  if (typeof window === 'undefined') return;
+
+  try {
+    localStorage.removeItem('lioness-auth');
+  } catch {}
 }
 
 /**
@@ -63,15 +80,28 @@ async function refreshSessionWithLock(): Promise<Session | null> {
       } = await supabase.auth.refreshSession();
 
       if (error) {
+        consecutiveRefreshFailures += 1;
         console.error('Erro ao renovar sessao:', error);
+
+        if (consecutiveRefreshFailures >= MAX_CONSECUTIVE_REFRESH_FAILURES) {
+          await clearLocalSessionState();
+        }
+
         return null;
       }
 
       if (!session) {
+        consecutiveRefreshFailures += 1;
         console.warn('Sessao renovada nao encontrada');
+
+        if (consecutiveRefreshFailures >= MAX_CONSECUTIVE_REFRESH_FAILURES) {
+          await clearLocalSessionState();
+        }
+
         return null;
       }
 
+      consecutiveRefreshFailures = 0;
       return session;
     })().finally(() => {
       refreshSessionPromise = null;

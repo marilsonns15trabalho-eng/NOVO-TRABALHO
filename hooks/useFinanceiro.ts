@@ -13,6 +13,7 @@ export function useFinanceiro() {
   const [boletos, setBoletos] = useState<Boleto[]>([]);
   const [alunos, setAlunos] = useState<FinanceiroStudent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabFinanceiro>('overview');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -41,13 +42,15 @@ export function useFinanceiro() {
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await financeiroService.fetchFinanceiroData();
       setPagamentos(data.pagamentos);
       setBoletos(data.boletos);
       setAlunos(data.alunos);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar dados financeiros:', error);
+      setError(error?.message || 'Nao foi possivel carregar os dados financeiros.');
     } finally {
       setLoading(false);
     }
@@ -143,6 +146,7 @@ export function useFinanceiro() {
     pagamentos,
     boletos,
     alunos,
+    error,
     loading,
     activeTab,
     setActiveTab,

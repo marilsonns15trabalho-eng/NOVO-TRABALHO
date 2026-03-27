@@ -11,7 +11,7 @@ interface AuthGuardProps {
 }
 
 export default function AuthGuard({ children }: AuthGuardProps) {
-  const { user, role, isReady } = useAuth();
+  const { user, role, isReady, authError } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -33,13 +33,17 @@ export default function AuthGuard({ children }: AuthGuardProps) {
   }, [isAllowed, isReady, role, router, user]);
 
   if (!isReady) {
-    return <div className="flex items-center justify-center min-h-screen bg-black text-white">Carregando...</div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-black text-white">
+        <Loader2 className="animate-spin text-orange-500" size={40} />
+      </div>
+    );
   }
 
   if (!user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black text-zinc-400">
-        Redirecionando para autenticação...
+        Redirecionando para autenticacao...
       </div>
     );
   }
@@ -47,7 +51,7 @@ export default function AuthGuard({ children }: AuthGuardProps) {
   if (!isAllowed) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black text-zinc-400">
-        Verificando permissões...
+        {user && !role ? authError || 'Perfil de acesso indisponivel.' : 'Verificando permissoes...'}
       </div>
     );
   }

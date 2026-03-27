@@ -20,7 +20,7 @@ export default function AccessGuard({
   redirectTo,
   forbiddenMessage = 'Verificando permissões...',
 }: AccessGuardProps) {
-  const { user, role, isReady } = useAuth();
+  const { user, role, isReady, authError } = useAuth();
   const router = useRouter();
 
   const isAllowed = !!role && allowedRoles.includes(role);
@@ -49,7 +49,7 @@ export default function AccessGuard({
   if (!user || !isAllowed) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black text-zinc-400">
-        {forbiddenMessage}
+        {user && !role ? authError || 'Perfil de acesso indisponivel.' : forbiddenMessage}
       </div>
     );
   }
