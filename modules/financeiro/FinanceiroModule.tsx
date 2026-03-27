@@ -17,6 +17,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import { useFinanceiro } from '@/hooks/useFinanceiro';
 import type { Boleto } from '@/types/financeiro';
+import {
+  ModuleHero,
+  ModuleHeroAction,
+  ModuleShell,
+  ModuleStatCard,
+} from '@/components/dashboard/ModulePrimitives';
 
 export default function FinanceiroModule() {
   const {
@@ -117,7 +123,7 @@ export default function FinanceiroModule() {
   }
 
   return (
-    <div className="p-8 space-y-8 bg-black min-h-screen text-white">
+    <ModuleShell>
       {error && (
         <div className="flex items-center justify-between gap-4 rounded-3xl border border-rose-500/20 bg-rose-500/10 p-5">
           <div>
@@ -156,6 +162,71 @@ export default function FinanceiroModule() {
             Nova Transação
           </button>
         </div>
+      </div>
+
+      <ModuleHero
+        badge="Operacao financeira"
+        title="Fluxo financeiro com leitura mais executiva e bem resolvida"
+        description="Receitas, despesas e cobrancas agora aparecem em uma camada mais premium, sem alterar os fluxos que ja funcionam no seu operacional."
+        accent="emerald"
+        chips={[
+          { label: 'Receitas', value: `R$ ${totalReceitas.toFixed(2)}` },
+          { label: 'Despesas', value: `R$ ${totalDespesas.toFixed(2)}` },
+          { label: 'Saldo', value: `R$ ${saldo.toFixed(2)}` },
+          { label: 'Boletos', value: String(boletos.length) },
+        ]}
+        actions={
+          <>
+            <ModuleHeroAction
+              label="Gerar em lote"
+              subtitle="Criar cobrancas do mes com menos atrito."
+              icon={RefreshCw}
+              accent="emerald"
+              onClick={() => setShowConfirmLote(true)}
+              disabled={batchLoading}
+            />
+            <ModuleHeroAction
+              label="Gerar boleto"
+              subtitle="Abrir cobranca individual para um aluno."
+              icon={FileText}
+              accent="amber"
+              filled
+              onClick={() => setShowBoletoModal(true)}
+            />
+            <ModuleHeroAction
+              label="Nova transacao"
+              subtitle="Registrar uma nova entrada ou saida."
+              icon={Plus}
+              accent="emerald"
+              filled
+              onClick={() => setShowAddModal(true)}
+            />
+          </>
+        }
+      />
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <ModuleStatCard
+          label="Receitas pagas"
+          value={`R$ ${totalReceitas.toFixed(2)}`}
+          detail="Entradas liquidadas consideradas no consolidado atual."
+          icon={TrendingUp}
+          accent="emerald"
+        />
+        <ModuleStatCard
+          label="Despesas pagas"
+          value={`R$ ${totalDespesas.toFixed(2)}`}
+          detail="Saidas pagas consideradas no fechamento do periodo."
+          icon={TrendingDown}
+          accent="rose"
+        />
+        <ModuleStatCard
+          label="Saldo atual"
+          value={`R$ ${saldo.toFixed(2)}`}
+          detail="Resultado liquido entre receitas e despesas registradas."
+          icon={DollarSign}
+          accent="amber"
+        />
       </div>
 
       {/* Modal de Boleto */}
@@ -523,6 +594,6 @@ export default function FinanceiroModule() {
           </div>
         )}
       </AnimatePresence>
-    </div>
+    </ModuleShell>
   );
 }

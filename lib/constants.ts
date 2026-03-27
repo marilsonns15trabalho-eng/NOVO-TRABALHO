@@ -39,7 +39,11 @@ export const TRANSACTION_TYPE = {
 export const TABLES = {
   STUDENTS: 'students',
   PLANS: 'plans',
+  TRAINING_PLANS: 'training_plans',
+  STUDENT_TRAINING_PLANS: 'student_training_plans',
   TREINOS: 'treinos',
+  TREINO_STUDENT_ASSIGNMENTS: 'treino_student_assignments',
+  TREINO_COMPLETION_LOGS: 'treino_completion_logs',
   AVALIACOES: 'avaliacoes',
   ANAMNESES: 'anamneses',
   FINANCEIRO: 'financeiro',
@@ -51,4 +55,3 @@ export const TABLES = {
 
 /** Super admin — protegido contra alterações */
 export const SUPER_ADMIN_EMAIL = 'marilsonns15@gmail.com';
-

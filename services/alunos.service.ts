@@ -144,6 +144,9 @@ export async function deleteAluno(alunoId: string): Promise<void> {
   const user = await getAuthenticatedUser();
   await assertAdminForUserId(user.id);
 
+  await supabase.from(TABLES.TREINO_COMPLETION_LOGS).delete().eq('student_id', alunoId);
+  await supabase.from(TABLES.TREINO_STUDENT_ASSIGNMENTS).delete().eq('student_id', alunoId);
+  await supabase.from(TABLES.STUDENT_TRAINING_PLANS).delete().eq('student_id', alunoId);
   await supabase.from(TABLES.ASSINATURAS).delete().eq('student_id', alunoId);
   await supabase.from(TABLES.ANAMNESES).delete().eq('student_id', alunoId);
   await supabase.from(TABLES.AVALIACOES).delete().eq('student_id', alunoId);

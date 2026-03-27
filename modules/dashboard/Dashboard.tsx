@@ -1,27 +1,132 @@
 'use client';
-import React, { useState } from 'react';
+
+import React, { useMemo, useState } from 'react';
 import {
-  Users,
-  DollarSign,
-  TrendingUp,
-  Calendar,
-  ArrowUpRight,
+  Activity,
   ArrowDownRight,
-  UserPlus,
+  ArrowRight,
+  ArrowUpRight,
+  Calendar,
   CreditCard,
-  Clock,
+  DollarSign,
   Dumbbell,
   Loader2,
-  TrendingUp as TrendingUpIcon,
   MessageCircle,
+  TrendingUp,
+  UserPlus,
+  Users,
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import ChartWrapper from '@/components/ChartWrapper';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts';
 import { useDashboard } from '@/hooks/useDashboard';
 
 interface DashboardProps {
   setActiveTab: (tab: string) => void;
+}
+
+interface MetricCardProps {
+  label: string;
+  value: string;
+  change: string;
+  trend: 'up' | 'down';
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  accentClassName: string;
+  onClick: () => void;
+}
+
+function MetricCard({
+  label,
+  value,
+  change,
+  trend,
+  icon: Icon,
+  accentClassName,
+  onClick,
+}: MetricCardProps) {
+  return (
+    <button
+      onClick={onClick}
+      className="group relative overflow-hidden rounded-[28px] border border-zinc-800 bg-zinc-950/85 p-5 text-left shadow-[0_28px_80px_-54px_rgba(0,0,0,0.9)] transition-all hover:border-zinc-700"
+    >
+      <div className={`absolute inset-x-0 top-0 h-px ${accentClassName}`} />
+
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-zinc-500">{label}</p>
+          <p className="mt-4 text-3xl font-bold tracking-tight text-white">{value}</p>
+        </div>
+
+        <div className="rounded-2xl border border-white/6 bg-white/[0.03] p-3">
+          <Icon size={22} className="text-white" />
+        </div>
+      </div>
+
+      <div className="mt-6 flex items-center justify-between">
+        <div
+          className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold ${
+            trend === 'up'
+              ? 'bg-emerald-500/10 text-emerald-300'
+              : 'bg-rose-500/10 text-rose-300'
+          }`}
+        >
+          {change}
+          {trend === 'up' ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+        </div>
+
+        <span className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-[0.18em] text-zinc-600 transition-colors group-hover:text-zinc-400">
+          abrir
+          <ArrowRight size={14} />
+        </span>
+      </div>
+    </button>
+  );
+}
+
+interface ActionTileProps {
+  label: string;
+  subtitle: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  onClick: () => void;
+  filled?: boolean;
+}
+
+function ActionTile({
+  label,
+  subtitle,
+  icon: Icon,
+  onClick,
+  filled = false,
+}: ActionTileProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={`group rounded-[24px] border p-4 text-left transition-all ${
+        filled
+          ? 'border-orange-500/20 bg-orange-500 text-black hover:bg-orange-600'
+          : 'border-zinc-800 bg-zinc-950/80 text-white hover:border-zinc-700 hover:bg-zinc-900'
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className={`text-sm font-bold ${filled ? 'text-black' : 'text-white'}`}>{label}</p>
+          <p className={`mt-1 text-xs leading-5 ${filled ? 'text-black/70' : 'text-zinc-500'}`}>
+            {subtitle}
+          </p>
+        </div>
+
+        <div
+          className={`rounded-2xl p-3 ${
+            filled
+              ? 'bg-black/10 text-black'
+              : 'bg-zinc-900 text-orange-400 group-hover:bg-zinc-800'
+          }`}
+        >
+          <Icon size={18} />
+        </div>
+      </div>
+    </button>
+  );
 }
 
 export default function Dashboard({ setActiveTab }: DashboardProps) {
@@ -39,8 +144,11 @@ export default function Dashboard({ setActiveTab }: DashboardProps) {
   const [chartView, setChartView] = useState<'mensal' | 'anual'>('mensal');
 
   const handleWhatsAppReminder = (aluno: any, bill: any) => {
-    const message = `Olá ${aluno.name}! 👋 Passando para lembrar que sua mensalidade de R$ ${bill.amount} vence no dia ${new Date(bill.due_date).toLocaleDateString('pt-BR')}. Bons treinos! 🦁`;
     const phone = aluno.phone?.replace(/\D/g, '');
+    const dueDate = new Date(bill.due_date).toLocaleDateString('pt-BR');
+    const amount = Number(bill.amount || 0).toFixed(2);
+    const message = `Ola ${aluno.name}, passando para lembrar que sua mensalidade de R$ ${amount} vence em ${dueDate}.`;
+
     if (phone) {
       window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(message)}`, '_blank');
     } else {
@@ -48,16 +156,51 @@ export default function Dashboard({ setActiveTab }: DashboardProps) {
     }
   };
 
-  const statCards = [
-    { label: 'Total de Alunos', value: stats.totalAlunos.toString(), icon: Users, change: '+5%', trend: 'up', tab: 'alunos' },
-    { label: 'Receita Mensal', value: formatCurrency(stats.receitaMensal), icon: DollarSign, change: stats.receitaChange, trend: 'up', tab: 'financeiro' },
-    { label: 'Planos Ativos', value: stats.planosAtivos.toString(), icon: TrendingUpIcon, change: '+3%', trend: 'up', tab: 'planos' },
-    { label: 'Aulas Hoje', value: stats.treinosAtivos.toString(), icon: Calendar, change: 'Estável', trend: 'up', tab: 'treinos' },
-  ];
+  const statCards = useMemo(
+    () => [
+      {
+        label: 'Total de alunos',
+        value: stats.totalAlunos.toString(),
+        icon: Users,
+        change: '+5%',
+        trend: 'up' as const,
+        tab: 'alunos',
+        accent: 'bg-gradient-to-r from-orange-500/90 via-orange-400/70 to-transparent',
+      },
+      {
+        label: 'Receita mensal',
+        value: formatCurrency(stats.receitaMensal),
+        icon: DollarSign,
+        change: stats.receitaChange,
+        trend: (stats.receitaChange.startsWith('-') ? 'down' : 'up') as 'up' | 'down',
+        tab: 'financeiro',
+        accent: 'bg-gradient-to-r from-emerald-500/90 via-emerald-400/70 to-transparent',
+      },
+      {
+        label: 'Planos ativos',
+        value: stats.planosAtivos.toString(),
+        icon: TrendingUp,
+        change: '+3%',
+        trend: 'up' as const,
+        tab: 'planos',
+        accent: 'bg-gradient-to-r from-sky-500/90 via-sky-400/70 to-transparent',
+      },
+      {
+        label: 'Treinos ativos',
+        value: stats.treinosAtivos.toString(),
+        icon: Dumbbell,
+        change: 'Estavel',
+        trend: 'up' as const,
+        tab: 'treinos',
+        accent: 'bg-gradient-to-r from-purple-500/90 via-purple-400/70 to-transparent',
+      },
+    ],
+    [formatCurrency, stats]
+  );
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-black">
+      <div className="flex min-h-screen items-center justify-center bg-black">
         <Loader2 className="animate-spin text-orange-500" size={48} />
       </div>
     );
@@ -66,8 +209,8 @@ export default function Dashboard({ setActiveTab }: DashboardProps) {
   if (error) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black p-8 text-white">
-        <div className="w-full max-w-xl rounded-3xl border border-zinc-800 bg-zinc-900 p-8 text-center">
-          <h3 className="mb-3 text-2xl font-bold">Falha ao carregar o dashboard</h3>
+        <div className="w-full max-w-xl rounded-[32px] border border-zinc-800 bg-zinc-950 p-8 text-center shadow-[0_36px_120px_-64px_rgba(0,0,0,0.95)]">
+          <h3 className="mb-3 text-2xl font-bold">Falha ao carregar o painel</h3>
           <p className="mb-6 text-sm text-zinc-400">{error}</p>
           <button
             onClick={() => void loadData()}
@@ -81,148 +224,272 @@ export default function Dashboard({ setActiveTab }: DashboardProps) {
   }
 
   return (
-    <div className="p-8 space-y-8 bg-black min-h-screen text-white">
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="min-h-screen space-y-8 bg-transparent p-6 text-white md:p-8">
+      <section className="relative overflow-hidden rounded-[34px] border border-zinc-800 bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.16),_transparent_36%),linear-gradient(135deg,rgba(24,24,27,0.98),rgba(10,10,10,0.98))] p-6 shadow-[0_36px_120px_-60px_rgba(249,115,22,0.42)] md:p-8">
+        <div className="absolute right-0 top-0 h-56 w-56 rounded-full bg-orange-500/10 blur-3xl" />
+        <div className="absolute bottom-0 left-1/3 h-36 w-36 rounded-full bg-emerald-500/10 blur-3xl" />
+
+        <div className="relative flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between">
+          <div className="max-w-3xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.25em] text-orange-300">
+              Painel executivo
+            </div>
+
+            <h2 className="mt-5 text-3xl font-bold leading-tight text-white md:text-5xl">
+              Controle visual, financeiro e operacional em um unico lugar
+            </h2>
+
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-300 md:text-base">
+              Acompanhe receita, alunos, vencimentos e atividades recentes com uma leitura mais clara e profissional.
+            </p>
+
+            <div className="mt-6 flex flex-wrap gap-3">
+              <div className="rounded-full border border-white/8 bg-white/[0.03] px-4 py-2 text-sm text-zinc-300">
+                <span className="font-bold text-white">Receita atual:</span> {formatCurrency(stats.receitaMensal)}
+              </div>
+              <div className="rounded-full border border-white/8 bg-white/[0.03] px-4 py-2 text-sm text-zinc-300">
+                <span className="font-bold text-white">Proximos vencimentos:</span> {proximosVencimentos.length}
+              </div>
+              <div className="rounded-full border border-white/8 bg-white/[0.03] px-4 py-2 text-sm text-zinc-300">
+                <span className="font-bold text-white">Atividades:</span> {activities.length}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 xl:w-[430px]">
+            <ActionTile
+              label="Novo aluno"
+              subtitle="Cadastrar e liberar o acesso rapidamente."
+              icon={UserPlus}
+              onClick={() => setActiveTab('alunos')}
+              filled
+            />
+            <ActionTile
+              label="Nova receita"
+              subtitle="Registrar entrada financeira."
+              icon={CreditCard}
+              onClick={() => setActiveTab('financeiro')}
+            />
+            <ActionTile
+              label="Novo treino"
+              subtitle="Organizar programas ativos."
+              icon={Dumbbell}
+              onClick={() => setActiveTab('treinos')}
+            />
+            <ActionTile
+              label="Relatorios"
+              subtitle="Abrir estatisticas e exportacoes."
+              icon={Activity}
+              onClick={() => setActiveTab('relatorios')}
+            />
+          </div>
+        </div>
+      </section>
+
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-4">
         {statCards.map((stat, index) => (
           <motion.div
             key={stat.label}
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            onClick={() => setActiveTab(stat.tab)}
-            className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl hover:border-orange-500/50 transition-all group cursor-pointer"
+            transition={{ delay: index * 0.08 }}
           >
-            <div className="flex justify-between items-start mb-4">
-              <div className="p-3 bg-zinc-800 rounded-2xl group-hover:bg-orange-500 transition-colors">
-                <stat.icon size={24} className="text-orange-500 group-hover:text-black transition-colors" />
-              </div>
-              <div className={`flex items-center gap-1 text-sm font-medium ${stat.trend === 'up' ? 'text-emerald-500' : 'text-rose-500'}`}>
-                {stat.change}
-                {stat.trend === 'up' ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
-              </div>
-            </div>
-            <div>
-              <p className="text-zinc-500 text-sm font-medium mb-1">{stat.label}</p>
-              <h3 className="text-3xl font-bold tracking-tight">{stat.value}</h3>
-            </div>
+            <MetricCard
+              label={stat.label}
+              value={stat.value}
+              change={stat.change}
+              trend={stat.trend}
+              icon={stat.icon}
+              accentClassName={stat.accent}
+              onClick={() => setActiveTab(stat.tab)}
+            />
           </motion.div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Gráfico */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 h-[400px] flex flex-col">
-            <div className="flex justify-between items-center mb-8">
-              <div>
-                <h3 className="text-xl font-bold">Visão Geral de Receita</h3>
-                <p className="text-zinc-500 text-sm">Acompanhamento dos últimos 6 meses</p>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => setChartView('mensal')} className={`px-4 py-2 rounded-full text-xs font-semibold transition-colors ${chartView === 'mensal' ? 'bg-orange-500 text-black' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}>Mensal</button>
-                <button onClick={() => setChartView('anual')} className={`px-4 py-2 rounded-full text-xs font-semibold transition-colors ${chartView === 'anual' ? 'bg-orange-500 text-black' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}>Anual</button>
-              </div>
+      <div className="grid grid-cols-1 gap-8 xl:grid-cols-[1.55fr_0.95fr]">
+        <section className="rounded-[32px] border border-zinc-800 bg-zinc-950/85 p-6 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)]">
+          <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">
+                Receita
+              </p>
+              <h3 className="mt-2 text-3xl font-bold text-white">Visao geral de faturamento</h3>
+              <p className="mt-2 text-sm text-zinc-500">
+                Acompanhamento dos ultimos 6 meses para leitura rapida da curva de receita.
+              </p>
             </div>
-            <div className="flex-1 w-full relative">
-              <ChartWrapper minHeight={250}>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setChartView('mensal')}
+                className={`rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] transition-colors ${
+                  chartView === 'mensal'
+                    ? 'bg-orange-500 text-black'
+                    : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800'
+                }`}
+              >
+                mensal
+              </button>
+              <button
+                onClick={() => setChartView('anual')}
+                className={`rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] transition-colors ${
+                  chartView === 'anual'
+                    ? 'bg-orange-500 text-black'
+                    : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800'
+                }`}
+              >
+                anual
+              </button>
+            </div>
+          </div>
+
+          <div className="h-[360px]">
+            <ChartWrapper minHeight={260}>
+              <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#71717a', fontSize: 12 }} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#71717a', fontSize: 12 }} tickFormatter={(value) => `R$ ${value}`} />
-                  <Tooltip cursor={{ fill: '#27272a' }} contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '12px', color: '#fff' }} itemStyle={{ color: '#f97316' }} />
-                  <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={index === chartData.length - 1 ? '#f97316' : '#27272a'} />
+                  <XAxis
+                    dataKey="name"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#71717a', fontSize: 12 }}
+                    dy={10}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#71717a', fontSize: 12 }}
+                    tickFormatter={(value) => `R$ ${value}`}
+                  />
+                  <Tooltip
+                    cursor={{ fill: '#18181b' }}
+                    contentStyle={{
+                      backgroundColor: '#09090b',
+                      border: '1px solid #27272a',
+                      borderRadius: '16px',
+                      color: '#fff',
+                    }}
+                    itemStyle={{ color: '#f97316' }}
+                  />
+                  <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                    {chartData.map((_, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={index === chartData.length - 1 ? '#f97316' : '#27272a'}
+                      />
                     ))}
                   </Bar>
                 </BarChart>
-              </ChartWrapper>
+              </ResponsiveContainer>
+            </ChartWrapper>
+          </div>
+        </section>
+
+        <div className="grid gap-8">
+          <section className="rounded-[32px] border border-zinc-800 bg-zinc-950/85 p-6 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)]">
+            <div className="mb-5 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">
+                  Financeiro
+                </p>
+                <h3 className="mt-2 text-2xl font-bold text-white">Proximos vencimentos</h3>
+              </div>
+              <Calendar size={20} className="text-orange-400" />
             </div>
-          </div>
 
-          {/* Quick Actions */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <button onClick={() => setActiveTab('alunos')} className="flex items-center gap-3 bg-orange-500 hover:bg-orange-600 text-black font-bold p-4 rounded-2xl transition-all active:scale-95">
-              <UserPlus size={20} />
-              <span>Novo Aluno</span>
-            </button>
-            <button onClick={() => setActiveTab('financeiro')} className="flex items-center gap-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-white font-bold p-4 rounded-2xl transition-all active:scale-95">
-              <CreditCard size={20} className="text-orange-500" />
-              <span>Lançar Receita</span>
-            </button>
-            <button onClick={() => setActiveTab('treinos')} className="flex items-center gap-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-white font-bold p-4 rounded-2xl transition-all active:scale-95">
-              <Dumbbell size={20} className="text-orange-500" />
-              <span>Novo Treino</span>
-            </button>
-          </div>
-        </div>
+            <div className="space-y-3">
+              {proximosVencimentos.length > 0 ? (
+                proximosVencimentos.map((bill) => (
+                  <div
+                    key={bill.id}
+                    className="rounded-[24px] border border-zinc-800 bg-black/30 p-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-bold text-white">
+                          {bill.students?.name || 'Aluno'}
+                        </p>
+                        <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">
+                          vence em {new Date(bill.due_date).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Próximos Vencimentos */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
-            <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-              <Calendar size={20} className="text-orange-500" />
-              Próximos Vencimentos
-            </h3>
-            <div className="space-y-4">
-              {proximosVencimentos.length > 0 ? proximosVencimentos.map((bill) => (
-                <div key={bill.id} className="p-4 bg-black/40 border border-zinc-800 rounded-2xl group hover:border-orange-500/30 transition-all">
-                  <div className="flex justify-between items-start mb-2">
-                    <p className="text-sm font-bold text-white">{bill.students?.name || 'Aluno'}</p>
-                    <span className="text-[10px] font-bold text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded-full">
-                      {new Date(bill.due_date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                    </span>
+                      <div className="rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1 text-xs font-bold text-orange-300">
+                        R$ {bill.amount}
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between">
+                      <p className="text-xs text-zinc-500">Lembrete rapido para WhatsApp</p>
+                      <button
+                        onClick={() =>
+                          handleWhatsAppReminder(
+                            { name: bill.students?.name || '', phone: bill.students?.phone },
+                            bill
+                          )
+                        }
+                        className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-300 transition-all hover:bg-emerald-500 hover:text-black"
+                      >
+                        <MessageCircle size={14} />
+                        Enviar
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <p className="text-xs text-zinc-500">R$ {bill.amount}</p>
-                    <button
-                      onClick={() => handleWhatsAppReminder({ name: bill.students?.name || '', phone: bill.students?.phone }, bill)}
-                      className="p-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-black rounded-lg transition-all"
-                      title="Enviar Lembrete WhatsApp"
-                    >
-                      <MessageCircle size={14} />
-                    </button>
-                  </div>
+                ))
+              ) : (
+                <div className="rounded-[24px] border border-dashed border-zinc-800 bg-black/20 px-5 py-6 text-sm text-zinc-500">
+                  Nenhum vencimento proximo no momento.
                 </div>
-              )) : (
-                <p className="text-zinc-500 text-sm text-center py-4 italic">Nenhum vencimento próximo.</p>
               )}
             </div>
-          </div>
+          </section>
 
-          {/* Atividades Recentes */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 flex flex-col h-full">
-            <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-              <Clock size={20} className="text-orange-500" />
-              Atividades Recentes
-            </h3>
-            <div className="space-y-6 flex-1">
-              {activities.map((activity) => (
-                <div key={activity.id} className="flex gap-4 group cursor-pointer" onClick={() => setActiveTab('financeiro')}>
-                  <div className="relative">
-                    <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-sm font-bold group-hover:bg-orange-500 group-hover:text-black transition-colors">
-                      {activity.user.split(' ').map((n: string) => n[0]).join('')}
-                    </div>
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-zinc-900 border-2 border-zinc-800 flex items-center justify-center">
-                      <div className={`w-1.5 h-1.5 rounded-full ${activity.type === 'payment' ? 'bg-emerald-500' : 'bg-orange-500'}`} />
-                    </div>
-                  </div>
-                  <div className="flex-1 border-b border-zinc-800 pb-4 group-last:border-0">
-                    <div className="flex justify-between items-start mb-1">
-                      <p className="text-sm font-bold text-white group-hover:text-orange-500 transition-colors">{activity.user}</p>
-                      <span className="text-[10px] text-zinc-600 font-mono uppercase tracking-tighter">{activity.time}</span>
-                    </div>
-                    <p className="text-xs text-zinc-500">{activity.action}</p>
-                  </div>
-                </div>
-              ))}
+          <section className="rounded-[32px] border border-zinc-800 bg-zinc-950/85 p-6 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)]">
+            <div className="mb-5 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">
+                  Operacao
+                </p>
+                <h3 className="mt-2 text-2xl font-bold text-white">Atividades recentes</h3>
+              </div>
+              <Activity size={20} className="text-orange-400" />
             </div>
-            <button onClick={() => setActiveTab('relatorios')} className="mt-6 w-full py-3 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-xs font-bold uppercase tracking-widest transition-colors">
-              Ver Todas as Atividades
-            </button>
-          </div>
+
+            <div className="space-y-4">
+              {activities.length > 0 ? (
+                activities.map((activity) => (
+                  <button
+                    key={activity.id}
+                    onClick={() => setActiveTab('financeiro')}
+                    className="flex w-full items-start gap-4 rounded-[24px] border border-zinc-800 bg-black/25 p-4 text-left transition-all hover:border-zinc-700"
+                  >
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-zinc-900 font-bold text-white">
+                      {activity.user
+                        .split(' ')
+                        .map((part: string) => part[0])
+                        .slice(0, 2)
+                        .join('')}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="truncate text-sm font-bold text-white">{activity.user}</p>
+                        <span className="text-[10px] uppercase tracking-[0.18em] text-zinc-600">
+                          {activity.time}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm text-zinc-500">{activity.action}</p>
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <div className="rounded-[24px] border border-dashed border-zinc-800 bg-black/20 px-5 py-6 text-sm text-zinc-500">
+                  Nenhuma atividade recente encontrada.
+                </div>
+              )}
+            </div>
+          </section>
         </div>
       </div>
     </div>

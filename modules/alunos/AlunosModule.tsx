@@ -20,6 +20,15 @@ import { useAlunos } from '@/hooks/useAlunos';
 import { useAuth } from '@/hooks/useAuth';
 import type { UserRole } from '@/contexts/AuthContext';
 import { Modal, ConfirmDialog, Toast, LoadingSpinner } from '@/components/ui';
+import {
+  ModuleEmptyState,
+  ModuleHero,
+  ModuleHeroAction,
+  ModuleSectionHeading,
+  ModuleShell,
+  ModuleStatCard,
+  ModuleSurface,
+} from '@/components/dashboard/ModulePrimitives';
 import AlunoForm from '@/modules/alunos/AlunoForm';
 import type { Aluno, AlunoFormData } from '@/types/aluno';
 import * as usersService from '@/services/users.service';
@@ -208,53 +217,106 @@ export default function AlunosModule() {
     return <LoadingSpinner message="Carregando alunos..." />;
   }
 
+  const totalAlunos = alunos.length;
+  const alunosAtivos = alunos.filter((aluno) => aluno.status === 'ativo').length;
+  const alunosComAcesso = alunos.filter((aluno) => Boolean(aluno.linked_auth_user_id)).length;
+  const planosAtivos = planos.length;
+
   return (
-    <div className="p-8 space-y-8 bg-black min-h-screen text-white">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Gestao de Alunos</h2>
-          <p className="text-zinc-500">Administre sua base de alunos e acompanhe o status de cada um.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          {isAdmin && (
-            <button
-              onClick={openRolesModal}
-              className="flex items-center justify-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-5 py-3 font-bold text-zinc-400 transition-all hover:bg-zinc-800 hover:text-white"
-            >
-              <Shield size={18} />
-              Roles
-            </button>
-          )}
-          {!isReadOnly && (
-            <button
-              onClick={handleOpenAdd}
-              className="flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-6 py-3 font-bold text-black shadow-lg shadow-orange-500/20 transition-all hover:bg-orange-600 active:scale-95"
-            >
-              <UserPlus size={20} />
-              Novo Aluno
-            </button>
-          )}
-        </div>
+    <ModuleShell>
+      <ModuleHero
+        badge="Base de alunos"
+        title="Cadastros, acessos e operacao diaria com leitura mais premium"
+        description="Visualize rapidamente quem esta ativo, quem ja tem acesso vinculado e quais frentes ainda precisam de atencao da equipe."
+        accent="orange"
+        chips={[
+          { label: 'Total', value: String(totalAlunos) },
+          { label: 'Ativos', value: String(alunosAtivos) },
+          { label: 'Com acesso', value: String(alunosComAcesso) },
+          { label: 'Planos ativos', value: String(planosAtivos) },
+        ]}
+        actions={
+          <>
+            {isAdmin ? (
+              <ModuleHeroAction
+                label="Gerenciar roles"
+                subtitle="Ajustar niveis de acesso com seguranca."
+                icon={Shield}
+                accent="orange"
+                onClick={openRolesModal}
+              />
+            ) : null}
+            {!isReadOnly ? (
+              <ModuleHeroAction
+                label="Novo aluno"
+                subtitle="Criar cadastro e liberar acesso inicial rapidamente."
+                icon={UserPlus}
+                accent="orange"
+                filled
+                onClick={handleOpenAdd}
+              />
+            ) : null}
+          </>
+        }
+      />
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <ModuleStatCard
+          label="Alunos ativos"
+          value={String(alunosAtivos)}
+          detail="Quantidade de cadastros ativos prontos para atendimento e acompanhamento."
+          icon={CheckCircle2}
+          accent="orange"
+        />
+        <ModuleStatCard
+          label="Acesso liberado"
+          value={String(alunosComAcesso)}
+          detail="Alunos que ja conseguem entrar no app com conta vinculada."
+          icon={KeyRound}
+          accent="orange"
+        />
+        <ModuleStatCard
+          label="Capacidade comercial"
+          value={String(planosAtivos)}
+          detail="Planos ativos disponiveis para matriculas novas e renovacoes."
+          icon={Users}
+          accent="orange"
+        />
       </div>
 
-      <div className="flex flex-col gap-4 sm:flex-row">
-        <div className="group relative flex-1">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 transition-colors group-hover:text-orange-500" size={20} />
-          <input
-            type="text"
-            placeholder="Buscar por nome ou e-mail..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full rounded-2xl border border-zinc-800 bg-zinc-900 py-3 pl-12 pr-4 text-white transition-all focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50"
+      <ModuleSurface className="space-y-5">
+        <ModuleSectionHeading
+          eyebrow="Busca"
+          title="Localize sua base rapidamente"
+          description="Pesquisa direta por nome ou e-mail, sem alterar o fluxo operacional que ja funciona."
+        />
+
+        <div className="flex flex-col gap-4 sm:flex-row">
+          <div className="group relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 transition-colors group-hover:text-orange-500" size={20} />
+            <input
+              type="text"
+              placeholder="Buscar por nome ou e-mail..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full rounded-2xl border border-zinc-800 bg-black/40 py-3 pl-12 pr-4 text-white transition-all focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/30"
+            />
+          </div>
+          <button className="flex items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-6 py-3 text-zinc-400 transition-all hover:border-zinc-700 hover:text-white">
+            <Filter size={20} />
+            Filtros
+          </button>
+        </div>
+      </ModuleSurface>
+
+      <ModuleSurface className="overflow-hidden p-0">
+        <div className="border-b border-zinc-800 px-6 py-5">
+          <ModuleSectionHeading
+            eyebrow="Operacao"
+            title="Alunos cadastrados"
+            description="Contato, status e acoes administrativas reunidos em uma unica area."
           />
         </div>
-        <button className="flex items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-6 py-3 text-zinc-400 transition-all hover:border-zinc-700 hover:text-white">
-          <Filter size={20} />
-          Filtros
-        </button>
-      </div>
-
-      <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-xl">
         {alunos.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left">
@@ -372,25 +434,25 @@ export default function AlunosModule() {
             </table>
           </div>
         ) : (
-          <div className="space-y-4 p-20 text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-zinc-800">
-              <Users className="text-zinc-600" size={32} />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-xl font-bold">Nenhum aluno encontrado</h3>
-              <p className="text-zinc-500">Comece cadastrando seu primeiro aluno para gerenciar seus treinos.</p>
-            </div>
+          <div className="p-8">
+            <ModuleEmptyState
+              icon={Users}
+              title="Nenhum aluno encontrado"
+              description="Crie o primeiro cadastro para iniciar os fluxos de acesso, treinos e acompanhamento."
+            />
             {!isReadOnly && (
-              <button
-                onClick={handleOpenAdd}
-                className="rounded-2xl bg-zinc-800 px-6 py-3 font-bold text-white transition-all hover:bg-zinc-700"
-              >
-                Cadastrar Agora
-              </button>
+              <div className="mt-6 flex justify-center">
+                <button
+                  onClick={handleOpenAdd}
+                  className="rounded-2xl bg-zinc-800 px-6 py-3 font-bold text-white transition-all hover:bg-zinc-700"
+                >
+                  Cadastrar agora
+                </button>
+              </div>
             )}
           </div>
         )}
-      </div>
+      </ModuleSurface>
 
       {!isReadOnly && (
         <Modal
@@ -510,6 +572,6 @@ export default function AlunosModule() {
           </div>
         </Modal>
       )}
-    </div>
+    </ModuleShell>
   );
 }

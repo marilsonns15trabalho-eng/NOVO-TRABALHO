@@ -7,12 +7,14 @@ import {
   AlertTriangle,
   ArrowRight,
   Calendar,
+  CheckCircle2,
   ClipboardList,
   Dumbbell,
   Loader2,
   LogOut,
   ShieldCheck,
   Sparkles,
+  XCircle,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
@@ -21,7 +23,7 @@ import AccountSecurityForm from '@/components/account/AccountSecurityForm';
 import * as avaliacoesService from '@/services/avaliacoes.service';
 import * as treinosService from '@/services/treinos.service';
 import type { Avaliacao } from '@/types/avaliacao';
-import type { Treino } from '@/types/treino';
+import type { StudentMonthlyTrainingProgress, TrainingPlan, Treino } from '@/types/treino';
 
 interface StudentPlan {
   plan_name?: string;
@@ -93,8 +95,11 @@ export default function AlunoDashboard() {
   const [loading, setLoading] = useState(true);
   const [studentId, setStudentId] = useState<string | null>(null);
   const [plan, setPlan] = useState<StudentPlan | null>(null);
+  const [workoutPlan, setWorkoutPlan] = useState<TrainingPlan | null>(null);
+  const [trainingProgress, setTrainingProgress] = useState<StudentMonthlyTrainingProgress | null>(null);
   const [treinos, setTreinos] = useState<Treino[]>([]);
   const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([]);
+  const [completingTreinoId, setCompletingTreinoId] = useState<string | null>(null);
 
   useEffect(() => {
     const run = async () => {
@@ -112,16 +117,22 @@ export default function AlunoDashboard() {
         const resolvedStudentId = studentRow?.id ?? null;
         setStudentId(resolvedStudentId);
 
-        const [treinosData, avaliacoesData] = await Promise.all([
+        const [treinosData, avaliacoesData, workoutPlanData, trainingProgressData] = await Promise.all([
           treinosService.fetchTreinos(user.id),
           avaliacoesService.fetchAvaliacoes(user.id),
+          treinosService.fetchActiveTrainingPlanForStudent(user.id),
+          treinosService.fetchStudentMonthlyProgress(user.id),
         ]);
 
         setTreinos(treinosData);
         setAvaliacoes(avaliacoesData);
+        setWorkoutPlan(workoutPlanData);
+        setTrainingProgress(trainingProgressData);
 
         if (!resolvedStudentId) {
           setPlan(null);
+          setWorkoutPlan(null);
+          setTrainingProgress(null);
           return;
         }
 
@@ -137,6 +148,8 @@ export default function AlunoDashboard() {
       } catch (error) {
         console.error('Erro ao carregar area do aluno:', error);
         setPlan(null);
+        setWorkoutPlan(null);
+        setTrainingProgress(null);
         setTreinos([]);
         setAvaliacoes([]);
       } finally {
@@ -179,7 +192,37 @@ export default function AlunoDashboard() {
       label: 'Plano',
       value: plan?.plan_name || 'Sem plano',
     },
+    {
+      label: 'Treino',
+      value: workoutPlan?.name || 'Sem plano de treino',
+    },
   ];
+
+  const handleToggleTreinoCompletion = async (treino: Treino) => {
+    if (!studentId || !user || completingTreinoId) {
+      return;
+    }
+
+    try {
+      setCompletingTreinoId(treino.id);
+      await treinosService.setTreinoCompletion({
+        treinoId: treino.id,
+        completed: !treino.completed_today,
+      });
+
+      const [treinosData, progressData] = await Promise.all([
+        treinosService.fetchTreinos(user.id),
+        treinosService.fetchStudentMonthlyProgress(user.id),
+      ]);
+
+      setTreinos(treinosData);
+      setTrainingProgress(progressData);
+    } catch (error) {
+      console.error('Erro ao atualizar conclusao do treino:', error);
+    } finally {
+      setCompletingTreinoId(null);
+    }
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -304,7 +347,7 @@ export default function AlunoDashboard() {
           </section>
         )}
 
-        <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-4">
           <OverviewCard
             eyebrow="Meu plano"
             title={plan?.plan_name || 'Sem plano ativo'}
@@ -318,6 +361,18 @@ export default function AlunoDashboard() {
           />
 
           <OverviewCard
+            eyebrow="Plano de treino"
+            title={workoutPlan?.name || 'Sem plano'}
+            description={
+              workoutPlan
+                ? `${workoutPlan.weekly_frequency} dias previstos por semana para acompanhar seu progresso.`
+                : 'Assim que a equipe definir seu plano de treino, ele aparecera aqui.'
+            }
+            icon={<Dumbbell size={24} className="text-sky-400" />}
+            accentClassName="bg-gradient-to-r from-sky-500/90 via-sky-400/70 to-transparent"
+          />
+
+          <OverviewCard
             eyebrow="Treinos"
             title={String(treinos.length)}
             description={
@@ -325,8 +380,8 @@ export default function AlunoDashboard() {
                 ? 'Seus programas de treino ficam organizados aqui para consulta rapida.'
                 : 'Seu cadastro ainda precisa ser vinculado para liberar a leitura dos treinos.'
             }
-            icon={<Dumbbell size={24} className="text-sky-400" />}
-            accentClassName="bg-gradient-to-r from-sky-500/90 via-sky-400/70 to-transparent"
+            icon={<ShieldCheck size={24} className="text-emerald-400" />}
+            accentClassName="bg-gradient-to-r from-emerald-500/90 via-emerald-400/70 to-transparent"
           />
 
           <OverviewCard
@@ -417,9 +472,137 @@ export default function AlunoDashboard() {
                       Exercicios: {treino.exercicios?.length || 0}
                     </div>
                   </div>
+
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    {treino.completed_today ? (
+                      <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">
+                        <ShieldCheck size={14} />
+                        Concluido hoje
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">
+                        <Calendar size={14} />
+                        Ainda nao concluido hoje
+                      </span>
+                    )}
+
+                    <button
+                      onClick={() => void handleToggleTreinoCompletion(treino)}
+                      disabled={!studentId || completingTreinoId === treino.id}
+                      className={`inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
+                        treino.completed_today
+                          ? 'border border-rose-500/20 bg-rose-500/10 text-rose-300 hover:bg-rose-500 hover:text-black'
+                          : 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500 hover:text-black'
+                      }`}
+                    >
+                      {completingTreinoId === treino.id ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : treino.completed_today ? (
+                        <XCircle size={16} />
+                      ) : (
+                        <CheckCircle2 size={16} />
+                      )}
+                      {treino.completed_today ? 'Remover conclusao' : 'Marcar como concluido'}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
+          )}
+        </section>
+
+        <section className="rounded-[32px] border border-zinc-800 bg-zinc-950/85 p-6 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)]">
+          <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">
+                Progresso
+              </p>
+              <h2 className="mt-2 text-3xl font-bold text-white">Meu mes de treino</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
+                Acompanhamento mensal com dias treinados, faltas estimadas e treinos concluidos.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-white/6 bg-white/[0.03] p-3 text-emerald-400">
+              <ShieldCheck size={22} />
+            </div>
+          </div>
+
+          {!trainingProgress ? (
+            <EmptyState
+              title="Progresso ainda indisponivel"
+              description="Assim que seu plano de treino estiver vinculado e os treinos forem concluidos, o acompanhamento mensal aparecera aqui."
+              icon={<ShieldCheck size={18} />}
+            />
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+                <OverviewCard
+                  eyebrow="Dias treinados"
+                  title={String(trainingProgress.trained_days)}
+                  description="Dias do mes em que houve ao menos uma conclusao registrada."
+                  icon={<CheckCircle2 size={24} className="text-emerald-400" />}
+                  accentClassName="bg-gradient-to-r from-emerald-500/90 via-emerald-400/70 to-transparent"
+                />
+
+                <OverviewCard
+                  eyebrow="Dias faltados"
+                  title={String(trainingProgress.missed_days)}
+                  description="Faltas estimadas com base na frequencia semanal do plano atual."
+                  icon={<XCircle size={24} className="text-rose-400" />}
+                  accentClassName="bg-gradient-to-r from-rose-500/90 via-rose-400/70 to-transparent"
+                />
+
+                <OverviewCard
+                  eyebrow="Treinos concluidos"
+                  title={String(trainingProgress.completed_workouts_count)}
+                  description="Quantidade total de registros de treino concluidos no mes."
+                  icon={<Dumbbell size={24} className="text-sky-400" />}
+                  accentClassName="bg-gradient-to-r from-sky-500/90 via-sky-400/70 to-transparent"
+                />
+
+                <OverviewCard
+                  eyebrow="Progresso geral"
+                  title={`${trainingProgress.completion_rate}%`}
+                  description="Percentual mensal calculado a partir da previsao do plano de treino."
+                  icon={<Sparkles size={24} className="text-orange-400" />}
+                  accentClassName="bg-gradient-to-r from-orange-500/90 via-orange-400/70 to-transparent"
+                />
+              </div>
+
+              <div className="mt-6 rounded-[26px] border border-zinc-800 bg-black/25 p-5">
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-zinc-500">
+                  Treinos realizados no mes
+                </p>
+
+                {trainingProgress.completed_workouts.length === 0 ? (
+                  <p className="mt-4 text-sm text-zinc-500">
+                    Nenhum treino concluido ainda neste mes.
+                  </p>
+                ) : (
+                  <div className="mt-4 grid gap-3">
+                    {trainingProgress.completed_workouts.map((item, index) => (
+                      <div
+                        key={`${item.treino_id}-${item.completed_on}-${index}`}
+                        className="flex flex-col gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/50 px-4 py-4 md:flex-row md:items-center md:justify-between"
+                      >
+                        <div>
+                          <p className="font-bold text-white">{item.treino_nome}</p>
+                          <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">
+                            treino concluido
+                          </p>
+                        </div>
+
+                        <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-zinc-400">
+                          <Calendar size={14} />
+                          {new Date(item.completed_on).toLocaleDateString('pt-BR')}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </section>
 

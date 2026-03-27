@@ -2,13 +2,25 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Bell, Loader2, LogOut, Menu } from 'lucide-react';
+import { Bell, CalendarDays, Loader2, LogOut, Menu, Sparkles } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import * as dashboardService from '@/services/dashboard.service';
 
 interface HeaderProps {
   title: string;
   onMenuToggle?: () => void;
+}
+
+function getRoleAccent(role: string | null) {
+  if (role === 'admin') {
+    return 'border-orange-500/20 bg-orange-500/10 text-orange-300';
+  }
+
+  if (role === 'professor') {
+    return 'border-sky-500/20 bg-sky-500/10 text-sky-300';
+  }
+
+  return 'border-zinc-800 bg-zinc-900/80 text-zinc-300';
 }
 
 export default function Header({ title, onMenuToggle }: HeaderProps) {
@@ -45,6 +57,7 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
   };
 
   const displayName = profile?.display_name || user?.email?.split('@')[0] || 'Usuario';
+  const firstName = displayName.split(' ')[0];
   const initials = useMemo(
     () =>
       displayName
@@ -56,49 +69,79 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
     [displayName]
   );
 
+  const todayLabel = useMemo(
+    () =>
+      new Intl.DateTimeFormat('pt-BR', {
+        weekday: 'long',
+        day: '2-digit',
+        month: 'long',
+      }).format(new Date()),
+    []
+  );
+
   return (
-    <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-zinc-900 bg-black/80 px-4 backdrop-blur-md md:h-20 md:px-8">
-      <div className="flex items-center gap-3 md:gap-4">
-        {onMenuToggle && (
-          <button
-            onClick={onMenuToggle}
-            className="rounded-lg p-2 text-zinc-400 transition-colors hover:text-orange-500 active:text-orange-400 md:hidden"
-            aria-label="Abrir menu"
-          >
-            <Menu size={24} />
-          </button>
-        )}
+    <header className="sticky top-0 z-30 border-b border-zinc-800/80 bg-black/75 px-4 py-3 backdrop-blur-xl md:px-8 md:py-4">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-3 md:gap-4">
+          {onMenuToggle && (
+            <button
+              onClick={onMenuToggle}
+              className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-2 text-zinc-400 transition-colors hover:text-orange-400 md:hidden"
+              aria-label="Abrir menu"
+            >
+              <Menu size={22} />
+            </button>
+          )}
 
-        <h2 className="truncate text-lg font-bold tracking-tight text-white md:text-2xl">{title}</h2>
-      </div>
-
-      <div className="flex items-center gap-3 md:gap-6">
-        {isAdmin && (
-          <button className="relative p-2 text-zinc-400 transition-colors hover:text-orange-500">
-            {loadingLateCount ? <Loader2 className="animate-spin" size={20} /> : <Bell size={20} />}
-            {lateCount > 0 && (
-              <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full border-2 border-black bg-red-500 text-[10px] font-bold text-white">
-                {lateCount}
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="truncate text-lg font-bold tracking-tight text-white md:text-2xl">
+                {title}
+              </p>
+              <Sparkles size={14} className="hidden text-orange-400 sm:block" />
+            </div>
+            <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-zinc-500">
+              <span className="inline-flex items-center gap-1.5">
+                <CalendarDays size={12} />
+                {todayLabel}
               </span>
-            )}
-          </button>
-        )}
+              <span className={`inline-flex rounded-full border px-2.5 py-1 font-bold uppercase tracking-[0.22em] ${getRoleAccent(role)}`}>
+                {role || 'sem perfil'}
+              </span>
+            </div>
+          </div>
+        </div>
 
-        <div className="hidden items-center gap-4 border-l border-zinc-800 pl-6 md:flex">
-          <div className="text-right">
-            <p className="text-sm font-semibold text-white">{displayName}</p>
-            <p className="text-xs capitalize text-zinc-500">{role || 'Sem perfil'}</p>
+        <div className="flex items-center gap-3">
+          {isAdmin && (
+            <button className="relative rounded-2xl border border-zinc-800 bg-zinc-900/80 p-3 text-zinc-400 transition-colors hover:text-orange-400">
+              {loadingLateCount ? <Loader2 className="animate-spin" size={18} /> : <Bell size={18} />}
+              {lateCount > 0 && (
+                <span className="absolute right-2 top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+                  {lateCount}
+                </span>
+              )}
+            </button>
+          )}
+
+          <div className="hidden items-center gap-3 rounded-[24px] border border-zinc-800 bg-zinc-950/85 px-3 py-2 md:flex">
+            <div className="text-right">
+              <p className="text-sm font-bold text-white">Ola, {firstName}</p>
+              <p className="text-xs text-zinc-500">{user?.email}</p>
+            </div>
+
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 text-sm font-black text-black">
+              {initials}
+            </div>
+
+            <button
+              onClick={handleSignOut}
+              className="rounded-xl p-2 text-zinc-500 transition-colors hover:text-red-400"
+              title="Sair"
+            >
+              <LogOut size={18} />
+            </button>
           </div>
-          <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-zinc-800 bg-gradient-to-br from-orange-400 to-orange-600 font-bold text-black">
-            {initials}
-          </div>
-          <button
-            onClick={handleSignOut}
-            className="p-2 text-zinc-500 transition-colors hover:text-red-500"
-            title="Sair"
-          >
-            <LogOut size={20} />
-          </button>
         </div>
       </div>
     </header>

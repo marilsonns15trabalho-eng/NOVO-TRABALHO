@@ -16,6 +16,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useAnamneses } from '@/hooks/useAnamneses';
 import { useUserRole } from '@/hooks/useUserRole';
 import { Toast } from '@/components/ui';
+import {
+  ModuleHero,
+  ModuleHeroAction,
+  ModuleShell,
+  ModuleStatCard,
+} from '@/components/dashboard/ModulePrimitives';
 
 export default function AnamneseModule() {
   const { isAdmin, isProfessor } = useUserRole();
@@ -38,6 +44,16 @@ export default function AnamneseModule() {
     notification,
     clearNotification,
   } = useAnamneses();
+
+  const totalAnamneses = anamneses.length;
+  const alunosComAnamnese = new Set(
+    anamneses.map((anamnese: any) => anamnese.student_id).filter(Boolean)
+  ).size;
+  const anamnesesNoMes = anamneses.filter((anamnese: any) => {
+    const data = new Date(anamnese.data);
+    const hoje = new Date();
+    return data.getMonth() === hoje.getMonth() && data.getFullYear() === hoje.getFullYear();
+  }).length;
 
   // PDF export (UI-level, no DB)
   const exportToPDF = async (anamnese: any) => {
@@ -114,7 +130,57 @@ export default function AnamneseModule() {
   };
 
   return (
-    <div className="p-8 space-y-8 bg-black min-h-screen text-white">
+    <ModuleShell>
+      <ModuleHero
+        badge="Historico nutricional"
+        title="Anamneses mais claras, melhor organizadas e prontas para consulta"
+        description="Mantenha o historico de saude e habitos alimentares em uma experiencia mais profissional, sem mexer no seu fluxo de cadastro."
+        accent="orange"
+        chips={[
+          { label: 'Anamneses', value: String(totalAnamneses) },
+          { label: 'Alunos com historico', value: String(alunosComAnamnese) },
+          { label: 'No mes', value: String(anamnesesNoMes) },
+          { label: 'Alunos disponiveis', value: String(alunos.length) },
+        ]}
+        actions={
+          canManageRecords ? (
+            <ModuleHeroAction
+              label="Nova anamnese"
+              subtitle="Registrar um novo historico nutricional."
+              icon={Plus}
+              accent="orange"
+              filled
+              onClick={() => setShowAddModal(true)}
+            />
+          ) : undefined
+        }
+      />
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <ModuleStatCard
+          label="Historicos ativos"
+          value={String(totalAnamneses)}
+          detail="Total de registros nutricionais encontrados na area."
+          icon={ClipboardList}
+          accent="orange"
+        />
+        <ModuleStatCard
+          label="Alunos com anamnese"
+          value={String(alunosComAnamnese)}
+          detail="Quantidade de alunos que ja possuem historico preenchido."
+          icon={User}
+          accent="orange"
+        />
+        <ModuleStatCard
+          label="Novos no mes"
+          value={String(anamnesesNoMes)}
+          detail="Registros adicionados no periodo atual."
+          icon={Calendar}
+          accent="orange"
+        />
+      </div>
+
+      <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Anamnese Nutricional</h2>
@@ -640,6 +706,7 @@ export default function AnamneseModule() {
       </AnimatePresence>
 
       <Toast notification={notification} onClose={clearNotification} />
-    </div>
+      </div>
+    </ModuleShell>
   );
 }

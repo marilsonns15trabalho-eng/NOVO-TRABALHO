@@ -99,7 +99,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   return (
-    <div className="flex min-h-screen bg-black font-sans text-white selection:bg-orange-500 selection:text-black">
+    <div className="flex min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.08),_transparent_22%),linear-gradient(180deg,#09090b_0%,#000_100%)] font-sans text-white selection:bg-orange-500 selection:text-black">
       <div className="hidden md:block">
         <Sidebar activeTab={activeId} setActiveTab={handleNavigate} userRole={role} />
       </div>
@@ -118,8 +118,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </main>
 
       {Boolean(profile?.must_change_password) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 px-6 py-10 backdrop-blur-md">
-          <div className="w-full max-w-2xl rounded-3xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/92 px-6 py-10 backdrop-blur-md">
+          <div className="w-full max-w-4xl rounded-[34px] border border-zinc-800 bg-zinc-950 p-4 shadow-[0_40px_120px_-56px_rgba(0,0,0,0.95)]">
             <AccountSecurityForm required compact />
           </div>
         </div>

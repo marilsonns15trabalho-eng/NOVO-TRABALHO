@@ -1,29 +1,215 @@
 'use client';
-import React from 'react';
+
+import React, { useMemo } from 'react';
 import {
-  Dumbbell,
-  Plus,
-  Loader2,
-  Search,
-  Filter,
-  MoreVertical,
   Calendar,
-  User,
-  ArrowLeft,
-  Save,
+  CheckCircle2,
+  Dumbbell,
+  Layers3,
+  Loader2,
+  Plus,
+  Search,
+  Sparkles,
+  UserCheck,
+  Users,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useTreinos } from '@/hooks/useTreinos';
 import { useUserRole } from '@/hooks/useUserRole';
 import { Toast } from '@/components/ui';
-import type { Treino } from '@/types/treino';
+import type { TrainingPlan, Treino } from '@/types/treino';
+
+function SectionTitle({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
+  return (
+    <div>
+      <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">{eyebrow}</p>
+      <h3 className="mt-2 text-3xl font-bold text-white">{title}</h3>
+      <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">{description}</p>
+    </div>
+  );
+}
+
+function MetricCard({
+  label,
+  value,
+  description,
+  accent,
+  icon,
+}: {
+  label: string;
+  value: string;
+  description: string;
+  accent: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="relative overflow-hidden rounded-[28px] border border-zinc-800 bg-zinc-950/85 p-5 shadow-[0_28px_80px_-54px_rgba(0,0,0,0.9)]">
+      <div className={`absolute inset-x-0 top-0 h-px ${accent}`} />
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-zinc-500">{label}</p>
+          <p className="mt-4 text-3xl font-bold tracking-tight text-white">{value}</p>
+        </div>
+        <div className="rounded-2xl border border-white/6 bg-white/[0.03] p-3 text-white">{icon}</div>
+      </div>
+      <p className="mt-6 text-sm leading-6 text-zinc-500">{description}</p>
+    </div>
+  );
+}
+
+function HeroButton({
+  filled = false,
+  onClick,
+  title,
+  description,
+  icon,
+}: {
+  filled?: boolean;
+  onClick: () => void;
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`rounded-[24px] border p-4 text-left transition-all ${
+        filled
+          ? 'border-sky-500/20 bg-sky-500 text-black hover:bg-sky-400'
+          : 'border-zinc-800 bg-zinc-950/80 text-white hover:border-zinc-700 hover:bg-zinc-900'
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className={`text-sm font-bold ${filled ? 'text-black' : 'text-white'}`}>{title}</p>
+          <p className={`mt-1 text-xs leading-5 ${filled ? 'text-black/70' : 'text-zinc-500'}`}>
+            {description}
+          </p>
+        </div>
+        <div className={`rounded-2xl p-3 ${filled ? 'bg-black/10' : 'bg-zinc-900 text-sky-400'}`}>{icon}</div>
+      </div>
+    </button>
+  );
+}
+
+function TrainingPlanCard({
+  plan,
+  onAssignStudents,
+}: {
+  plan: TrainingPlan;
+  onAssignStudents: (plan: TrainingPlan) => void;
+}) {
+  return (
+    <div className="rounded-[28px] border border-zinc-800 bg-zinc-950/85 p-5 shadow-[0_28px_80px_-54px_rgba(0,0,0,0.9)]">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-zinc-500">Plano de treino</p>
+          <h4 className="mt-3 text-2xl font-bold text-white">{plan.name}</h4>
+          <p className="mt-2 text-sm leading-6 text-zinc-500">
+            {plan.description || 'Plano por frequencia semanal, sem geracao automatica.'}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-sky-500/20 bg-sky-500/10 px-4 py-2 text-sm font-bold text-sky-300">
+          {plan.weekly_frequency}x / semana
+        </div>
+      </div>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-4 py-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Alunos</p>
+          <p className="mt-2 text-xl font-bold text-white">{plan.students_count || 0}</p>
+        </div>
+        <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-4 py-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Treinos</p>
+          <p className="mt-2 text-xl font-bold text-white">{plan.treinos_count || 0}</p>
+        </div>
+      </div>
+      <button
+        onClick={() => onAssignStudents(plan)}
+        className="mt-5 inline-flex items-center gap-2 rounded-2xl border border-sky-500/20 bg-sky-500/10 px-4 py-3 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500 hover:text-black"
+      >
+        <Users size={16} />
+        Vincular alunos
+      </button>
+    </div>
+  );
+}
+
+function TreinoCard({
+  treino,
+  canManageRecords,
+  onView,
+  onEdit,
+}: {
+  treino: Treino;
+  canManageRecords: boolean;
+  onView: (treino: Treino) => void;
+  onEdit: (treino: Treino) => void;
+}) {
+  return (
+    <div className="rounded-[28px] border border-zinc-800 bg-zinc-950/85 p-5 shadow-[0_28px_80px_-54px_rgba(0,0,0,0.9)]">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex flex-wrap gap-2">
+            {treino.training_plan?.name ? (
+              <span className="rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-sky-300">
+                {treino.training_plan.name}
+              </span>
+            ) : (
+              <span className="rounded-full border border-zinc-800 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                Vinculo direto
+              </span>
+            )}
+          </div>
+          <h4 className="mt-4 text-2xl font-bold text-white">{treino.nome}</h4>
+          <p className="mt-2 text-sm leading-6 text-zinc-500">
+            {treino.descricao || 'Sem descricao adicional para este treino.'}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2 text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">
+          <span className="rounded-full border border-zinc-800 px-3 py-1.5">{treino.exercicios?.length || 0} exercicios</span>
+          <span className="rounded-full border border-zinc-800 px-3 py-1.5">{treino.assigned_students?.length || 0} alunos</span>
+          <span className="rounded-full border border-zinc-800 px-3 py-1.5">{treino.completions_this_month || 0} concluidos</span>
+        </div>
+      </div>
+      <div className="mt-5 flex flex-wrap gap-3">
+        <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-2 text-xs font-semibold text-zinc-400">
+          <Calendar size={14} />
+          {treino.created_at ? new Date(treino.created_at).toLocaleDateString('pt-BR') : 'Sem data'}
+        </div>
+        <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-2 text-xs font-semibold text-zinc-400">
+          Objetivo: {treino.objetivo || 'Nao informado'}
+        </div>
+      </div>
+      <div className="mt-5 flex flex-wrap gap-2">
+        {(treino.assigned_students || []).slice(0, 4).map((student) => (
+          <span key={`${treino.id}-${student.id}`} className="inline-flex items-center gap-2 rounded-full border border-white/6 bg-white/[0.03] px-3 py-2 text-xs font-semibold text-zinc-300">
+            <Users size={12} />
+            {student.name}
+          </span>
+        ))}
+      </div>
+      <div className="mt-6 flex flex-wrap gap-3">
+        <button onClick={() => onView(treino)} className="rounded-2xl border border-sky-500/20 bg-sky-500/10 px-4 py-3 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500 hover:text-black">
+          Ver detalhes
+        </button>
+        {canManageRecords && (
+          <button onClick={() => onEdit(treino)} className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition-all hover:border-zinc-700">
+            Editar
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function TreinosModule() {
   const { isAdmin, isProfessor } = useUserRole();
   const canManageRecords = isAdmin || isProfessor;
+  const state = useTreinos();
   const {
     treinos,
     alunos,
+    trainingPlans,
     loading,
     searchTerm,
     setSearchTerm,
@@ -37,392 +223,294 @@ export default function TreinosModule() {
     addExercicio,
     removeExercicio,
     updateExercicio,
+    toggleAssignedStudent,
     handleSave,
     viewTreino,
+    startTreinoEdit,
+    openNewTreinoModal,
+    showTrainingPlanModal,
+    setShowTrainingPlanModal,
+    newTrainingPlan,
+    setNewTrainingPlan,
+    handleSaveTrainingPlan,
+    showPlanStudentsModal,
+    setShowPlanStudentsModal,
+    selectedPlanForStudents,
+    selectedPlanStudentIds,
+    openPlanStudentsModal,
+    togglePlanStudent,
+    handleSavePlanStudents,
+    handleCompletionToggle,
     notification,
     clearNotification,
-  } = useTreinos();
+  } = state;
 
-  // PDF — lógica de UI (não acessa banco)
-  const exportToPDF = async (treino: Treino) => {
-    const { default: jsPDF } = await import('jspdf');
-    const { default: autoTable } = await import('jspdf-autotable');
+  const metrics = useMemo(() => {
+    const assignments = treinos.reduce((acc, item) => acc + (item.assigned_students?.length || 0), 0);
+    const completions = treinos.reduce((acc, item) => acc + (item.completions_this_month || 0), 0);
+    return { totalTreinos: treinos.length, totalPlans: trainingPlans.filter((item) => item.active).length, assignments, completions };
+  }, [trainingPlans, treinos]);
 
-    const doc = new jsPDF();
-    const date = new Date().toLocaleDateString('pt-BR');
-
-    doc.setFillColor(59, 130, 246);
-    doc.rect(0, 0, 210, 40, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(22);
-    doc.setFont('helvetica', 'bold');
-    doc.text('FICHA DE TREINO', 105, 20, { align: 'center' });
-    doc.setFontSize(10);
-    doc.text(`Gerado em: ${date}`, 105, 30, { align: 'center' });
-
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(14);
-    doc.text('Informações do Treino', 14, 50);
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Aluno: ${treino.students?.name || 'Não informado'}`, 14, 60);
-    doc.text(`Treino: ${treino.nome}`, 14, 67);
-    doc.text(`Data: ${new Date(treino.created_at).toLocaleDateString('pt-BR')}`, 14, 74);
-    doc.text(`Objetivo: ${treino.objetivo || 'Não informado'}`, 14, 81);
-
-    const tableData = (treino.exercicios || []).map((ex, index) => [
-      index + 1, ex.nome, ex.series, ex.repeticoes, ex.carga || '-', ex.descanso || '-', ex.observacoes || '-'
-    ]);
-
-    (autoTable as any)(doc, {
-      startY: 90,
-      head: [['#', 'Exercício', 'Séries', 'Reps', 'Carga', 'Descanso', 'Obs']],
-      body: tableData,
-      headStyles: { fill: [59, 130, 246], textColor: [255, 255, 255], fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [245, 245, 245] },
-      margin: { top: 90 },
-    });
-
-    const pageCount = (doc as any).internal.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      doc.setFontSize(10);
-      doc.setTextColor(150);
-      doc.text('Sistema de Gestão Fitness - Profissional', 105, 285, { align: 'center' });
-    }
-
-    doc.save(`Treino_${treino.students?.name || 'Aluno'}_${treino.nome}.pdf`);
-  };
+  if (loading) {
+    return <div className="flex min-h-screen items-center justify-center bg-transparent"><Loader2 className="animate-spin text-sky-400" size={46} /></div>;
+  }
 
   return (
-    <div className="p-8 space-y-8 bg-black min-h-screen text-white">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Gestão de Treinos</h2>
-          <p className="text-zinc-500">Crie fichas de treinamento e acompanhe a evolução dos alunos.</p>
-        </div>
-        {canManageRecords && (
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-bold px-6 py-3 rounded-2xl transition-all active:scale-95 shadow-lg shadow-blue-500/20"
-          >
-            <Plus size={20} />
-            Novo Treino
-          </button>
-        )}
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1 group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-hover:text-blue-500 transition-colors" size={20} />
-          <input
-            type="text"
-            placeholder="Buscar por nome do treino ou aluno..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl py-3 pl-12 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
-          />
-        </div>
-        <button className="flex items-center gap-2 px-6 py-3 bg-zinc-900 border border-zinc-800 rounded-2xl text-zinc-400 hover:text-white hover:border-zinc-700 transition-all">
-          <Filter size={20} />
-          Filtros
-        </button>
-      </div>
-
-      <div className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-xl">
-        {loading ? (
-          <div className="p-20 flex flex-col items-center justify-center space-y-4">
-            <Loader2 className="text-blue-500 animate-spin" size={40} />
-            <p className="text-zinc-500 font-medium">Carregando treinos...</p>
+    <div className="min-h-screen space-y-8 bg-transparent p-6 text-white md:p-8">
+      <section className="relative overflow-hidden rounded-[34px] border border-zinc-800 bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.18),_transparent_36%),linear-gradient(135deg,rgba(24,24,27,0.98),rgba(10,10,10,0.98))] p-6 shadow-[0_36px_120px_-60px_rgba(14,165,233,0.38)] md:p-8">
+        <div className="absolute right-0 top-0 h-56 w-56 rounded-full bg-sky-500/10 blur-3xl" />
+        <div className="absolute bottom-0 left-1/4 h-36 w-36 rounded-full bg-violet-500/10 blur-3xl" />
+        <div className="relative flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between">
+          <div className="max-w-3xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/20 bg-sky-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.25em] text-sky-300"><Sparkles size={14} />Sistema de treinos</div>
+            <h2 className="mt-5 text-3xl font-bold leading-tight text-white md:text-5xl">Planos reutilizaveis, vinculos claros e progresso mensal</h2>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-300 md:text-base">Crie treinos manualmente, vincule por plano ou por aluno e acompanhe conclusoes sem geracao automatica.</p>
           </div>
-        ) : treinos.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-zinc-800 bg-zinc-900/50">
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-zinc-500">Nome do Treino</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-zinc-500">Aluno</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-zinc-500">Data de Criação</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-zinc-500 text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800/50">
-                {treinos.map((treino) => (
-                  <tr key={treino.id} className="hover:bg-zinc-800/30 transition-colors group">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 border border-blue-500/20 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                          <Dumbbell size={18} />
-                        </div>
-                        <div>
-                          <p className="font-bold text-white group-hover:text-blue-400 transition-colors">{treino.nome}</p>
-                          <p className="text-xs text-zinc-500 line-clamp-1 max-w-xs">{treino.descricao || 'Sem descrição'}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2 text-sm text-zinc-300">
-                        <User size={14} className="text-zinc-500" />
-                        {treino.students?.name || 'Aluno não encontrado'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2 text-sm text-zinc-400">
-                        <Calendar size={14} className="text-zinc-600" />
-                        {new Date(treino.created_at).toLocaleDateString('pt-BR')}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => viewTreino(treino)}
-                          className="px-4 py-2 bg-zinc-800 hover:bg-blue-500 hover:text-white rounded-xl text-xs font-bold transition-all"
-                        >
-                          Ver Ficha
-                        </button>
-                        <button
-                          onClick={() => exportToPDF(treino)}
-                          className="p-2 text-zinc-500 hover:text-blue-500 hover:bg-blue-500/10 rounded-xl transition-colors"
-                          title="Exportar PDF"
-                        >
-                          <Save size={20} />
-                        </button>
-                        <button className="p-2 text-zinc-500 hover:text-white transition-colors">
-                          <MoreVertical size={20} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          {canManageRecords && (
+            <div className="grid gap-3 sm:grid-cols-2 xl:w-[430px]">
+              <HeroButton filled onClick={() => setShowTrainingPlanModal(true)} title="Novo plano de treino" description="Organize frequencia semanal e alunos vinculados." icon={<Layers3 size={18} />} />
+              <HeroButton onClick={openNewTreinoModal} title="Novo treino" description="Crie e distribua por plano ou por alunos diretos." icon={<Plus size={18} />} />
+            </div>
+          )}
+        </div>
+      </section>
+
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-4">
+        <MetricCard label="Treinos ativos" value={String(metrics.totalTreinos)} description="Biblioteca atual de treinos visiveis." accent="bg-gradient-to-r from-sky-500/90 via-sky-400/70 to-transparent" icon={<Dumbbell size={22} />} />
+        <MetricCard label="Planos de treino" value={String(metrics.totalPlans)} description="Planos organizados por frequencia semanal." accent="bg-gradient-to-r from-violet-500/90 via-violet-400/70 to-transparent" icon={<Layers3 size={22} />} />
+        <MetricCard label="Vinculos" value={String(metrics.assignments)} description="Alunos ligados aos treinos neste momento." accent="bg-gradient-to-r from-orange-500/90 via-orange-400/70 to-transparent" icon={<Users size={22} />} />
+        <MetricCard label="Concluidos no mes" value={String(metrics.completions)} description="Marcacoes registradas no mes atual." accent="bg-gradient-to-r from-emerald-500/90 via-emerald-400/70 to-transparent" icon={<CheckCircle2 size={22} />} />
+      </div>
+
+      <div className="relative group">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 transition-colors group-hover:text-sky-400" size={20} />
+        <input type="text" placeholder="Buscar treino, aluno ou plano..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full rounded-2xl border border-zinc-800 bg-zinc-950 px-12 py-3 text-white transition-all focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30" />
+      </div>
+
+      {canManageRecords && (
+        <section className="space-y-5">
+          <SectionTitle eyebrow="Planos" title="Planos de treino por frequencia" description="Monte planos 2x, 3x, 5x por semana e vincule varios alunos ao mesmo conjunto de treinos." />
+          {trainingPlans.length === 0 ? (
+            <div className="rounded-[26px] border border-dashed border-zinc-800 bg-black/25 px-6 py-7 text-sm text-zinc-500">
+              Nenhum plano de treino criado ainda.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+              {trainingPlans.map((plan) => (
+                <TrainingPlanCard key={plan.id} plan={plan} onAssignStudents={openPlanStudentsModal} />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      <section className="space-y-5">
+        <SectionTitle eyebrow="Treinos" title="Biblioteca e distribuicao" description="Cada treino pode ser individual, compartilhado por plano ou vinculado diretamente a varios alunos." />
+        {treinos.length === 0 ? (
+          <div className="rounded-[26px] border border-dashed border-zinc-800 bg-black/25 px-6 py-7 text-sm text-zinc-500">
+            Nenhum treino cadastrado no momento.
           </div>
         ) : (
-          <div className="p-20 text-center space-y-4">
-            <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto">
-              <Dumbbell className="text-zinc-600" size={32} />
-            </div>
-            <h3 className="text-xl font-bold">Nenhum treino cadastrado</h3>
-            <p className="text-zinc-500">Crie a primeira ficha de treinamento para seus alunos.</p>
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+            {treinos.map((treino) => (
+              <TreinoCard key={treino.id} treino={treino} canManageRecords={canManageRecords} onView={viewTreino} onEdit={startTreinoEdit} />
+            ))}
           </div>
         )}
-      </div>
-
-      {/* Modal Ver Ficha — original AnimatePresence */}
+      </section>
       <AnimatePresence>
-        {showViewModal && selectedTreino && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
-            >
-              <div className="p-6 border-b border-zinc-800 flex items-center justify-between shrink-0 bg-zinc-900/50">
-                <div>
-                  <h3 className="text-xl font-bold text-white">{selectedTreino.nome}</h3>
-                  <p className="text-sm text-zinc-500">Aluno: {selectedTreino.students?.name}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => exportToPDF(selectedTreino)}
-                    className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-bold px-4 py-2 rounded-xl transition-all active:scale-95 shadow-lg shadow-blue-500/20"
-                  >
-                    <Save size={18} />
-                    PDF
-                  </button>
-                  <button
-                    onClick={() => setShowViewModal(false)}
-                    className="p-2 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-xl transition-colors"
-                  >
-                    <ArrowLeft size={20} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-6 overflow-y-auto space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-black/40 p-4 rounded-2xl border border-zinc-800">
-                    <p className="text-xs text-zinc-500 uppercase font-bold mb-1">Duração</p>
-                    <p className="text-white">{selectedTreino.duracao_minutos} min</p>
-                  </div>
-                  <div className="bg-black/40 p-4 rounded-2xl border border-zinc-800">
-                    <p className="text-xs text-zinc-500 uppercase font-bold mb-1">Nível</p>
-                    <p className="text-white">{selectedTreino.nivel || '-'}</p>
-                  </div>
-                  <div className="bg-black/40 p-4 rounded-2xl border border-zinc-800">
-                    <p className="text-xs text-zinc-500 uppercase font-bold mb-1">Objetivo</p>
-                    <p className="text-white">{selectedTreino.objetivo || '-'}</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="text-lg font-bold text-blue-500 flex items-center gap-2">
-                    <Dumbbell size={20} />
-                    Exercícios
-                  </h4>
-                  <div className="space-y-3">
-                    {(selectedTreino.exercicios || []).map((ex, idx) => (
-                      <div key={idx} className="bg-zinc-800/30 border border-zinc-800 p-4 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="flex-1">
-                          <p className="font-bold text-white text-lg">{ex.nome}</p>
-                          <p className="text-sm text-zinc-500">{ex.observacoes || 'Sem observações'}</p>
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 shrink-0">
-                          <div className="text-center">
-                            <p className="text-[10px] text-zinc-500 uppercase font-bold">Séries</p>
-                            <p className="text-blue-500 font-bold">{ex.series}</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-[10px] text-zinc-500 uppercase font-bold">Reps</p>
-                            <p className="text-blue-500 font-bold">{ex.repeticoes}</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-[10px] text-zinc-500 uppercase font-bold">Carga</p>
-                            <p className="text-white font-bold">{ex.carga || '-'}</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-[10px] text-zinc-500 uppercase font-bold">Descanso</p>
-                            <p className="text-white font-bold">{ex.descanso || '-'}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-
-        {/* Modal Criação — original AnimatePresence com form inline */}
-        {canManageRecords && showAddModal && (
+        {showTrainingPlanModal && canManageRecords && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setShowAddModal(false)}
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative bg-zinc-900 border border-zinc-800 rounded-3xl p-8 w-full max-w-4xl shadow-2xl max-h-[90vh] overflow-y-auto"
-            >
-              <h3 className="text-2xl font-bold mb-6">Nova Ficha de Treino</h3>
-              <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Aluno *</label>
-                    <select required value={newTreino.student_id || ''} onChange={(e) => setNewTreino({...newTreino, student_id: e.target.value})} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all">
-                      <option value="" disabled>Selecione um aluno</option>
-                      {alunos.map(aluno => (
-                        <option key={aluno.id} value={aluno.id}>{aluno.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Nome do Treino *</label>
-                    <input required type="text" value={newTreino.nome || ''} onChange={(e) => setNewTreino({...newTreino, nome: e.target.value})} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all" placeholder="Ex: Treino A - Hipertrofia" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Objetivo</label>
-                    <input type="text" value={newTreino.objetivo || ''} onChange={(e) => setNewTreino({...newTreino, objetivo: e.target.value})} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all" placeholder="Ex: Hipertrofia" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Nível</label>
-                    <select value={newTreino.nivel || 'Iniciante'} onChange={(e) => setNewTreino({...newTreino, nivel: e.target.value})} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all">
-                      <option value="Iniciante">Iniciante</option>
-                      <option value="Intermediário">Intermediário</option>
-                      <option value="Avançado">Avançado</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Duração (minutos)</label>
-                    <input type="number" min="1" value={newTreino.duracao_minutos || 60} onChange={(e) => setNewTreino({...newTreino, duracao_minutos: parseInt(e.target.value)})} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all" />
-                  </div>
-                  <div className="space-y-1.5 flex items-center gap-2 mt-6">
-                    <input type="checkbox" id="ativo" checked={newTreino.ativo !== false} onChange={(e) => setNewTreino({...newTreino, ativo: e.target.checked})} className="w-5 h-5 rounded bg-black border-zinc-800 text-blue-500 focus:ring-blue-500/50" />
-                    <label htmlFor="ativo" className="text-sm font-bold text-zinc-400 cursor-pointer">Treino Ativo</label>
-                  </div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowTrainingPlanModal(false)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.96, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0, y: 20 }} className="relative w-full max-w-2xl rounded-[30px] border border-zinc-800 bg-zinc-950 p-8 shadow-2xl">
+              <SectionTitle eyebrow="Novo plano" title="Plano de treino" description="Defina nome, frequencia semanal e proposta do plano." />
+              <form onSubmit={(e) => { e.preventDefault(); void handleSaveTrainingPlan(); }} className="mt-6 space-y-5">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <input value={newTrainingPlan.name} onChange={(e) => setNewTrainingPlan((c) => ({ ...c, name: e.target.value }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Nome do plano" />
+                  <input type="number" min="1" max="7" value={newTrainingPlan.weekly_frequency} onChange={(e) => setNewTrainingPlan((c) => ({ ...c, weekly_frequency: Number(e.target.value) || 1 }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Frequencia semanal" />
                 </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Descrição / Observações Gerais</label>
-                  <textarea rows={3} value={newTreino.descricao || ''} onChange={(e) => setNewTreino({...newTreino, descricao: e.target.value})} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all resize-none" placeholder="Foco na cadência, descanso de 60s..." />
-                </div>
-
-                <div className="border-t border-zinc-800 pt-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-lg font-bold text-blue-500">Exercícios</h4>
-                    <button
-                      type="button"
-                      onClick={addExercicio}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white rounded-xl text-sm font-bold transition-all"
-                    >
-                      <Plus size={16} />
-                      Adicionar Exercício
-                    </button>
-                  </div>
-
-                  <div className="space-y-4">
-                    {(newTreino.exercicios || []).map((exercicio, index) => (
-                      <div key={index} className="p-4 bg-black border border-zinc-800 rounded-2xl relative group">
-                        <button
-                          type="button"
-                          onClick={() => removeExercicio(index)}
-                          className="absolute top-4 right-4 text-zinc-500 hover:text-red-500 transition-colors"
-                        >
-                          Remover
-                        </button>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pr-12">
-                          <div className="space-y-1.5 md:col-span-2">
-                            <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Nome do Exercício *</label>
-                            <input required type="text" value={exercicio.nome} onChange={(e) => updateExercicio(index, 'nome', e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all" placeholder="Ex: Supino Reto" />
-                          </div>
-                          <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Grupo Muscular</label>
-                            <input type="text" value={exercicio.grupo_muscular || ''} onChange={(e) => updateExercicio(index, 'grupo_muscular', e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all" placeholder="Ex: Peito" />
-                          </div>
-                          <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Séries *</label>
-                            <input required type="number" min="1" value={exercicio.series} onChange={(e) => updateExercicio(index, 'series', parseInt(e.target.value))} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all" />
-                          </div>
-                          <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Repetições *</label>
-                            <input required type="text" value={exercicio.repeticoes} onChange={(e) => updateExercicio(index, 'repeticoes', e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all" placeholder="Ex: 10-12 ou Até a falha" />
-                          </div>
-                          <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Carga</label>
-                            <input type="text" value={exercicio.carga || ''} onChange={(e) => updateExercicio(index, 'carga', e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all" placeholder="Ex: 20kg" />
-                          </div>
-                          <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Descanso</label>
-                            <input type="text" value={exercicio.descanso || ''} onChange={(e) => updateExercicio(index, 'descanso', e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all" placeholder="Ex: 60s" />
-                          </div>
-                          <div className="space-y-1.5 md:col-span-2">
-                            <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Observações</label>
-                            <input type="text" value={exercicio.observacoes || ''} onChange={(e) => updateExercicio(index, 'observacoes', e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all" placeholder="Ex: Focar na excêntrica" />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    {(!newTreino.exercicios || newTreino.exercicios.length === 0) && (
-                      <div className="text-center py-8 text-zinc-500 border border-dashed border-zinc-800 rounded-2xl">
-                        Nenhum exercício adicionado. Clique no botão acima para adicionar.
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-4 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-2xl transition-all">Cancelar</button>
-                  <button type="submit" className="flex-1 py-4 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-2xl transition-all shadow-lg shadow-blue-500/20">Salvar Treino</button>
+                <textarea rows={4} value={newTrainingPlan.description} onChange={(e) => setNewTrainingPlan((c) => ({ ...c, description: e.target.value }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Descricao do plano" />
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => setShowTrainingPlanModal(false)} className="flex-1 rounded-2xl bg-zinc-800 px-4 py-4 font-bold text-white transition-all hover:bg-zinc-700">Cancelar</button>
+                  <button type="submit" className="flex-1 rounded-2xl bg-sky-500 px-4 py-4 font-bold text-black transition-all hover:bg-sky-400">Salvar plano</button>
                 </div>
               </form>
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
 
+        {showPlanStudentsModal && selectedPlanForStudents && canManageRecords && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowPlanStudentsModal(false)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.96, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0, y: 20 }} className="relative w-full max-w-3xl rounded-[30px] border border-zinc-800 bg-zinc-950 p-8 shadow-2xl">
+              <SectionTitle eyebrow="Vinculacao" title={selectedPlanForStudents.name} description="Escolha os alunos que participam deste plano de treino." />
+              <div className="mt-6 grid max-h-[420px] gap-3 overflow-y-auto pr-2">
+                {alunos.map((aluno) => {
+                  const checked = selectedPlanStudentIds.includes(aluno.id);
+                  return (
+                    <button key={aluno.id} type="button" onClick={() => togglePlanStudent(aluno.id)} className={`flex items-center justify-between rounded-2xl border px-4 py-4 text-left transition-all ${checked ? 'border-sky-500/20 bg-sky-500/10 text-white' : 'border-zinc-800 bg-black/25 text-zinc-300 hover:border-zinc-700'}`}>
+                      <div>
+                        <p className="font-bold">{aluno.name}</p>
+                        <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">aluno do plano</p>
+                      </div>
+                      {checked ? <CheckCircle2 size={18} className="text-sky-300" /> : <UserCheck size={18} className="text-zinc-500" />}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-6 flex gap-3">
+                <button type="button" onClick={() => setShowPlanStudentsModal(false)} className="flex-1 rounded-2xl bg-zinc-800 px-4 py-4 font-bold text-white transition-all hover:bg-zinc-700">Cancelar</button>
+                <button type="button" onClick={() => void handleSavePlanStudents()} className="flex-1 rounded-2xl bg-sky-500 px-4 py-4 font-bold text-black transition-all hover:bg-sky-400">Salvar vinculacao</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {showAddModal && canManageRecords && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAddModal(false)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.96, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0, y: 20 }} className="relative w-full max-w-5xl rounded-[30px] border border-zinc-800 bg-zinc-950 p-8 shadow-2xl max-h-[92vh] overflow-y-auto">
+              <SectionTitle eyebrow="Treino" title={selectedTreino ? 'Editar treino' : 'Novo treino'} description="Monte o treino manualmente e vincule por plano ou por alunos diretos." />
+              <form onSubmit={(e) => { e.preventDefault(); void handleSave(); }} className="mt-6 space-y-6">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <input value={newTreino.nome || ''} onChange={(e) => setNewTreino((c) => ({ ...c, nome: e.target.value }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Nome do treino" />
+                  <select value={newTreino.training_plan_id || ''} onChange={(e) => setNewTreino((c) => ({ ...c, training_plan_id: e.target.value }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30">
+                    <option value="">Sem plano especifico</option>
+                    {trainingPlans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} ({plan.weekly_frequency}x/semana)</option>)}
+                  </select>
+                  <input value={newTreino.objetivo || ''} onChange={(e) => setNewTreino((c) => ({ ...c, objetivo: e.target.value }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Objetivo" />
+                  <select value={newTreino.nivel || 'iniciante'} onChange={(e) => setNewTreino((c) => ({ ...c, nivel: e.target.value }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30">
+                    <option value="iniciante">Iniciante</option>
+                    <option value="intermediario">Intermediario</option>
+                    <option value="avancado">Avancado</option>
+                  </select>
+                  <input type="number" min="1" value={newTreino.duracao_minutos || 60} onChange={(e) => setNewTreino((c) => ({ ...c, duracao_minutos: Number(e.target.value) || 60 }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Duracao em minutos" />
+                  <input type="number" min="0" value={newTreino.sort_order || 0} onChange={(e) => setNewTreino((c) => ({ ...c, sort_order: Number(e.target.value) || 0 }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Ordem no plano" />
+                </div>
+
+                <textarea rows={4} value={newTreino.descricao || ''} onChange={(e) => setNewTreino((c) => ({ ...c, descricao: e.target.value }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Descricao do treino" />
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">Alunos vinculados diretamente</p>
+                      <p className="mt-1 text-sm text-zinc-500">Opcional. O treino tambem pode ser liberado apenas pelo plano.</p>
+                    </div>
+                    <div className="rounded-full border border-white/6 bg-white/[0.03] px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-zinc-400">{(newTreino.assigned_student_ids || []).length} selecionados</div>
+                  </div>
+                  <div className="grid max-h-[220px] gap-3 overflow-y-auto rounded-[24px] border border-zinc-800 bg-black/20 p-4 md:grid-cols-2">
+                    {alunos.map((aluno) => {
+                      const checked = (newTreino.assigned_student_ids || []).includes(aluno.id);
+                      return (
+                        <button key={aluno.id} type="button" onClick={() => toggleAssignedStudent(aluno.id)} className={`flex items-center justify-between rounded-2xl border px-4 py-4 text-left transition-all ${checked ? 'border-sky-500/20 bg-sky-500/10 text-white' : 'border-zinc-800 bg-black/25 text-zinc-300 hover:border-zinc-700'}`}>
+                          <span className="font-bold">{aluno.name}</span>
+                          {checked ? <CheckCircle2 size={16} className="text-sky-300" /> : <Users size={16} className="text-zinc-500" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="space-y-4 rounded-[24px] border border-zinc-800 bg-black/20 p-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">Exercicios</p>
+                      <p className="mt-1 text-sm text-zinc-500">Monte a estrutura manual do treino.</p>
+                    </div>
+                    <button type="button" onClick={addExercicio} className="inline-flex items-center gap-2 rounded-2xl border border-sky-500/20 bg-sky-500/10 px-4 py-3 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500 hover:text-black"><Plus size={16} />Adicionar</button>
+                  </div>
+                  <div className="space-y-4">
+                    {(newTreino.exercicios || []).map((exercicio, index) => (
+                      <div key={`${index}-${exercicio.nome}`} className="rounded-[22px] border border-zinc-800 bg-zinc-950/70 p-4">
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                          <input value={exercicio.nome} onChange={(e) => updateExercicio(index, 'nome', e.target.value)} className="rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30 md:col-span-2" placeholder="Nome do exercicio" />
+                          <input value={exercicio.grupo_muscular || ''} onChange={(e) => updateExercicio(index, 'grupo_muscular', e.target.value)} className="rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Grupo muscular" />
+                          <input type="number" min="1" value={exercicio.series} onChange={(e) => updateExercicio(index, 'series', Number(e.target.value) || 1)} className="rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Series" />
+                          <input value={exercicio.repeticoes} onChange={(e) => updateExercicio(index, 'repeticoes', e.target.value)} className="rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Repeticoes" />
+                          <input value={exercicio.carga || ''} onChange={(e) => updateExercicio(index, 'carga', e.target.value)} className="rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Carga" />
+                          <input value={exercicio.descanso || ''} onChange={(e) => updateExercicio(index, 'descanso', e.target.value)} className="rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Descanso" />
+                          <input value={exercicio.observacoes || ''} onChange={(e) => updateExercicio(index, 'observacoes', e.target.value)} className="rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30 md:col-span-2" placeholder="Observacoes" />
+                          <button type="button" onClick={() => removeExercicio(index)} className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm font-bold text-rose-300 transition-all hover:bg-rose-500 hover:text-black">Remover</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 rounded-2xl bg-zinc-800 px-4 py-4 font-bold text-white transition-all hover:bg-zinc-700">Cancelar</button>
+                  <button type="submit" className="flex-1 rounded-2xl bg-sky-500 px-4 py-4 font-bold text-black transition-all hover:bg-sky-400">Salvar treino</button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+        {showViewModal && selectedTreino && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowViewModal(false)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.96, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0, y: 20 }} className="relative w-full max-w-4xl rounded-[30px] border border-zinc-800 bg-zinc-950 p-8 shadow-2xl max-h-[92vh] overflow-y-auto">
+              <SectionTitle eyebrow="Detalhes do treino" title={selectedTreino.nome} description={selectedTreino.training_plan?.name ? `Plano: ${selectedTreino.training_plan.name}` : 'Treino com distribuicao direta para alunos especificos.'} />
+              <div className="mt-6 grid gap-4 md:grid-cols-3">
+                <div className="rounded-2xl border border-zinc-800 bg-black/25 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Objetivo</p><p className="mt-2 text-lg font-bold text-white">{selectedTreino.objetivo || '-'}</p></div>
+                <div className="rounded-2xl border border-zinc-800 bg-black/25 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Nivel</p><p className="mt-2 text-lg font-bold text-white">{selectedTreino.nivel || '-'}</p></div>
+                <div className="rounded-2xl border border-zinc-800 bg-black/25 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Duracao</p><p className="mt-2 text-lg font-bold text-white">{selectedTreino.duracao_minutos || 0} min</p></div>
+              </div>
+
+              <div className="mt-8 space-y-4">
+                <SectionTitle eyebrow="Alunos ligados" title="Distribuicao atual" description="Cada aluno pode concluir o treino por conta propria ou a equipe pode registrar a conclusao." />
+                {(selectedTreino.assigned_students || []).length === 0 ? (
+                  <div className="rounded-[24px] border border-dashed border-zinc-800 bg-black/20 px-5 py-6 text-sm text-zinc-500">Este treino ainda nao foi vinculado a nenhum aluno nem a um plano com alunos ativos.</div>
+                ) : (
+                  <div className="grid gap-3">
+                    {(selectedTreino.assigned_students || []).map((student) => (
+                      <div key={`${selectedTreino.id}-${student.id}`} className="flex flex-col gap-4 rounded-[24px] border border-zinc-800 bg-black/25 p-4 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <p className="font-bold text-white">{student.name}</p>
+                          <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">origem: {student.assignment_source === 'plan' ? 'plano' : student.assignment_source === 'direct' ? 'direto' : 'legado'}</p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3">
+                          {student.completed_today ? (
+                            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-emerald-300"><CheckCircle2 size={14} />Concluido hoje</span>
+                          ) : (
+                            <span className="inline-flex items-center gap-2 rounded-full border border-zinc-800 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-zinc-500"><Calendar size={14} />Ainda nao concluido</span>
+                          )}
+                          {canManageRecords && (
+                            <button onClick={() => void handleCompletionToggle(selectedTreino.id, student.id, !student.completed_today)} className={`rounded-2xl px-4 py-3 text-sm font-bold transition-all ${student.completed_today ? 'border border-rose-500/20 bg-rose-500/10 text-rose-300 hover:bg-rose-500 hover:text-black' : 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500 hover:text-black'}`}>
+                              {student.completed_today ? 'Remover conclusao' : 'Marcar concluido'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-8 space-y-4">
+                <SectionTitle eyebrow="Estrutura" title="Exercicios do treino" description="Sequencia montada manualmente para execucao do aluno." />
+                <div className="grid gap-4">
+                  {(selectedTreino.exercicios || []).map((exercicio, index) => (
+                    <div key={`${selectedTreino.id}-${index}`} className="rounded-[24px] border border-zinc-800 bg-black/25 p-4">
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                          <p className="text-lg font-bold text-white">{exercicio.nome}</p>
+                          <p className="mt-2 text-sm text-zinc-500">{exercicio.observacoes || 'Sem observacoes adicionais.'}</p>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-4">
+                          <div className="rounded-2xl border border-white/5 bg-white/[0.03] px-4 py-3"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Series</p><p className="mt-2 text-lg font-bold text-white">{exercicio.series}</p></div>
+                          <div className="rounded-2xl border border-white/5 bg-white/[0.03] px-4 py-3"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Repeticoes</p><p className="mt-2 text-lg font-bold text-white">{exercicio.repeticoes}</p></div>
+                          <div className="rounded-2xl border border-white/5 bg-white/[0.03] px-4 py-3"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Carga</p><p className="mt-2 text-lg font-bold text-white">{exercicio.carga || '-'}</p></div>
+                          <div className="rounded-2xl border border-white/5 bg-white/[0.03] px-4 py-3"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Descanso</p><p className="mt-2 text-lg font-bold text-white">{exercicio.descanso || '-'}</p></div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
       <Toast notification={notification} onClose={clearNotification} />
     </div>
   );

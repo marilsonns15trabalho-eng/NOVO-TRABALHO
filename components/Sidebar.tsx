@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronRight, LogOut } from 'lucide-react';
+import { ChevronRight, LogOut, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAuth } from '@/hooks/useAuth';
 import { getMenuItemsForRole } from '@/lib/navigation';
@@ -14,10 +14,48 @@ interface SidebarProps {
   userRole: UserRole;
 }
 
+function getRoleAccent(userRole: UserRole) {
+  if (userRole === 'admin') {
+    return {
+      pill: 'border-orange-500/20 bg-orange-500/10 text-orange-300',
+      icon: 'from-orange-400 to-orange-600',
+      glow: 'shadow-[0_24px_80px_-52px_rgba(249,115,22,0.45)]',
+    };
+  }
+
+  if (userRole === 'professor') {
+    return {
+      pill: 'border-sky-500/20 bg-sky-500/10 text-sky-300',
+      icon: 'from-sky-400 to-blue-600',
+      glow: 'shadow-[0_24px_80px_-52px_rgba(56,189,248,0.38)]',
+    };
+  }
+
+  return {
+    pill: 'border-zinc-700 bg-zinc-800/80 text-zinc-300',
+    icon: 'from-zinc-300 to-zinc-500',
+    glow: 'shadow-[0_24px_80px_-52px_rgba(113,113,122,0.3)]',
+  };
+}
+
 export default function Sidebar({ activeTab, setActiveTab, userRole }: SidebarProps) {
   const { user, profile, signOut } = useAuth();
   const router = useRouter();
   const menuItems = getMenuItemsForRole(userRole);
+
+  const accent = useMemo(() => getRoleAccent(userRole), [userRole]);
+
+  const displayName = profile?.display_name || user?.email?.split('@')[0] || 'Usuario';
+  const initials = useMemo(
+    () =>
+      displayName
+        .split(' ')
+        .map((part) => part[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase(),
+    [displayName]
+  );
 
   const handleSignOut = async () => {
     await signOut();
@@ -25,20 +63,34 @@ export default function Sidebar({ activeTab, setActiveTab, userRole }: SidebarPr
   };
 
   return (
-    <div className="sticky top-0 flex h-screen w-64 flex-col border-r border-zinc-800 bg-zinc-950">
-      <div className="border-b border-zinc-800 p-6">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-500 text-2xl font-bold text-black">
-            L
-          </div>
-          <div>
-            <h1 className="text-lg font-bold leading-tight text-white">LIONESS</h1>
-            <p className="text-xs font-semibold uppercase tracking-widest text-orange-500">Prime</p>
+    <aside className="sticky top-0 flex h-screen w-[290px] flex-col border-r border-zinc-800/80 bg-[linear-gradient(180deg,rgba(17,17,19,0.98),rgba(5,5,6,0.98))] backdrop-blur-xl">
+      <div className="border-b border-zinc-800/80 px-5 py-6">
+        <div className={`rounded-[28px] border border-zinc-800 bg-zinc-950/90 p-5 ${accent.glow}`}>
+          <div className="flex items-start gap-4">
+            <div
+              className={`flex h-14 w-14 items-center justify-center rounded-[22px] bg-gradient-to-br ${accent.icon} text-3xl font-black text-black`}
+            >
+              L
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <h1 className="truncate text-lg font-bold tracking-tight text-white">LIONESS PRIME</h1>
+                <Sparkles size={14} className="text-orange-400" />
+              </div>
+              <p className="mt-1 text-xs uppercase tracking-[0.28em] text-zinc-500">
+                Personal Studio
+              </p>
+
+              <div className={`mt-4 inline-flex rounded-full border px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.22em] ${accent.pill}`}>
+                {userRole}
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <nav className="flex-1 space-y-2 overflow-y-auto px-4 py-6">
+      <nav className="flex-1 space-y-2 overflow-y-auto px-4 py-5">
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -47,63 +99,75 @@ export default function Sidebar({ activeTab, setActiveTab, userRole }: SidebarPr
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`group flex w-full items-center justify-between rounded-xl px-4 py-3 transition-all duration-200 ${
+              className={`group relative flex w-full items-center justify-between overflow-hidden rounded-2xl px-4 py-3.5 text-left transition-all duration-200 ${
                 isActive
-                  ? 'bg-orange-500 text-black shadow-lg shadow-orange-500/20'
-                  : 'text-zinc-400 hover:bg-zinc-900 hover:text-white'
+                  ? 'border border-white/8 bg-white/[0.06] text-white shadow-[0_24px_70px_-48px_rgba(255,255,255,0.14)]'
+                  : 'border border-transparent text-zinc-400 hover:border-zinc-800 hover:bg-zinc-900/70 hover:text-white'
               }`}
             >
-              <div className="flex items-center gap-3">
-                <Icon
-                  size={20}
-                  className={isActive ? 'text-black' : 'text-zinc-500 group-hover:text-orange-500'}
-                />
-                <span className="font-medium">{item.label}</span>
-              </div>
-              {isActive ? (
-                <motion.div layoutId="active-indicator" className="h-1.5 w-1.5 rounded-full bg-black" />
-              ) : (
-                <ChevronRight
-                  size={16}
-                  className="text-zinc-600 opacity-0 transition-opacity group-hover:opacity-100"
+              {isActive && (
+                <motion.div
+                  layoutId="sidebar-active-pill"
+                  className="absolute inset-y-2 left-2 w-1 rounded-full bg-orange-500"
                 />
               )}
+
+              <div className="flex items-center gap-3 pl-2">
+                <div
+                  className={`rounded-xl p-2 transition-all ${
+                    isActive
+                      ? 'bg-orange-500 text-black'
+                      : 'bg-zinc-900 text-zinc-500 group-hover:bg-zinc-800 group-hover:text-orange-400'
+                  }`}
+                >
+                  <Icon size={18} />
+                </div>
+
+                <div>
+                  <p className="font-semibold">{item.label}</p>
+                  <p className="text-[11px] uppercase tracking-[0.24em] text-zinc-600">
+                    Area
+                  </p>
+                </div>
+              </div>
+
+              <ChevronRight
+                size={16}
+                className={`transition-all ${
+                  isActive
+                    ? 'translate-x-0 text-white'
+                    : 'translate-x-1 text-zinc-700 opacity-0 group-hover:translate-x-0 group-hover:opacity-100'
+                }`}
+              />
             </button>
           );
         })}
       </nav>
 
-      <div className="space-y-3 border-t border-zinc-800 p-4">
+      <div className="border-t border-zinc-800/80 p-4">
         {user && (
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
-            <p className="truncate text-sm font-bold text-white">
-              {profile?.display_name || user.email?.split('@')[0] || 'Usuario'}
-            </p>
-            <p className="truncate text-xs text-zinc-500">{user.email}</p>
-            <div className="mt-2">
-              <span
-                className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${
-                  userRole === 'admin'
-                    ? 'bg-orange-500/10 text-orange-500'
-                    : userRole === 'professor'
-                      ? 'bg-blue-500/10 text-blue-500'
-                      : 'bg-zinc-800 text-zinc-400'
-                }`}
-              >
-                {userRole}
-              </span>
+          <div className="rounded-[26px] border border-zinc-800 bg-zinc-950/80 p-4">
+            <div className="flex items-center gap-3">
+              <div className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${accent.icon} text-sm font-black text-black`}>
+                {initials}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold text-white">{displayName}</p>
+                <p className="truncate text-xs text-zinc-500">{user.email}</p>
+              </div>
             </div>
+
+            <button
+              onClick={handleSignOut}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-zinc-400 transition-all hover:border-red-500/20 hover:bg-red-500/10 hover:text-red-400"
+            >
+              <LogOut size={16} />
+              Sair
+            </button>
           </div>
         )}
-
-        <button
-          onClick={handleSignOut}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-zinc-500 transition-all hover:border-red-500/20 hover:bg-red-500/10 hover:text-red-500"
-        >
-          <LogOut size={16} />
-          Sair
-        </button>
       </div>
-    </div>
+    </aside>
   );
 }

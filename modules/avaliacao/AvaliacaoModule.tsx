@@ -6,13 +6,11 @@ import {
   Loader2,
   Search,
   Filter,
-  MoreVertical,
   Calendar,
   User,
   Scale,
   Ruler,
   TrendingUp,
-  BarChart as BarChartIcon,
   Download,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -31,8 +29,15 @@ import {
   Cell,
 } from 'recharts';
 import { Toast } from '@/components/ui';
+import {
+  ModuleHero,
+  ModuleHeroAction,
+  ModuleShell,
+  ModuleStatCard,
+} from '@/components/dashboard/ModulePrimitives';
 
 import { calcularBiometria } from '@/lib/biometrics';
+import { exportAvaliacaoPdf } from '@/lib/pdf/exportAvaliacaoPdf';
 
 export default function AvaliacaoModule() {
   const { isAdmin, isProfessor } = useUserRole();
@@ -174,8 +179,76 @@ export default function AvaliacaoModule() {
     (a.nome || '').toLowerCase().includes((alunoSearch || '').toLowerCase())
   );
 
+  const totalAvaliacoes = filteredAvaliacoes.length;
+  const alunosAvaliados = new Set(
+    filteredAvaliacoes.map((avaliacao: any) => avaliacao.student_id).filter(Boolean)
+  ).size;
+  const avaliacoesNoMes = filteredAvaliacoes.filter((avaliacao: any) => {
+    const data = new Date(avaliacao.data);
+    const hoje = new Date();
+    return data.getMonth() === hoje.getMonth() && data.getFullYear() === hoje.getFullYear();
+  }).length;
+
   return (
-    <div className="p-8 space-y-8 bg-black min-h-screen text-white">
+    <ModuleShell>
+      <ModuleHero
+        badge="Leitura corporal"
+        title="Avaliacoes fisicas com leitura mais profissional e relatorio melhor apresentado"
+        description="Organize historico corporal, acompanhe evolucao e gere PDF com uma camada visual mais premium para equipe e alunas."
+        accent="rose"
+        chips={[
+          { label: 'Avaliacoes', value: String(totalAvaliacoes) },
+          { label: 'Alunos avaliados', value: String(alunosAvaliados) },
+          { label: 'No mes', value: String(avaliacoesNoMes) },
+          { label: 'Alunos disponiveis', value: String(alunos.length) },
+        ]}
+        actions={
+          canManageRecords ? (
+            <>
+              <ModuleHeroAction
+                label="Nova avaliacao"
+                subtitle="Registrar medidas corporais e atualizar historico."
+                icon={Plus}
+                accent="rose"
+                filled
+                onClick={handleOpenNovaAvaliacao}
+              />
+              <ModuleHeroAction
+                label="Relatorio PDF"
+                subtitle="Exportacao visual mais profissional e objetiva."
+                icon={Download}
+                accent="rose"
+              />
+            </>
+          ) : undefined
+        }
+      />
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <ModuleStatCard
+          label="Historico corporal"
+          value={String(totalAvaliacoes)}
+          detail="Total de avaliacoes carregadas com os filtros atuais."
+          icon={Activity}
+          accent="rose"
+        />
+        <ModuleStatCard
+          label="Alunos avaliados"
+          value={String(alunosAvaliados)}
+          detail="Quantidade de alunos que ja possuem registro fisico."
+          icon={User}
+          accent="rose"
+        />
+        <ModuleStatCard
+          label="Atualizacao mensal"
+          value={String(avaliacoesNoMes)}
+          detail="Avaliacoes registradas no mes corrente."
+          icon={TrendingUp}
+          accent="rose"
+        />
+      </div>
+
+      <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Avaliação Física</h2>
@@ -639,6 +712,7 @@ export default function AvaliacaoModule() {
       </AnimatePresence>
 
       <Toast notification={notification} onClose={clearNotification} />
-    </div>
+      </div>
+    </ModuleShell>
   );
 }

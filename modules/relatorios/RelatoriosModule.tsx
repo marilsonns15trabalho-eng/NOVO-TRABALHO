@@ -2,17 +2,24 @@
 
 import React, { useEffect, useState } from 'react';
 import {
+  Activity,
   BarChart3,
+  DollarSign,
+  Download,
+  FileText,
+  Loader2,
   TrendingUp,
   Users,
-  DollarSign,
-  FileText,
-  Activity,
-  Loader2,
-  Download,
 } from 'lucide-react';
-import { motion } from 'motion/react';
 import * as dashboardService from '@/services/dashboard.service';
+import {
+  ModuleHero,
+  ModuleHeroAction,
+  ModuleShell,
+  ModuleStatCard,
+  ModuleSurface,
+  ModuleSectionHeading,
+} from '@/components/dashboard/ModulePrimitives';
 
 export default function RelatoriosModule() {
   const [loading, setLoading] = useState(true);
@@ -87,16 +94,16 @@ export default function RelatoriosModule() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black p-8">
-        <Loader2 className="animate-spin text-orange-500" size={40} />
+      <div className="flex min-h-screen items-center justify-center bg-transparent p-8">
+        <Loader2 className="animate-spin text-emerald-400" size={40} />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black p-8 text-white">
-        <div className="w-full max-w-xl rounded-3xl border border-zinc-800 bg-zinc-900 p-8 text-center">
+      <div className="flex min-h-screen items-center justify-center bg-transparent p-8 text-white">
+        <div className="w-full max-w-xl rounded-[32px] border border-zinc-800 bg-zinc-950 p-8 text-center shadow-[0_36px_120px_-64px_rgba(0,0,0,0.95)]">
           <h3 className="mb-3 text-2xl font-bold">Falha ao carregar relatorios</h3>
           <p className="text-sm text-zinc-400">{error}</p>
         </div>
@@ -105,140 +112,123 @@ export default function RelatoriosModule() {
   }
 
   return (
-    <div className="min-h-screen space-y-8 bg-black p-8 text-white">
-      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Relatorios Mensais</h2>
-          <p className="text-zinc-500">Acompanhe as metricas e o desempenho do seu estudio.</p>
-        </div>
-        <button
-          onClick={exportToCSV}
-          disabled={exporting}
-          className="flex items-center gap-2 rounded-2xl bg-emerald-500 px-6 py-3 font-bold text-black transition-all disabled:opacity-50 hover:bg-emerald-600"
-        >
-          {exporting ? <Loader2 className="animate-spin" size={20} /> : <Download size={20} />}
-          Exportar CSV
-        </button>
+    <ModuleShell>
+      <ModuleHero
+        badge="Relatorios executivos"
+        title="Metricas do estudio com leitura mais clara para decisao rapida"
+        description="Acompanhe o pulso comercial e operacional do negocio sem precisar montar planilhas paralelas."
+        accent="emerald"
+        chips={[
+          { label: 'Receitas', value: formatCurrency(metrics.receitas) },
+          { label: 'Despesas', value: formatCurrency(metrics.despesas) },
+          { label: 'Saldo', value: formatCurrency(metrics.saldo) },
+          { label: 'Inadimplentes', value: String(metrics.inadimplentes) },
+        ]}
+        actions={
+          <>
+            <ModuleHeroAction
+              label="Exportar CSV"
+              subtitle="Levar o consolidado financeiro para fora do sistema."
+              icon={Download}
+              accent="emerald"
+              filled
+              onClick={exportToCSV}
+              disabled={exporting}
+            />
+            <ModuleHeroAction
+              label="Visao gerencial"
+              subtitle="Conferir carteira, documentos pendentes e ritmo do mes."
+              icon={BarChart3}
+              accent="emerald"
+            />
+          </>
+        }
+      />
+
+      <div className="grid gap-4 lg:grid-cols-4">
+        <ModuleStatCard
+          label="Receitas do mes"
+          value={formatCurrency(metrics.receitas)}
+          detail="Entradas financeiras confirmadas no periodo atual."
+          icon={TrendingUp}
+          accent="emerald"
+        />
+        <ModuleStatCard
+          label="Despesas do mes"
+          value={formatCurrency(metrics.despesas)}
+          detail="Saidas registradas e consideradas na leitura mensal."
+          icon={DollarSign}
+          accent="rose"
+        />
+        <ModuleStatCard
+          label="Saldo liquido"
+          value={formatCurrency(metrics.saldo)}
+          detail="Resultado financeiro consolidado das operacoes do periodo."
+          icon={BarChart3}
+          accent="amber"
+        />
+        <ModuleStatCard
+          label="Total de alunos"
+          value={String(metrics.totalAlunos)}
+          detail="Base atual de alunos considerada no consolidado."
+          icon={Users}
+          accent="sky"
+        />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6"
-        >
-          <div className="mb-4 flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500">
-              <TrendingUp size={24} />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-zinc-400">Receitas do Mes</p>
-              <h3 className="text-2xl font-bold text-white">{formatCurrency(metrics.receitas)}</h3>
-            </div>
-          </div>
-        </motion.div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <ModuleSurface className="space-y-6">
+          <ModuleSectionHeading
+            eyebrow="Carteira"
+            title="Metricas de alunos"
+            description="Indicadores essenciais de base, ativacao e inadimplencia."
+          />
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6"
-        >
-          <div className="mb-4 flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500/10 text-red-500">
-              <DollarSign size={24} />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-zinc-400">Despesas do Mes</p>
-              <h3 className="text-2xl font-bold text-white">{formatCurrency(metrics.despesas)}</h3>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6"
-        >
-          <div className="mb-4 flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-500/10 text-orange-500">
-              <BarChart3 size={24} />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-zinc-400">Saldo Liquido</p>
-              <h3 className="text-2xl font-bold text-white">{formatCurrency(metrics.saldo)}</h3>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6"
-        >
-          <div className="mb-4 flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-500">
-              <Users size={24} />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-zinc-400">Total de Alunos</p>
-              <h3 className="text-2xl font-bold text-white">{metrics.totalAlunos}</h3>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6">
-          <h3 className="mb-6 flex items-center gap-2 text-xl font-bold text-white">
-            <Users className="text-orange-500" />
-            Metricas de Alunos
-          </h3>
           <div className="space-y-4">
-            <div className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-black p-4">
-              <span className="text-zinc-400">Alunos Ativos</span>
-              <span className="font-bold text-emerald-500">{metrics.alunosAtivos}</span>
+            <div className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-black/40 p-4">
+              <span className="text-zinc-400">Alunos ativos</span>
+              <span className="font-bold text-emerald-400">{metrics.alunosAtivos}</span>
             </div>
-            <div className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-black p-4">
-              <span className="text-zinc-400">Alunos Inativos</span>
-              <span className="font-bold text-red-500">{metrics.alunosInativos}</span>
+            <div className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-black/40 p-4">
+              <span className="text-zinc-400">Alunos inativos</span>
+              <span className="font-bold text-rose-400">{metrics.alunosInativos}</span>
             </div>
-            <div className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-black p-4">
-              <span className="text-zinc-400">Novos Alunos (Mes)</span>
-              <span className="font-bold text-blue-500">+{metrics.novosAlunos}</span>
+            <div className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-black/40 p-4">
+              <span className="text-zinc-400">Novos alunos no mes</span>
+              <span className="font-bold text-sky-400">+{metrics.novosAlunos}</span>
             </div>
-            <div className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-black p-4">
+            <div className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-black/40 p-4">
               <span className="text-zinc-400">Inadimplentes</span>
-              <span className="font-bold text-orange-500">{metrics.inadimplentes}</span>
+              <span className="font-bold text-amber-300">{metrics.inadimplentes}</span>
             </div>
           </div>
-        </div>
+        </ModuleSurface>
 
-        <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6">
-          <h3 className="mb-6 flex items-center gap-2 text-xl font-bold text-white">
-            <FileText className="text-orange-500" />
-            Documentacoes
-          </h3>
+        <ModuleSurface className="space-y-6">
+          <ModuleSectionHeading
+            eyebrow="Documentacao"
+            title="Pendencias operacionais"
+            description="Itens que ainda pedem acao da equipe antes de concluir o ciclo do aluno."
+          />
+
           <div className="space-y-4">
-            <div className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-black p-4">
+            <div className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-black/40 p-4">
               <div className="flex items-center gap-3">
                 <FileText className="text-zinc-500" size={20} />
-                <span className="text-zinc-400">Anamneses Pendentes</span>
+                <span className="text-zinc-400">Anamneses pendentes</span>
               </div>
               <span className="font-bold text-white">{metrics.anamnesesPendentes}</span>
             </div>
-            <div className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-black p-4">
+            <div className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-black/40 p-4">
               <div className="flex items-center gap-3">
                 <Activity className="text-zinc-500" size={20} />
-                <span className="text-zinc-400">Avaliacoes Pendentes</span>
+                <span className="text-zinc-400">Avaliacoes pendentes</span>
               </div>
               <span className="font-bold text-white">{metrics.avaliacoesPendentes}</span>
             </div>
           </div>
-        </div>
+        </ModuleSurface>
       </div>
-    </div>
+    </ModuleShell>
   );
 }
