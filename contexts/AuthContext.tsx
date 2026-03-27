@@ -53,6 +53,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const CACHE_KEY = (userId: string) => `profile_cache_${userId}`;
 const CACHE_TTL = 1000 * 60 * 10;
+const PROFILE_SYNC_COOLDOWN_MS = 1000 * 60;
 
 function isValidRole(value: unknown): value is UserRole {
   return value === 'admin' || value === 'professor' || value === 'aluno';
@@ -160,6 +161,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const latestRequestRef = useRef(0);
   const currentUserIdRef = useRef<string | null>(null);
+  const lastProfileSyncRef = useRef<Record<string, number>>({});
+  const profileRef = useRef<UserProfile | null>(null);
 
   const clearUserCaches = useCallback((userId: string) => {
     clearProfileCache(userId);
@@ -180,6 +183,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthError(null);
   }, []);
 
+  useEffect(() => {
+    profileRef.current = profile;
+  }, [profile]);
+
   const syncProfileForUser = useCallback(
     async (currentUser: User) => {
       const requestId = latestRequestRef.current + 1;
@@ -193,17 +200,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       try {
         let syncedProfile: UserProfile | null = null;
+        const lastSyncAt = lastProfileSyncRef.current[currentUser.id] ?? 0;
+        const shouldUseNetworkSync =
+          !cachedProfile || Date.now() - lastSyncAt >= PROFILE_SYNC_COOLDOWN_MS;
 
-        try {
-          const safeProfile = await getUserProfileSafe();
-          if (safeProfile?.id === currentUser.id) {
-            syncedProfile = normalizeProfile(safeProfile);
+        if (shouldUseNetworkSync) {
+          try {
+            const safeProfile = await getUserProfileSafe();
+            if (safeProfile?.id === currentUser.id) {
+              syncedProfile = normalizeProfile(safeProfile);
+            }
+          } catch (error) {
+            console.warn('Falha ao buscar profile seguro:', error);
+            if (!cachedProfile) {
+              setAuthError('Nao foi possivel carregar seu perfil de acesso. Faca login novamente.');
+            }
           }
-        } catch (error) {
-          console.warn('Falha ao buscar profile seguro:', error);
-          if (!cachedProfile) {
-            setAuthError('Nao foi possivel carregar seu perfil de acesso. Faca login novamente.');
-          }
+        } else {
+          syncedProfile = cachedProfile;
         }
 
         if (latestRequestRef.current !== requestId || currentUserIdRef.current !== currentUser.id) {
@@ -219,6 +233,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         saveProfileCache(syncedProfile);
+        lastProfileSyncRef.current[currentUser.id] = Date.now();
         setProfile(syncedProfile);
         setAuthError(null);
       } finally {
@@ -265,7 +280,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    } = supabase.auth.onAuthStateChange((event, newSession) => {
       if (!active) return;
 
       if (!newSession?.user) {
@@ -273,6 +288,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (previousUserId) clearUserCaches(previousUserId);
         latestRequestRef.current += 1;
         resetAuthState();
+        setLoadingSession(false);
+        return;
+      }
+
+      const isSameUser = currentUserIdRef.current === newSession.user.id;
+      const alreadyHydratedProfile =
+        isSameUser && !!profileRef.current && profileRef.current.id === newSession.user.id;
+
+      if (event === 'TOKEN_REFRESHED' && alreadyHydratedProfile) {
+        setSession(newSession);
+        setUser(newSession.user);
         setLoadingSession(false);
         return;
       }

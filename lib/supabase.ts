@@ -22,6 +22,8 @@ export interface SafeUserProfile {
   role: string;
   display_name: string | null;
   created_at: string | null;
+  is_super_admin?: boolean | null;
+  must_change_password?: boolean | null;
 }
 
 type SafeSupabaseResponse<T> = {
@@ -30,6 +32,7 @@ type SafeSupabaseResponse<T> = {
 };
 
 let refreshSessionPromise: Promise<Session | null> | null = null;
+const PROFILE_RPC_NAME = 'get_my_profile';
 
 /** Segundos antes do fim da validade do access token em que ja forcamos refresh (rede + relogio). */
 const SESSION_REFRESH_LEEWAY_SEC = 120;
@@ -164,9 +167,23 @@ export async function getUserProfileSafe(): Promise<SafeUserProfile | null> {
   if (!session) return null;
 
   try {
+    const { data: rpcData, error: rpcError } = await supabase.rpc(PROFILE_RPC_NAME);
+
+    if (!rpcError) {
+      const profile = Array.isArray(rpcData) ? (rpcData[0] ?? null) : rpcData;
+      if (!profile) return null;
+      return profile as SafeUserProfile;
+    }
+
+    // Compatibilidade com ambientes ainda sem a RPC aplicada.
+    if (rpcError.code !== 'PGRST202' && rpcError.code !== '42883') {
+      console.error('ERRO SUPABASE:', rpcError);
+      throw rpcError;
+    }
+
     const { data, error } = await supabase
       .from('user_profiles')
-      .select('id, role, display_name, created_at')
+      .select('id, role, display_name, created_at, is_super_admin, must_change_password')
       .eq('id', session.user.id)
       .maybeSingle();
 
