@@ -45,5 +45,5 @@ export function pickTodayWorkout(treinos: Treino[], referenceDate = new Date()):
       return a.nome.localeCompare(b.nome);
     });
 
-  return scheduled[0] ?? treinos.find((treino) => treino.ativo !== false) ?? null;
+  return scheduled[0] ?? null;
 }

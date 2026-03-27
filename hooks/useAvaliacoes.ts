@@ -4,11 +4,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotification } from '@/hooks/useNotification';
 import * as avaliacoesService from '@/services/avaliacoes.service';
+import { getLocalDateInputValue } from '@/lib/date';
 import type { Avaliacao, AvaliacaoAlunoItem, AvaliacaoFormData } from '@/types/avaliacao';
 
 function createDefaultAvaliacaoForm(): AvaliacaoFormData {
   return {
-    data: new Date().toISOString().split('T')[0],
+    data: getLocalDateInputValue(),
     peso: 0,
     altura: 0,
     protocolo: 'faulkner',

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotification } from '@/hooks/useNotification';
 import * as anamnesesService from '@/services/anamneses.service';
+import { getLocalDateInputValue } from '@/lib/date';
 import type { AlunoListItem } from '@/types/common';
 import type { Anamnese, AnamneseFormData } from '@/types/anamnese';
 
@@ -21,7 +22,7 @@ export function useAnamneses() {
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedAnamnese, setSelectedAnamnese] = useState<Anamnese | null>(null);
   const [newAnamnese, setNewAnamnese] = useState<AnamneseFormData>({
-    data: new Date().toISOString().split('T')[0],
+    data: getLocalDateInputValue(),
   });
 
   const loadData = useCallback(async () => {
@@ -80,7 +81,7 @@ export function useAnamneses() {
       await anamnesesService.createAnamnese(newAnamnese);
       showNotification('Anamnese salva com sucesso!', 'success');
       setShowAddModal(false);
-      setNewAnamnese({ data: new Date().toISOString().split('T')[0] });
+      setNewAnamnese({ data: getLocalDateInputValue() });
       await loadData();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Erro ao salvar anamnese.';

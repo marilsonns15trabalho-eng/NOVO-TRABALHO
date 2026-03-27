@@ -1,5 +1,6 @@
 import { supabase, getAuthenticatedUser } from '@/lib/supabase';
 import { TABLES } from '@/lib/constants';
+import { extractDateOnly } from '@/lib/date';
 import { mapStudentToAlunoListItem, normalizeStudentRelation } from '@/lib/mappers';
 import { findStudentIdByLinkedAuthUserId, resolveStudentIdForWrite } from '@/lib/student-access';
 import type { Anamnese, AnamneseFormData } from '@/types/anamnese';
@@ -63,7 +64,11 @@ export async function createAnamnese(data: AnamneseFormData): Promise<void> {
 
   const { error } = await supabase
     .from(TABLES.ANAMNESES)
-    .insert([{ ...data, student_id: studentId }]);
+    .insert([{
+      ...data,
+      student_id: studentId,
+      data: extractDateOnly(data.data) || data.data,
+    }]);
 
   if (error) throw error;
 }

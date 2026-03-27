@@ -1,3 +1,5 @@
+import { extractDateOnly, formatDatePtBr } from '@/lib/date';
+
 type PdfAvaliacao = {
   data: string;
   peso?: number | null;
@@ -53,7 +55,7 @@ export async function exportAvaliacaoPdf(avaliacao: PdfAvaliacao) {
   doc.setFontSize(20);
   doc.text('RELATORIO DE AVALIACAO FISICA', 14, 22);
   doc.setFontSize(9);
-  doc.text(new Date(avaliacao.data).toLocaleDateString('pt-BR'), pageWidth - 14, 22, {
+  doc.text(formatDatePtBr(avaliacao.data), pageWidth - 14, 22, {
     align: 'right',
   });
 
@@ -146,5 +148,5 @@ export async function exportAvaliacaoPdf(avaliacao: PdfAvaliacao) {
   doc.setTextColor(107, 114, 128);
   doc.text('Documento gerado pelo sistema Lioness.', pageWidth / 2, 286, { align: 'center' });
 
-  doc.save(`Avaliacao_${studentName.replace(/\s+/g, '_')}_${avaliacao.data}.pdf`);
+  doc.save(`Avaliacao_${studentName.replace(/\s+/g, '_')}_${extractDateOnly(avaliacao.data) || avaliacao.data}.pdf`);
 }

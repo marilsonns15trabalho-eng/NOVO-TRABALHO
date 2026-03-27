@@ -1,5 +1,6 @@
 import { getAuthenticatedUser, supabase } from '@/lib/supabase';
 import { TABLES } from '@/lib/constants';
+import { getLocalDateInputValue } from '@/lib/date';
 import { mapStudentToListItem } from '@/lib/mappers';
 import { findStudentIdByLinkedAuthUserId } from '@/lib/student-access';
 import { assertCanManageStudentDataForUserId } from '@/lib/authz';
@@ -66,8 +67,8 @@ function monthBounds(referenceDate = new Date()) {
       : end;
 
   return {
-    start: start.toISOString().split('T')[0],
-    end: end.toISOString().split('T')[0],
+    start: getLocalDateInputValue(start),
+    end: getLocalDateInputValue(end),
     effectiveEnd,
     totalDaysInMonth: end.getDate(),
   };
@@ -84,13 +85,13 @@ function weekBounds(referenceDate = new Date()) {
   end.setDate(start.getDate() + 6);
 
   return {
-    start: start.toISOString().split('T')[0],
-    end: end.toISOString().split('T')[0],
+    start: getLocalDateInputValue(start),
+    end: getLocalDateInputValue(end),
   };
 }
 
 function isoDate(value: Date) {
-  return value.toISOString().split('T')[0];
+  return getLocalDateInputValue(value);
 }
 
 function assertNoTreinoError(label: string, error: { message?: string } | null) {
@@ -272,10 +273,11 @@ function mapTreinoRow(
     currentExecution?: TreinoExecutionSession | null;
   },
 ): Treino {
+  const todayKey = getLocalDateInputValue();
   const completionLogs = options?.completionLogs || [];
   const completionsTodayKeys = new Set(
     completionLogs
-      .filter((log) => log.completed_on === new Date().toISOString().split('T')[0])
+      .filter((log) => log.completed_on === todayKey)
       .map((log) => log.student_id),
   );
 
@@ -315,7 +317,7 @@ function mapTreinoRow(
     ),
     completion_logs: completionLogs,
     completed_today: completionLogs.some(
-      (log) => log.completed_on === new Date().toISOString().split('T')[0],
+      (log) => log.completed_on === todayKey,
     ),
     completions_this_month: completionLogs.length,
     current_execution: options?.currentExecution ?? null,
@@ -968,12 +970,13 @@ export async function syncStudentsToTrainingPlan(
 ): Promise<void> {
   const user = await getAuthenticatedUser();
   await assertCanManageStudentDataForUserId(user.id);
+  const todayKey = getLocalDateInputValue();
 
   const uniqueStudentIds = Array.from(new Set(studentIds.filter(Boolean)));
 
   const { error: deactivateError } = await supabase
     .from(TABLES.STUDENT_TRAINING_PLANS)
-    .update({ active: false, end_date: new Date().toISOString().split('T')[0] })
+    .update({ active: false, end_date: todayKey })
     .eq('training_plan_id', trainingPlanId)
     .eq('active', true);
 
@@ -982,7 +985,7 @@ export async function syncStudentsToTrainingPlan(
   for (const studentId of uniqueStudentIds) {
     const { error: clearCurrentError } = await supabase
       .from(TABLES.STUDENT_TRAINING_PLANS)
-      .update({ active: false, end_date: new Date().toISOString().split('T')[0] })
+      .update({ active: false, end_date: todayKey })
       .eq('student_id', studentId)
       .eq('active', true);
 
@@ -995,7 +998,7 @@ export async function syncStudentsToTrainingPlan(
           student_id: studentId,
           training_plan_id: trainingPlanId,
           active: true,
-          start_date: new Date().toISOString().split('T')[0],
+          start_date: todayKey,
           created_by_auth_user_id: user.id,
         },
       ]);
@@ -1359,7 +1362,7 @@ export async function setTreinoCompletion(params: {
     throw new Error('Aluno vinculado nao encontrado.');
   }
 
-  const completedOn = params.completedOn || new Date().toISOString().split('T')[0];
+  const completedOn = params.completedOn || getLocalDateInputValue();
 
   if (params.completed) {
     const completionSource = isOwnStudent === effectiveStudentId ? 'student' : 'staff';

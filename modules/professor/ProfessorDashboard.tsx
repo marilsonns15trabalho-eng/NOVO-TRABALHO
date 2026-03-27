@@ -19,6 +19,7 @@ import {
   fetchProfessorDashboardData,
   type ProfessorDashboardData,
 } from '@/services/professorDashboard.service';
+import { formatDatePtBr } from '@/lib/date';
 
 interface ProfessorDashboardProps {
   onNavigate: (id: string) => void;
@@ -355,7 +356,7 @@ export default function ProfessorDashboard({ onNavigate }: ProfessorDashboardPro
                     <div>
                       <p className="text-sm font-bold text-white">{avaliacao.students?.nome || 'Aluno'}</p>
                       <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">
-                        {avaliacao.data ? new Date(avaliacao.data).toLocaleDateString('pt-BR') : '-'}
+                        {avaliacao.data ? formatDatePtBr(avaliacao.data) : '-'}
                       </p>
                     </div>
 

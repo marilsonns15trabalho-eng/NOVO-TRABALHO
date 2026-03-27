@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { TABLES } from '@/lib/constants';
+import { extractDateOnly, getLocalDateInputValue } from '@/lib/date';
 
 export interface DashboardStats {
   totalAlunos: number;
@@ -35,9 +36,19 @@ function assertNoQueryError(label: string, error: { message?: string } | null) {
   }
 }
 
+function matchesMonthAndYear(value: string | null | undefined, month: number, year: number) {
+  const dateOnly = extractDateOnly(value);
+  if (!dateOnly) {
+    return false;
+  }
+
+  const [itemYear, itemMonth] = dateOnly.split('-').map(Number);
+  return itemYear === year && itemMonth === month + 1;
+}
+
 export async function fetchDashboardData() {
   const now = new Date();
-  const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const firstDayOfMonth = getLocalDateInputValue(new Date(now.getFullYear(), now.getMonth(), 1));
 
   const [
     alunosResult,
@@ -76,7 +87,7 @@ export async function fetchDashboardData() {
       .from(TABLES.BILLS)
       .select('id, amount, due_date, students(name, phone)')
       .eq('status', 'pending')
-      .gte('due_date', now.toISOString().split('T')[0])
+      .gte('due_date', getLocalDateInputValue())
       .order('due_date', { ascending: true })
       .limit(5),
   ]);
@@ -129,8 +140,7 @@ export async function fetchDashboardData() {
     const total =
       allFinanceiro
         .filter((f: any) => {
-          const d = new Date(f.data_vencimento);
-          return d.getMonth() === m.monthNum && d.getFullYear() === m.year && f.status === 'pago';
+          return matchesMonthAndYear(f.data_vencimento, m.monthNum, m.year) && f.status === 'pago';
         })
         .reduce((acc: number, curr: any) => acc + curr.valor, 0) || 0;
 
@@ -141,10 +151,8 @@ export async function fetchDashboardData() {
   const receitaLastMonth =
     allFinanceiro
       .filter((f: any) => {
-        const d = new Date(f.data_vencimento);
         return (
-          d.getMonth() === lastMonth.getMonth() &&
-          d.getFullYear() === lastMonth.getFullYear() &&
+          matchesMonthAndYear(f.data_vencimento, lastMonth.getMonth(), lastMonth.getFullYear()) &&
           f.status === 'pago'
         );
       })
@@ -235,20 +243,16 @@ export async function fetchRelatoriosMetrics() {
 
   const financeiro = financeiroResult.data || [];
   const receitasMes = financeiro.filter((p: any) => {
-    const d = new Date(p.data_vencimento);
     return (
-      d.getMonth() === currentMonth &&
-      d.getFullYear() === currentYear &&
+      matchesMonthAndYear(p.data_vencimento, currentMonth, currentYear) &&
       p.tipo === 'receita' &&
       p.status === 'pago'
     );
   });
 
   const despesasMes = financeiro.filter((p: any) => {
-    const d = new Date(p.data_vencimento);
     return (
-      d.getMonth() === currentMonth &&
-      d.getFullYear() === currentYear &&
+      matchesMonthAndYear(p.data_vencimento, currentMonth, currentYear) &&
       p.tipo === 'despesa' &&
       p.status === 'pago'
     );

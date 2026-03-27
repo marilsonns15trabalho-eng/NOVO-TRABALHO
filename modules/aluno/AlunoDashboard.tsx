@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { formatDatePtBr } from '@/lib/date';
 import { supabase } from '@/lib/supabase';
 import AccountSecurityForm from '@/components/account/AccountSecurityForm';
 import { formatTrainingDay, pickTodayWorkout } from '@/lib/training';
@@ -124,6 +125,47 @@ function SnapshotCard({ label, value, icon, accentClassName }: SnapshotCardProps
         </div>
       </div>
     </div>
+  );
+}
+
+interface StudentNavItemProps {
+  label: string;
+  helper: string;
+  icon: React.ReactNode;
+  active: boolean;
+  onClick: () => void;
+}
+
+function StudentNavItem({
+  label,
+  helper,
+  icon,
+  active,
+  onClick,
+}: StudentNavItemProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full rounded-[22px] border px-4 py-4 text-left transition-all ${
+        active
+          ? 'border-orange-500/30 bg-orange-500/10 text-white'
+          : 'border-zinc-800 bg-black/20 text-zinc-300 hover:border-zinc-700 hover:bg-zinc-900/70'
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-bold">{label}</p>
+          <p className={`mt-1 text-xs leading-5 ${active ? 'text-orange-100/80' : 'text-zinc-500'}`}>
+            {helper}
+          </p>
+        </div>
+
+        <div className={`rounded-2xl p-3 ${active ? 'bg-orange-500/15 text-orange-300' : 'bg-zinc-900 text-zinc-400'}`}>
+          {icon}
+        </div>
+      </div>
+    </button>
   );
 }
 
@@ -464,7 +506,59 @@ export default function AlunoDashboard() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl space-y-8 px-4 py-6 md:px-6 md:py-8">
+      <div className="mx-auto flex max-w-7xl gap-6 px-4 py-6 md:px-6 md:py-8">
+        <aside className="hidden w-[290px] shrink-0 md:block">
+          <div className="sticky top-6 space-y-4">
+            <div className="rounded-[30px] border border-zinc-800 bg-zinc-950/90 p-5 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)]">
+              <div className="flex items-start gap-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-[22px] bg-gradient-to-br from-orange-400 to-orange-600 text-3xl font-black text-black">
+                  L
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h2 className="truncate text-lg font-bold text-white">LIONESS PRIME</h2>
+                  <p className="mt-1 text-[11px] uppercase tracking-[0.28em] text-zinc-500">
+                    Painel do aluno
+                  </p>
+                  <div className="mt-4 inline-flex rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.22em] text-orange-300">
+                    aluno
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-[30px] border border-zinc-800 bg-zinc-950/85 p-3 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)]">
+              <div className="space-y-3">
+                {sectionItems.map((item) => (
+                  <StudentNavItem
+                    key={item.key}
+                    label={item.label}
+                    helper={item.helper}
+                    icon={item.icon}
+                    active={activeSection === item.key}
+                    onClick={() => setActiveSection(item.key)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-[30px] border border-zinc-800 bg-zinc-950/85 p-4 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)]">
+              <p className="truncate text-sm font-bold text-white">
+                {profile?.display_name || user?.email?.split('@')[0] || 'Aluno'}
+              </p>
+              <p className="mt-1 truncate text-xs text-zinc-500">{user?.email}</p>
+
+              <button
+                onClick={handleSignOut}
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-zinc-400 transition-all hover:border-red-500/20 hover:bg-red-500/10 hover:text-red-400"
+              >
+                <LogOut size={16} />
+                Sair
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        <div className="min-w-0 flex-1 space-y-8">
         <section data-lioness-hero className="relative overflow-hidden rounded-[28px] border border-zinc-800 bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.16),_transparent_36%),linear-gradient(135deg,rgba(24,24,27,0.98),rgba(10,10,10,0.98))] p-5 shadow-[0_36px_120px_-60px_rgba(249,115,22,0.42)] md:rounded-[34px] md:p-8">
           <div className="absolute right-0 top-0 h-56 w-56 rounded-full bg-orange-500/10 blur-3xl" />
           <div className="absolute bottom-0 left-1/3 h-40 w-40 rounded-full bg-purple-500/10 blur-3xl" />
@@ -510,34 +604,18 @@ export default function AlunoDashboard() {
           </div>
         </section>
 
-        <section className="rounded-[28px] border border-zinc-800 bg-zinc-950/85 p-3 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)]">
+        <section className="rounded-[28px] border border-zinc-800 bg-zinc-950/85 p-3 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)] md:hidden">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {sectionItems.map((item) => {
-              const isActive = activeSection === item.key;
               return (
-                <button
+                <StudentNavItem
                   key={item.key}
-                  type="button"
+                  label={item.label}
+                  helper={item.helper}
+                  icon={item.icon}
+                  active={activeSection === item.key}
                   onClick={() => setActiveSection(item.key)}
-                  className={`rounded-[22px] border px-4 py-4 text-left transition-all ${
-                    isActive
-                      ? 'border-orange-500/30 bg-orange-500/10 text-white'
-                      : 'border-zinc-800 bg-black/20 text-zinc-300 hover:border-zinc-700 hover:bg-zinc-900/70'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-bold">{item.label}</p>
-                      <p className={`mt-1 text-xs leading-5 ${isActive ? 'text-orange-100/80' : 'text-zinc-500'}`}>
-                        {item.helper}
-                      </p>
-                    </div>
-
-                    <div className={`rounded-2xl p-3 ${isActive ? 'bg-orange-500/15 text-orange-300' : 'bg-zinc-900 text-zinc-400'}`}>
-                      {item.icon}
-                    </div>
-                  </div>
-                </button>
+                />
               );
             })}
           </div>
@@ -654,7 +732,7 @@ export default function AlunoDashboard() {
 
                         <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-zinc-400">
                           <Calendar size={14} />
-                          {new Date(item.completed_on).toLocaleDateString('pt-BR')}
+                          {formatDatePtBr(item.completed_on)}
                         </div>
                       </div>
                     ))}
@@ -694,7 +772,7 @@ export default function AlunoDashboard() {
             eyebrow="Ultima avaliacao"
             title={
               latestAvaliacao?.data
-                ? new Date(latestAvaliacao.data).toLocaleDateString('pt-BR')
+                ? formatDatePtBr(latestAvaliacao.data)
                 : 'Sem registro'
             }
             description={
@@ -856,7 +934,7 @@ export default function AlunoDashboard() {
                     <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-2 text-xs font-semibold text-zinc-400">
                       <Calendar size={14} />
                       {treino.created_at
-                        ? new Date(treino.created_at).toLocaleDateString('pt-BR')
+                        ? formatDatePtBr(treino.created_at)
                         : 'Sem data'}
                     </div>
 
@@ -963,7 +1041,7 @@ export default function AlunoDashboard() {
                     <div>
                       <p className="text-lg font-bold text-white">
                         {avaliacao.data
-                          ? new Date(avaliacao.data).toLocaleDateString('pt-BR')
+                          ? formatDatePtBr(avaliacao.data)
                           : 'Sem data'}
                       </p>
                       <p className="mt-1 text-xs uppercase tracking-[0.22em] text-zinc-500">
@@ -1055,6 +1133,7 @@ export default function AlunoDashboard() {
             </section>
           </section>
         )}
+        </div>
       </div>
 
       {executionSession && executionTreino && (

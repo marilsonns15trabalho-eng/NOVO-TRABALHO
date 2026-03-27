@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useAnamneses } from '@/hooks/useAnamneses';
 import { useUserRole } from '@/hooks/useUserRole';
 import { Toast } from '@/components/ui';
+import { formatDatePtBr, isSameMonthDate } from '@/lib/date';
 import {
   ModuleHero,
   ModuleHeroAction,
@@ -49,11 +50,7 @@ export default function AnamneseModule() {
   const alunosComAnamnese = new Set(
     anamneses.map((anamnese: any) => anamnese.student_id).filter(Boolean)
   ).size;
-  const anamnesesNoMes = anamneses.filter((anamnese: any) => {
-    const data = new Date(anamnese.data);
-    const hoje = new Date();
-    return data.getMonth() === hoje.getMonth() && data.getFullYear() === hoje.getFullYear();
-  }).length;
+  const anamnesesNoMes = anamneses.filter((anamnese: any) => isSameMonthDate(anamnese.data)).length;
 
   // PDF export (UI-level, no DB)
   const exportToPDF = async (anamnese: any) => {
@@ -61,7 +58,7 @@ export default function AnamneseModule() {
     const { default: autoTable } = await import('jspdf-autotable');
 
     const doc = new jsPDF();
-    const date = new Date().toLocaleDateString('pt-BR');
+    const date = formatDatePtBr(new Date());
 
     doc.setFillColor(249, 115, 22);
     doc.rect(0, 0, 210, 40, 'F');
@@ -78,7 +75,7 @@ export default function AnamneseModule() {
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
     doc.text(`Aluno: ${anamnese.students?.nome || 'Não informado'}`, 14, 60);
-    doc.text(`Data: ${new Date(anamnese.data).toLocaleDateString('pt-BR')}`, 14, 67);
+    doc.text(`Data: ${formatDatePtBr(anamnese.data)}`, 14, 67);
     doc.text(`Objetivo: ${anamnese.objetivo_nutricional || 'Não informado'}`, 14, 74);
 
     let currentY = 85;
@@ -241,7 +238,7 @@ export default function AnamneseModule() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2 text-sm text-zinc-400">
                         <Calendar size={14} className="text-zinc-600" />
-                        {new Date(anamnese.data).toLocaleDateString('pt-BR')}
+                        {formatDatePtBr(anamnese.data)}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-zinc-400">

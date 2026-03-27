@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as financeiroService from '@/services/financeiro.service';
 import { useNotification } from '@/hooks/useNotification';
+import { getLocalDateInputValue } from '@/lib/date';
 import type { Pagamento, Boleto, FinanceiroStudent, PagamentoFormData, BoletoFormData } from '@/types/financeiro';
 
 type TabFinanceiro = 'overview' | 'boletos' | 'alunos';
@@ -23,7 +24,7 @@ export function useFinanceiro() {
   // Formulário de transação
   const [newPagamento, setNewPagamento] = useState<PagamentoFormData>({
     valor: 0,
-    data_vencimento: new Date().toISOString().split('T')[0],
+    data_vencimento: getLocalDateInputValue(),
     status: 'pendente',
     tipo: 'receita',
     descricao: '',
@@ -33,7 +34,7 @@ export function useFinanceiro() {
   const [newBoleto, setNewBoleto] = useState<BoletoFormData>({
     student_id: '',
     amount: 0,
-    due_date: new Date().toISOString().split('T')[0],
+    due_date: getLocalDateInputValue(),
   });
 
   const { notification, showNotification, clearNotification } = useNotification();
@@ -66,7 +67,7 @@ export function useFinanceiro() {
       setShowAddModal(false);
       setNewPagamento({
         valor: 0,
-        data_vencimento: new Date().toISOString().split('T')[0],
+        data_vencimento: getLocalDateInputValue(),
         status: 'pendente',
         tipo: 'receita',
         descricao: '',
@@ -83,7 +84,7 @@ export function useFinanceiro() {
       await financeiroService.gerarBoleto(newBoleto);
       showNotification('Boleto gerado com sucesso!', 'success');
       setShowBoletoModal(false);
-      setNewBoleto({ student_id: '', amount: 0, due_date: new Date().toISOString().split('T')[0] });
+      setNewBoleto({ student_id: '', amount: 0, due_date: getLocalDateInputValue() });
       await loadData();
     } catch (error: any) {
       showNotification(`Erro: ${error.message}`, 'error');

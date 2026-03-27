@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { TABLES, DEFAULTS } from '@/lib/constants';
+import { extractDateOnly, getLocalDateInputValue } from '@/lib/date';
 import type {
   Pagamento,
   Boleto,
@@ -68,7 +69,11 @@ export async function createTransacao(data: PagamentoFormData): Promise<void> {
 
   const { error } = await supabase
     .from(TABLES.FINANCEIRO)
-    .insert([{ ...data, valor: Number(data.valor) }]);
+    .insert([{
+      ...data,
+      valor: Number(data.valor),
+      data_vencimento: extractDateOnly(data.data_vencimento) || data.data_vencimento,
+    }]);
 
   if (error) throw error;
 }
@@ -81,6 +86,7 @@ export async function gerarBoleto(data: BoletoFormData): Promise<void> {
     .insert([
       {
         ...data,
+        due_date: extractDateOnly(data.due_date) || data.due_date,
         status: 'pending',
         code: Math.random().toString(36).substring(2, 10).toUpperCase(),
       },
@@ -121,7 +127,7 @@ export async function gerar3Boletos(
       newBoletos.push({
         student_id: studentId,
         amount: student.plans?.price || 0,
-        due_date: dataVencimento.toISOString().split('T')[0],
+        due_date: getLocalDateInputValue(dataVencimento),
         status: 'pending',
         code: Math.random().toString(36).substring(2, 10).toUpperCase(),
       });
@@ -145,8 +151,8 @@ export async function gerarBoletosEmLote(alunos: FinanceiroStudent[]): Promise<n
   await assertAdmin();
 
   const now = new Date();
-  const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
+  const firstDayOfMonth = getLocalDateInputValue(new Date(now.getFullYear(), now.getMonth(), 1));
+  const lastDayOfMonth = getLocalDateInputValue(new Date(now.getFullYear(), now.getMonth() + 1, 0));
 
   const { data: existingBills, error } = await supabase
     .from(TABLES.BILLS)
@@ -170,7 +176,7 @@ export async function gerarBoletosEmLote(alunos: FinanceiroStudent[]): Promise<n
     return {
       student_id: student.id,
       amount: student.plans?.price || 0,
-      due_date: dueDate.toISOString().split('T')[0],
+      due_date: getLocalDateInputValue(dueDate),
       status: 'pending',
       code: Math.random().toString(36).substring(2, 10).toUpperCase(),
     };
@@ -195,7 +201,7 @@ export async function darBaixaManual(boleto: Boleto): Promise<void> {
   const { error: finError } = await supabase.from(TABLES.FINANCEIRO).insert([
     {
       valor: boleto.amount,
-      data_vencimento: new Date().toISOString().split('T')[0],
+      data_vencimento: getLocalDateInputValue(),
       status: 'pago',
       tipo: 'receita',
       descricao: `Mensalidade - ${boleto.students?.name} (Boleto: ${boleto.code})`,

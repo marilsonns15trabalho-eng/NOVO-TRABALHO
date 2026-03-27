@@ -20,6 +20,7 @@ import { useAlunos } from '@/hooks/useAlunos';
 import { useAuth } from '@/hooks/useAuth';
 import type { UserRole } from '@/contexts/AuthContext';
 import { Modal, ConfirmDialog, Toast, LoadingSpinner } from '@/components/ui';
+import { formatDatePtBr } from '@/lib/date';
 import {
   ModuleEmptyState,
   ModuleHero,
@@ -383,7 +384,7 @@ export default function AlunosModule() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2 text-sm text-zinc-400">
                           <Calendar size={14} className="text-zinc-600" />
-                          {aluno.created_at ? new Date(aluno.created_at).toLocaleDateString('pt-BR') : 'N/A'}
+                          {aluno.created_at ? formatDatePtBr(aluno.created_at) : 'N/A'}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right">

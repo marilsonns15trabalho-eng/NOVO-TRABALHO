@@ -20,6 +20,7 @@ import { motion } from 'motion/react';
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import ChartWrapper from '@/components/ChartWrapper';
 import { useDashboard } from '@/hooks/useDashboard';
+import { formatDatePtBr } from '@/lib/date';
 import { buildWhatsAppUrl, normalizeWhatsAppPhone } from '@/lib/phone';
 
 interface DashboardProps {
@@ -148,7 +149,7 @@ export default function Dashboard({ setActiveTab }: DashboardProps) {
 
   const handleWhatsAppReminder = (aluno: any, bill: any) => {
     const phone = normalizeWhatsAppPhone(aluno.phone);
-    const dueDate = new Date(bill.due_date).toLocaleDateString('pt-BR');
+    const dueDate = formatDatePtBr(bill.due_date);
     const amount = Number(bill.amount || 0).toFixed(2);
     const message = `Ola ${aluno.name}, passando para lembrar que sua mensalidade de R$ ${amount} vence em ${dueDate}.`;
 
@@ -414,7 +415,7 @@ export default function Dashboard({ setActiveTab }: DashboardProps) {
                           {bill.students?.name || 'Aluno'}
                         </p>
                         <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">
-                          vence em {new Date(bill.due_date).toLocaleDateString('pt-BR')}
+                          vence em {formatDatePtBr(bill.due_date)}
                         </p>
                       </div>
 

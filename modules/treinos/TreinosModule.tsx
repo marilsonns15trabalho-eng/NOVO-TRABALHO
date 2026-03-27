@@ -17,6 +17,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useTreinos } from '@/hooks/useTreinos';
 import { useUserRole } from '@/hooks/useUserRole';
 import { Toast } from '@/components/ui';
+import { formatDatePtBr } from '@/lib/date';
 import { formatTrainingDay } from '@/lib/training';
 import type { TrainingPlan, Treino } from '@/types/treino';
 
@@ -209,7 +210,7 @@ function TreinoCard({
       <div className="mt-5 flex flex-wrap gap-3">
         <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-2 text-xs font-semibold text-zinc-400">
           <Calendar size={14} />
-          {treino.created_at ? new Date(treino.created_at).toLocaleDateString('pt-BR') : 'Sem data'}
+          {treino.created_at ? formatDatePtBr(treino.created_at) : 'Sem data'}
         </div>
         <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-2 text-xs font-semibold text-zinc-400">
           Objetivo: {treino.objetivo || 'Nao informado'}

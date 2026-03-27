@@ -1,3 +1,5 @@
+import { diffDateOnlyInDays, formatDatePtBr, formatDateTimePtBr } from '@/lib/date';
+
 type PdfAvaliacao = {
   id?: string;
   data: string;
@@ -51,30 +53,6 @@ function asNumber(value: unknown): number | null {
 
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
-}
-
-function formatDate(value: string | Date | null | undefined) {
-  if (!value) {
-    return '-';
-  }
-
-  const date = value instanceof Date ? value : new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return '-';
-  }
-
-  return date.toLocaleDateString('pt-BR');
-}
-
-function formatDateTime(value: Date) {
-  return value.toLocaleString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 }
 
 function formatNumber(value: number | null | undefined, digits = 1) {
@@ -185,15 +163,12 @@ function genderLabel(value: string | null | undefined) {
 }
 
 function diffInDays(start: string | Date, end: string | Date) {
-  const startDate = start instanceof Date ? start : new Date(start);
-  const endDate = end instanceof Date ? end : new Date(end);
-  const millis = endDate.getTime() - startDate.getTime();
-
-  if (!Number.isFinite(millis)) {
+  const diff = diffDateOnlyInDays(start, end);
+  if (diff === null) {
     return '-';
   }
 
-  return String(Math.round(millis / 86400000));
+  return String(diff);
 }
 
 function safeFileName(value: string) {
@@ -239,11 +214,11 @@ function drawInfoBlock(
   const studentName = current.students?.nome || previous.students?.nome || 'Aluno';
   const infoRows = [
     ['Aluno', studentName],
-    ['Data Nascimento', formatDate(current.students?.birth_date || previous.students?.birth_date)],
+    ['Data Nascimento', formatDatePtBr(current.students?.birth_date || previous.students?.birth_date)],
     ['Sexo', genderLabel(current.students?.gender || previous.students?.gender)],
-    ['Periodo', `${formatDate(previous.data)} a ${formatDate(current.data)}`],
+    ['Periodo', `${formatDatePtBr(previous.data)} a ${formatDatePtBr(current.data)}`],
     ['Intervalo', `${diffInDays(previous.data, current.data)} dias`],
-    ['Data Relatorio', formatDateTime(reportDate)],
+    ['Data Relatorio', formatDateTimePtBr(reportDate)],
   ];
 
   let y = 58;
@@ -538,8 +513,8 @@ export async function exportAvaliacaoEvolutionPdf(
   const renderTable = (options: Record<string, unknown>) => (autoTable as any)(doc, options);
 
   const reportDate = new Date();
-  const dateA = formatDate(previous.data);
-  const dateB = formatDate(current.data);
+  const dateA = formatDatePtBr(previous.data);
+  const dateB = formatDatePtBr(current.data);
 
   drawHeader(doc);
   drawInfoBlock(doc, previous, current, reportDate);
@@ -687,7 +662,7 @@ export async function exportAvaliacaoEvolutionPdf(
   doc.setFontSize(8);
   doc.setTextColor(110, 110, 110);
   doc.text(
-    `Documento gerado em ${formatDateTime(reportDate)}.`,
+    `Documento gerado em ${formatDateTimePtBr(reportDate)}.`,
     105,
     286,
     { align: 'center' },

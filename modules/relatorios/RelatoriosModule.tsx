@@ -20,6 +20,7 @@ import {
   ModuleSurface,
   ModuleSectionHeading,
 } from '@/components/dashboard/ModulePrimitives';
+import { getLocalDateInputValue } from '@/lib/date';
 
 export default function RelatoriosModule() {
   const [loading, setLoading] = useState(true);
@@ -73,7 +74,7 @@ export default function RelatoriosModule() {
       const link = document.createElement('a');
 
       link.setAttribute('href', url);
-      link.setAttribute('download', `relatorio_financeiro_${new Date().toISOString().split('T')[0]}.csv`);
+      link.setAttribute('download', `relatorio_financeiro_${getLocalDateInputValue()}.csv`);
       link.style.visibility = 'hidden';
 
       document.body.appendChild(link);

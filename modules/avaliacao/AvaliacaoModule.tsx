@@ -32,6 +32,7 @@ import {
 } from '@/components/dashboard/ModulePrimitives';
 
 import { calcularBiometria } from '@/lib/biometrics';
+import { compareDateOnly, extractDateOnly, formatDateDayMonthPtBr, formatDatePtBr, isSameMonthDate } from '@/lib/date';
 import { exportAvaliacaoPdf } from '@/lib/pdf/exportAvaliacaoPdf';
 import { exportAvaliacaoEvolutionPdf } from '@/lib/pdf/exportAvaliacaoEvolutionPdf';
 import type { Avaliacao } from '@/types/avaliacao';
@@ -125,7 +126,7 @@ export default function AvaliacaoModule() {
     doc.setFontSize(22);
     doc.text('RELATÓRIO DE AVALIAÇÃO FÍSICA', 15, 25);
     doc.setFontSize(10);
-    doc.text(`Data: ${new Date(avaliacao.data).toLocaleDateString('pt-BR')}`, 15, 33);
+    doc.text(`Data: ${formatDatePtBr(avaliacao.data)}`, 15, 33);
 
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(14);
@@ -179,8 +180,9 @@ export default function AvaliacaoModule() {
 
   // Filtro local por data
   const filteredAvaliacoes = avaliacoes.filter((a: any) => {
-    const matchInicio = filterDataInicio ? new Date(a.data) >= new Date(filterDataInicio) : true;
-    const matchFim = filterDataFim ? new Date(a.data) <= new Date(filterDataFim) : true;
+    const avaliacaoDate = extractDateOnly(a.data);
+    const matchInicio = filterDataInicio ? compareDateOnly(avaliacaoDate, filterDataInicio) >= 0 : true;
+    const matchFim = filterDataFim ? compareDateOnly(avaliacaoDate, filterDataFim) <= 0 : true;
     return matchInicio && matchFim;
   });
 
@@ -193,9 +195,7 @@ export default function AvaliacaoModule() {
     filteredAvaliacoes.map((avaliacao: any) => avaliacao.student_id).filter(Boolean)
   ).size;
   const avaliacoesNoMes = filteredAvaliacoes.filter((avaliacao: any) => {
-    const data = new Date(avaliacao.data);
-    const hoje = new Date();
-    return data.getMonth() === hoje.getMonth() && data.getFullYear() === hoje.getFullYear();
+    return isSameMonthDate(avaliacao.data);
   }).length;
 
   return (
@@ -320,7 +320,7 @@ export default function AvaliacaoModule() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2 text-sm text-zinc-300">
                         <Calendar size={14} className="text-zinc-500" />
-                        {new Date(avaliacao.data).toLocaleDateString('pt-BR')}
+                        {formatDatePtBr(avaliacao.data)}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -388,7 +388,7 @@ export default function AvaliacaoModule() {
               <div className="flex justify-between items-start mb-8">
                 <div>
                   <h3 className="text-3xl font-bold text-white">{selectedReport.students?.nome}</h3>
-                  <p className="text-zinc-500">Relatório de Avaliação Física - {new Date(selectedReport.data).toLocaleDateString('pt-BR')}</p>
+                  <p className="text-zinc-500">Relatório de Avaliação Física - {formatDatePtBr(selectedReport.data)}</p>
                 </div>
                 <div className="flex gap-3">
                   <button
@@ -494,13 +494,13 @@ export default function AvaliacaoModule() {
                           dataKey="data"
                           stroke="#71717a"
                           fontSize={10}
-                          tickFormatter={(val) => new Date(val).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                          tickFormatter={(val) => formatDateDayMonthPtBr(val)}
                         />
                         <YAxis stroke="#71717a" fontSize={10} domain={['auto', 'auto']} />
                         <Tooltip
                           contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '12px' }}
                           labelStyle={{ color: '#a1a1aa', fontWeight: 'bold' }}
-                          labelFormatter={(val) => new Date(val).toLocaleDateString('pt-BR')}
+                          labelFormatter={(val) => formatDatePtBr(val)}
                         />
                         <Line type="monotone" dataKey="peso" stroke="#a855f7" strokeWidth={3} dot={{ fill: '#a855f7', r: 4 }} activeDot={{ r: 6 }} />
                       </LineChart>
@@ -516,13 +516,13 @@ export default function AvaliacaoModule() {
                           dataKey="data"
                           stroke="#71717a"
                           fontSize={10}
-                          tickFormatter={(val) => new Date(val).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                          tickFormatter={(val) => formatDateDayMonthPtBr(val)}
                         />
                         <YAxis stroke="#71717a" fontSize={10} domain={[0, 'auto']} />
                         <Tooltip
                           contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '12px' }}
                           labelStyle={{ color: '#a1a1aa', fontWeight: 'bold' }}
-                          labelFormatter={(val) => new Date(val).toLocaleDateString('pt-BR')}
+                          labelFormatter={(val) => formatDatePtBr(val)}
                         />
                         <Line type="monotone" dataKey="percentual_gordura" stroke="#ec4899" strokeWidth={3} dot={{ fill: '#ec4899', r: 4 }} activeDot={{ r: 6 }} />
                       </LineChart>

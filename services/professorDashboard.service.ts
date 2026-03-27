@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { TABLES } from '@/lib/constants';
+import { getLocalDateInputValue } from '@/lib/date';
 
 export interface ProfessorDashboardStats {
   totalAlunos: number;
@@ -31,7 +32,7 @@ function assertNoProfessorQueryError(label: string, error: { message?: string } 
 export async function fetchProfessorDashboardData(): Promise<ProfessorDashboardData> {
   const now = new Date();
   const since30d = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const since30dStr = since30d.toISOString().split('T')[0];
+  const since30dStr = getLocalDateInputValue(since30d);
 
   const [
     totalAlunosRes,

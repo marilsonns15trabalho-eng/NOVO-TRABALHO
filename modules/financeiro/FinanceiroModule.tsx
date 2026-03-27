@@ -16,6 +16,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import { useFinanceiro } from '@/hooks/useFinanceiro';
+import { compareDateOnly, formatDatePtBr } from '@/lib/date';
 import type { Boleto } from '@/types/financeiro';
 import {
   ModuleHero,
@@ -62,7 +63,7 @@ export default function FinanceiroModule() {
   // Agrupar boletos por aluno
   const boletosPorAluno = useMemo(() => alunos.map(aluno => {
     const studentBoletos = boletos.filter(b => b.student_id === aluno.id);
-    const sorted = studentBoletos.sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
+    const sorted = [...studentBoletos].sort((a, b) => compareDateOnly(a.due_date, b.due_date));
     const pendingOrLate = sorted.find(b => b.status === 'pending' || b.status === 'late');
     const displayBoleto = pendingOrLate || sorted[sorted.length - 1];
     return { ...aluno, boletos: studentBoletos, displayBoleto };
@@ -79,7 +80,7 @@ export default function FinanceiroModule() {
     doc.setFontSize(12);
     doc.text(`Aluno: ${boleto.students?.name || 'N/A'}`, 20, 40);
     doc.text(`Valor: R$ ${boleto.amount.toFixed(2)}`, 20, 50);
-    doc.text(`Vencimento: ${new Date(boleto.due_date).toLocaleDateString('pt-BR')}`, 20, 60);
+    doc.text(`Vencimento: ${formatDatePtBr(boleto.due_date)}`, 20, 60);
     doc.text(`Código: ${boleto.code}`, 20, 70);
     doc.save(`boleto_${boleto.code}.pdf`);
   };
@@ -329,7 +330,7 @@ export default function FinanceiroModule() {
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
                           <span className="font-bold">{b.students?.name || 'N/A'}</span>
-                          <span className="text-[10px] text-zinc-500 uppercase tracking-tighter">Venc: {new Date(b.due_date).toLocaleDateString('pt-BR')}</span>
+                          <span className="text-[10px] text-zinc-500 uppercase tracking-tighter">Venc: {formatDatePtBr(b.due_date)}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -432,7 +433,7 @@ export default function FinanceiroModule() {
                 <tbody className="divide-y divide-zinc-800">
                   {selectedStudent.boletos.map((b: any) => (
                     <tr key={b.id}>
-                      <td className="px-4 py-3 font-mono">{new Date(b.due_date).toLocaleDateString('pt-BR')}</td>
+                      <td className="px-4 py-3 font-mono">{formatDatePtBr(b.due_date)}</td>
                       <td className="px-4 py-3 font-mono">R$ {b.amount.toFixed(2)}</td>
                       <td className="px-4 py-3">
                         <span className={`font-bold uppercase text-xs ${
