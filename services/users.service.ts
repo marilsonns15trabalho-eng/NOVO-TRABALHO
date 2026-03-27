@@ -1,6 +1,5 @@
-// Camada de serviço para gerenciamento de usuários (user_profiles)
-import { supabase, getAuthenticatedUser } from '@/lib/supabase';
-import { SUPER_ADMIN_EMAIL } from '@/lib/constants';
+import { supabase } from '@/lib/supabase';
+import { authorizedApiJson } from '@/lib/api-client';
 import type { UserRole } from '@/contexts/AuthContext';
 
 export interface UserProfileRow {
@@ -8,14 +7,13 @@ export interface UserProfileRow {
   role: UserRole;
   display_name: string | null;
   created_at: string;
-  email?: string;
+  is_super_admin?: boolean | null;
 }
 
-/** Busca todos os perfis de usuário com email (somente admin) */
 export async function fetchAllProfiles(): Promise<UserProfileRow[]> {
   const { data, error } = await supabase
     .from('user_profiles')
-    .select('*')
+    .select('id, role, display_name, created_at, is_super_admin')
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -26,59 +24,24 @@ export async function fetchAllProfiles(): Promise<UserProfileRow[]> {
   return (data || []) as UserProfileRow[];
 }
 
-/** Atualiza o role de um usuário (somente admin, protege super admin) */
 export async function updateUserRole(
   targetUserId: string,
-  newRole: UserRole,
-  targetEmail?: string
+  newRole: UserRole
 ): Promise<{ error: string | null }> {
-  let user;
   try {
-    user = await getAuthenticatedUser();
-  } catch {
-    return { error: 'Usuário não autenticado' };
-  }
+    await authorizedApiJson<{ message: string }>('/api/admin/users/role', {
+      method: 'POST',
+      body: JSON.stringify({
+        userId: targetUserId,
+        newRole,
+      }),
+    });
 
-  const { data: callerProfile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single();
-
-  if (!callerProfile || callerProfile.role !== 'admin') {
-    return { error: 'Apenas administradores podem alterar roles.' };
-  }
-
-  // Não permitir alterar o próprio role
-  if (targetUserId === user.id) {
-    return { error: 'Você não pode alterar seu próprio role.' };
-  }
-
-  // Proteger super admin (sem auth.admin: email vindo do caller ou da tabela students)
-  let emailToCheck = targetEmail;
-  if (!emailToCheck) {
-    const { data: studentRow } = await supabase
-      .from('students')
-      .select('email')
-      .eq('linked_auth_user_id', targetUserId)
-      .maybeSingle();
-    emailToCheck = studentRow?.email ?? undefined;
-  }
-  if (emailToCheck === SUPER_ADMIN_EMAIL) {
-    return { error: 'Super admin não pode ser alterado.' };
-  }
-
-  const { data, error } = await supabase
-    .from('user_profiles')
-    .update({ role: newRole })
-    .eq('id', targetUserId)
-    .select();
-
-  if (error) {
+    return { error: null };
+  } catch (error) {
     console.error('Erro ao atualizar role:', error);
-    return { error: error.message };
+    return {
+      error: error instanceof Error ? error.message : 'Erro ao atualizar role.',
+    };
   }
-
-  console.log('Role atualizado com sucesso:', data);
-  return { error: null };
 }

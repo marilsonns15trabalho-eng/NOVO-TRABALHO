@@ -6,6 +6,7 @@ import { Loader2 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import MobileMenu from '@/components/MobileMenu';
+import AccountSecurityForm from '@/components/account/AccountSecurityForm';
 import { useAuth } from '@/hooks/useAuth';
 import { getActiveIdFromPath, getDefaultRouteForRole, ROLE_ACCESS } from '@/lib/navigation';
 
@@ -22,7 +23,7 @@ const TITLES: Record<string, string> = {
 };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, role, isReady, authError, signOut } = useAuth();
+  const { user, role, profile, isReady, authError, signOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -115,6 +116,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <Header title={title} onMenuToggle={() => setMobileMenuOpen(true)} />
         <div className="flex-1 overflow-y-auto">{children}</div>
       </main>
+
+      {Boolean(profile?.must_change_password) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 px-6 py-10 backdrop-blur-md">
+          <div className="w-full max-w-2xl rounded-3xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl">
+            <AccountSecurityForm required compact />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

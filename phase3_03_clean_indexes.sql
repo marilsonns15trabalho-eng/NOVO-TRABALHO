@@ -25,6 +25,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_students_linked_auth_user_id_unique
     ON public.students(linked_auth_user_id)
     WHERE linked_auth_user_id IS NOT NULL;
 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_students_email_unique
+    ON public.students (LOWER(email))
+    WHERE email IS NOT NULL;
+
 CREATE INDEX IF NOT EXISTS idx_treinos_student_id_created_at
     ON public.treinos(student_id, created_at DESC);
 

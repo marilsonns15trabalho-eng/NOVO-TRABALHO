@@ -38,6 +38,10 @@ function mapAvaliacaoRow(item: any): Avaliacao {
           ...student,
           nome: student.nome ?? student.name,
           name: student.name ?? student.nome,
+          sexo: student.sexo ?? student.gender ?? undefined,
+          data_nascimento: student.data_nascimento ?? student.birth_date ?? undefined,
+          gender: student.gender ?? student.sexo ?? null,
+          birth_date: student.birth_date ?? student.data_nascimento ?? null,
         }
       : undefined,
     // Perímetros: flat primeiro, JSONB como fallback
@@ -73,7 +77,7 @@ function mapAvaliacaoRow(item: any): Avaliacao {
 export async function fetchAvaliacoes(linkedAuthUserId?: string): Promise<Avaliacao[]> {
   let query = supabase
     .from(TABLES.AVALIACOES)
-    .select(`*, student:students(id, linked_auth_user_id, nome:name, sexo, data_nascimento)`)
+    .select(`*, student:students(id, linked_auth_user_id, name, gender, birth_date)`)
     .order('data', { ascending: false });
 
   if (linkedAuthUserId) query = query.eq('student.linked_auth_user_id', linkedAuthUserId);
@@ -92,7 +96,7 @@ export async function fetchAvaliacoes(linkedAuthUserId?: string): Promise<Avalia
 export async function fetchAlunosParaAvaliacao(linkedAuthUserId?: string): Promise<AvaliacaoAlunoItem[]> {
   let query = supabase
     .from(TABLES.STUDENTS)
-    .select('id, name, linked_auth_user_id')
+    .select('id, name, gender, birth_date, linked_auth_user_id')
     .order('name', { ascending: true });
 
   if (linkedAuthUserId) query = query.eq('linked_auth_user_id', linkedAuthUserId);
@@ -107,6 +111,10 @@ export async function fetchAlunosParaAvaliacao(linkedAuthUserId?: string): Promi
   return (data || []).map((a: any) => ({
     id: a.id,
     nome: a.name || '',
+    sexo: a.gender || undefined,
+    data_nascimento: a.birth_date || undefined,
+    gender: a.gender || null,
+    birth_date: a.birth_date || null,
   }));
 }
 
@@ -119,7 +127,7 @@ export async function fetchHistoricoAluno(studentId: string, linkedAuthUserId?: 
 
   const { data, error } = await supabase
     .from(TABLES.AVALIACOES)
-    .select(`*, student:students(id, linked_auth_user_id, nome:name, sexo, data_nascimento)`)
+    .select(`*, student:students(id, linked_auth_user_id, name, gender, birth_date)`)
     .eq('student_id', studentId)
     .order('data', { ascending: true });
 

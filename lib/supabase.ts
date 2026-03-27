@@ -24,6 +24,8 @@ export interface SafeUserProfile {
   created_at: string | null;
   is_super_admin?: boolean | null;
   must_change_password?: boolean | null;
+  secret_question?: string | null;
+  password_recovery_enabled?: boolean | null;
 }
 
 type SafeSupabaseResponse<T> = {
@@ -183,7 +185,7 @@ export async function getUserProfileSafe(): Promise<SafeUserProfile | null> {
 
     const { data, error } = await supabase
       .from('user_profiles')
-      .select('id, role, display_name, created_at, is_super_admin, must_change_password')
+      .select('id, role, display_name, created_at, is_super_admin, must_change_password, secret_question, password_recovery_enabled')
       .eq('id', session.user.id)
       .maybeSingle();
 

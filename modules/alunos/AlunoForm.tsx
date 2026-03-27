@@ -55,6 +55,12 @@ export default function AlunoForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-6">
+      {!isEditing && (
+        <div className="rounded-2xl border border-orange-500/20 bg-orange-500/10 px-4 py-3 text-sm text-orange-100">
+          Ao salvar, o acesso do aluno sera criado automaticamente com senha inicial <strong>123456</strong>.
+          No primeiro login, ele precisara trocar a senha.
+        </div>
+      )}
       {/* Plano — oculto para alunos */}
       {!isAluno && (
         <FormField label="Plano">
@@ -104,9 +110,14 @@ export default function AlunoForm({
         </FormField>
 
         {/* Contato — editáveis por todos */}
-        <FormField label="E-mail">
-          <input type="email" value={data.email || ''} onChange={(e) => update('email', e.target.value)} className={inputClassName} placeholder="joao@exemplo.com" />
+        <FormField label="E-mail" required={!isEditing}>
+          <input required={!isEditing} type="email" value={data.email || ''} onChange={(e) => update('email', e.target.value)} disabled={isEditing && !!data.linked_auth_user_id} className={`${inputClassName} ${isEditing && data.linked_auth_user_id ? disabledClass : ''}`} placeholder="joao@exemplo.com" />
         </FormField>
+        {isEditing && data.linked_auth_user_id && (
+          <p className="md:col-span-2 -mt-2 text-xs text-zinc-500">
+            O e-mail de alunos com acesso ja criado fica bloqueado aqui para evitar divergencia com o login.
+          </p>
+        )}
         <FormField label="Telefone Fixo">
           <input type="text" value={data.telefone || ''} onChange={(e) => update('telefone', e.target.value)} className={inputClassName} placeholder="(11) 3333-3333" />
         </FormField>

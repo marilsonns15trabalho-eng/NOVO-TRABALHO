@@ -48,6 +48,8 @@ export interface Avaliacao {
     name?: string;
     sexo?: string;
     data_nascimento?: string;
+    gender?: string | null;
+    birth_date?: string | null;
   };
 }
 
@@ -59,4 +61,6 @@ export interface AvaliacaoAlunoItem {
   nome: string;
   sexo?: string;
   data_nascimento?: string;
+  gender?: string | null;
+  birth_date?: string | null;
 }

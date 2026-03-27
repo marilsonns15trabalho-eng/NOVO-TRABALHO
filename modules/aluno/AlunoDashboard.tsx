@@ -6,6 +6,7 @@ import { Activity, Calendar, ClipboardList, Dumbbell, Loader2, LogOut, Scale } f
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
+import AccountSecurityForm from '@/components/account/AccountSecurityForm';
 import * as avaliacoesService from '@/services/avaliacoes.service';
 import * as treinosService from '@/services/treinos.service';
 import type { Avaliacao } from '@/types/avaliacao';
@@ -78,6 +79,7 @@ export default function AlunoDashboard() {
   }, [isReady, user]);
 
   const latestAvaliacao = useMemo(() => avaliacoes[0] ?? null, [avaliacoes]);
+  const mustChangePassword = Boolean(profile?.must_change_password);
 
   const handleSignOut = async () => {
     await signOut();
@@ -119,6 +121,10 @@ export default function AlunoDashboard() {
       </div>
 
       <div className="mx-auto max-w-7xl space-y-8 px-6 py-8">
+        <section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6">
+          <AccountSecurityForm required={mustChangePassword} />
+        </section>
+
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6">
             <div className="mb-4 flex items-center justify-between">
@@ -293,6 +299,14 @@ export default function AlunoDashboard() {
           )}
         </section>
       </div>
+
+      {mustChangePassword && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 px-6 py-10 backdrop-blur-md">
+          <div className="w-full max-w-2xl rounded-3xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl">
+            <AccountSecurityForm required compact />
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }

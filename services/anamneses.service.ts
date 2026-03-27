@@ -24,7 +24,7 @@ function mapAnamneseRow(item: any): Anamnese {
 export async function fetchAnamneses(linkedAuthUserId?: string): Promise<Anamnese[]> {
   let query = supabase
     .from(TABLES.ANAMNESES)
-    .select(`*, student:students(id, linked_auth_user_id, nome:name)`)
+    .select(`*, student:students(id, linked_auth_user_id, name)`)
     .order('data', { ascending: false });
 
   if (linkedAuthUserId) query = query.eq('student.linked_auth_user_id', linkedAuthUserId);
@@ -32,25 +32,8 @@ export async function fetchAnamneses(linkedAuthUserId?: string): Promise<Anamnes
   const { data, error } = await query;
 
   if (error) {
-    console.warn('Erro ao buscar anamneses com join, tentando sem join:', error.message);
-    let fallbackQuery = supabase
-      .from(TABLES.ANAMNESES)
-      .select('*')
-      .order('data', { ascending: false });
-
-    if (linkedAuthUserId) {
-      const studentId = await findStudentIdByLinkedAuthUserId(linkedAuthUserId);
-      if (!studentId) return [];
-      fallbackQuery = fallbackQuery.eq('student_id', studentId);
-    }
-
-    const { data: dataNoJoin, error: errorNoJoin } = await fallbackQuery;
-
-    if (errorNoJoin) {
-      console.error('Erro ao buscar anamneses (sem join):', errorNoJoin.message);
-      return [];
-    }
-    return (dataNoJoin || []).map(mapAnamneseRow);
+    console.error('Erro ao buscar anamneses:', error.message);
+    return [];
   }
 
   return (data || []).map(mapAnamneseRow);
@@ -60,7 +43,7 @@ export async function fetchAnamneses(linkedAuthUserId?: string): Promise<Anamnes
 export async function fetchAlunosParaAnamnese(linkedAuthUserId?: string): Promise<AlunoListItem[]> {
   let query = supabase
     .from(TABLES.STUDENTS)
-    .select('*')
+    .select('id, name, linked_auth_user_id')
     .order('name', { ascending: true });
 
   if (linkedAuthUserId) query = query.eq('linked_auth_user_id', linkedAuthUserId);
@@ -68,18 +51,7 @@ export async function fetchAlunosParaAnamnese(linkedAuthUserId?: string): Promis
   const { data, error } = await query;
 
   if (error) {
-    console.warn('Erro ao buscar alunos por "name", tentando "nome":', error.message);
-    let fallbackQuery = supabase
-      .from(TABLES.STUDENTS)
-      .select('*')
-      .order('nome', { ascending: true });
-
-    if (linkedAuthUserId) fallbackQuery = fallbackQuery.eq('linked_auth_user_id', linkedAuthUserId);
-
-    const { data: dataNome, error: errorNome } = await fallbackQuery;
-
-    if (errorNome) throw errorNome;
-    return (dataNome || []).map((s: any) => ({ id: s.id, nome: s.nome || s.name }));
+    throw error;
   }
 
   return (data || []).map((s: any) => ({ id: s.id, nome: s.nome || s.name }));

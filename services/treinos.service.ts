@@ -26,25 +26,8 @@ export async function fetchTreinos(linkedAuthUserId?: string): Promise<Treino[]>
   const { data, error } = await query;
 
   if (error) {
-    console.warn('Erro ao buscar treinos com join, tentando sem join:', error.message);
-    let fallbackQuery = supabase
-      .from(TABLES.TREINOS)
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (linkedAuthUserId) {
-      const studentId = await findStudentIdByLinkedAuthUserId(linkedAuthUserId);
-      if (!studentId) return [];
-      fallbackQuery = fallbackQuery.eq('student_id', studentId);
-    }
-
-    const { data: dataNoJoin, error: errorNoJoin } = await fallbackQuery;
-
-    if (errorNoJoin) {
-      console.error('Erro ao buscar treinos:', errorNoJoin.message);
-      return [];
-    }
-    return (dataNoJoin || []).map(mapTreinoRow);
+    console.error('Erro ao buscar treinos:', error.message);
+    return [];
   }
 
   return (data || []).map(mapTreinoRow);
@@ -54,7 +37,7 @@ export async function fetchTreinos(linkedAuthUserId?: string): Promise<Treino[]>
 export async function fetchAlunosParaTreino(linkedAuthUserId?: string): Promise<StudentListItem[]> {
   let query = supabase
     .from(TABLES.STUDENTS)
-    .select('*')
+    .select('id, name, linked_auth_user_id')
     .order('name', { ascending: true });
 
   if (linkedAuthUserId) query = query.eq('linked_auth_user_id', linkedAuthUserId);
@@ -62,17 +45,8 @@ export async function fetchAlunosParaTreino(linkedAuthUserId?: string): Promise<
   const { data, error } = await query;
 
   if (error) {
-    console.warn('Erro ao buscar alunos por "name", tentando "nome":', error.message);
-    const { data: dataNome, error: errorNome } = await supabase
-      .from(TABLES.STUDENTS)
-      .select('*')
-      .order('nome', { ascending: true });
-
-    if (errorNome) {
-      console.error('Erro fatal ao buscar lista de alunos:', errorNome);
-      return [];
-    }
-    return (dataNome || []).map(mapStudentToListItem);
+    console.error('Erro ao buscar lista de alunos para treino:', error.message);
+    return [];
   }
 
   return (data || []).map(mapStudentToListItem);

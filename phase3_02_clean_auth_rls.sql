@@ -184,7 +184,9 @@ RETURNS TABLE (
     display_name TEXT,
     created_at TIMESTAMPTZ,
     is_super_admin BOOLEAN,
-    must_change_password BOOLEAN
+    must_change_password BOOLEAN,
+    secret_question TEXT,
+    password_recovery_enabled BOOLEAN
 )
 LANGUAGE sql
 STABLE
@@ -197,7 +199,9 @@ AS $$
         up.display_name,
         up.created_at,
         COALESCE(up.is_super_admin, FALSE) AS is_super_admin,
-        COALESCE(up.must_change_password, FALSE) AS must_change_password
+        COALESCE(up.must_change_password, FALSE) AS must_change_password,
+        up.secret_question,
+        COALESCE(up.password_recovery_enabled, FALSE) AS password_recovery_enabled
     FROM public.user_profiles up
     WHERE up.id = (SELECT auth.uid())
     LIMIT 1;

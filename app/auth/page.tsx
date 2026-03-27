@@ -6,30 +6,40 @@ import { motion } from 'motion/react';
 import { ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { getDefaultRouteForRole } from '@/lib/navigation';
+import {
+  recoverPasswordWithSecretQuestion,
+  requestRecoveryQuestion,
+} from '@/services/account.service';
+
+const AUTH_FLASH_MESSAGE_KEY = 'lioness-auth-flash-message';
 
 function translateError(message: string): string {
   if (message.includes('Invalid login credentials')) return 'E-mail ou senha incorretos.';
-  if (message.includes('User already registered')) return 'Este e-mail ja esta cadastrado.';
   if (message.includes('Email not confirmed')) return 'Confirme seu e-mail antes de entrar.';
   if (message.includes('Password should be')) return 'A senha deve ter pelo menos 6 caracteres.';
   return message;
 }
 
 function AuthContent() {
-  const { user, role, isReady, authError, signIn, signOut, signUp } = useAuth();
+  const { user, role, isReady, authError, signIn, signOut } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [mode, setMode] = useState<'login' | 'register'>(
-    searchParams.get('mode') === 'register' ? 'register' : 'login'
+  const [mode, setMode] = useState<'login' | 'recover'>(
+    searchParams.get('mode') === 'recover' ? 'recover' : 'login'
   );
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const [recoveryQuestion, setRecoveryQuestion] = useState('');
+  const [recoveryAnswer, setRecoveryAnswer] = useState('');
+  const [recoveryPassword, setRecoveryPassword] = useState('');
+  const [recoveryPasswordConfirm, setRecoveryPasswordConfirm] = useState('');
+  const [recoveryStep, setRecoveryStep] = useState<'lookup' | 'reset'>('lookup');
 
   useEffect(() => {
     if (isReady && user && role) {
@@ -37,40 +47,97 @@ function AuthContent() {
     }
   }, [isReady, role, router, user]);
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
+  useEffect(() => {
+    try {
+      const flashMessage = sessionStorage.getItem(AUTH_FLASH_MESSAGE_KEY);
+      if (!flashMessage) return;
+
+      setSuccess(flashMessage);
+      sessionStorage.removeItem(AUTH_FLASH_MESSAGE_KEY);
+    } catch {}
+  }, []);
+
+  const resetFeedback = () => {
     setError('');
     setSuccess('');
+  };
+
+  const switchMode = (nextMode: 'login' | 'recover') => {
+    setMode(nextMode);
+    resetFeedback();
+    setRecoveryQuestion('');
+    setRecoveryAnswer('');
+    setRecoveryPassword('');
+    setRecoveryPasswordConfirm('');
+    setRecoveryStep('lookup');
+  };
+
+  const handleLoginSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    resetFeedback();
     setSubmitting(true);
 
     try {
-      if (mode === 'login') {
-        const result = await signIn(email, password);
-        if (result.error) {
-          setError(translateError(result.error));
-        }
-      } else {
-        if (!name.trim()) {
-          setError('Nome e obrigatorio.');
-          setSubmitting(false);
-          return;
-        }
-
-        if (password.length < 6) {
-          setError('A senha deve ter pelo menos 6 caracteres.');
-          setSubmitting(false);
-          return;
-        }
-
-        const result = await signUp(email, password, name);
-        if (result.error) {
-          setError(translateError(result.error));
-        } else {
-          setSuccess('Conta criada com sucesso! Verifique seu e-mail para confirmar.');
-        }
+      const result = await signIn(email, password);
+      if (result.error) {
+        setError(translateError(result.error));
       }
     } catch {
       setError('Erro inesperado. Tente novamente.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleRecoveryLookup = async (event: React.FormEvent) => {
+    event.preventDefault();
+    resetFeedback();
+    setSubmitting(true);
+
+    try {
+      const result = await requestRecoveryQuestion(email);
+      setRecoveryQuestion(result.question);
+      setRecoveryStep('reset');
+      setSuccess('Pergunta secreta carregada. Informe a resposta e defina a nova senha.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Nao foi possivel iniciar a recuperacao.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleRecoveryReset = async (event: React.FormEvent) => {
+    event.preventDefault();
+    resetFeedback();
+
+    if (recoveryPassword.length < 6) {
+      setError('A nova senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+
+    if (recoveryPassword !== recoveryPasswordConfirm) {
+      setError('A confirmacao da nova senha nao confere.');
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      const result = await recoverPasswordWithSecretQuestion(
+        email,
+        recoveryAnswer,
+        recoveryPassword
+      );
+      setSuccess(result.message || 'Senha atualizada com sucesso.');
+      setPassword('');
+      setRecoveryQuestion('');
+      setRecoveryAnswer('');
+      setRecoveryPassword('');
+      setRecoveryPasswordConfirm('');
+      setRecoveryStep('lookup');
+      setMode('login');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Nao foi possivel redefinir a senha.');
     } finally {
       setSubmitting(false);
     }
@@ -138,12 +205,12 @@ function AuthContent() {
 
         <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-8 shadow-2xl">
           <h2 className="mb-2 text-2xl font-bold">
-            {mode === 'login' ? 'Entrar na sua conta' : 'Criar nova conta'}
+            {mode === 'login' ? 'Entrar na sua conta' : 'Recuperar acesso'}
           </h2>
           <p className="mb-8 text-sm text-zinc-500">
             {mode === 'login'
-              ? 'Acesse o painel de gestao do seu estudio.'
-              : 'Crie sua conta e comece a gerenciar agora.'}
+              ? 'Acesse o painel da academia com o acesso criado pela administracao.'
+              : 'Recupere sua senha usando a pergunta secreta configurada no painel.'}
           </p>
 
           {error && (
@@ -158,79 +225,164 @@ function AuthContent() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {mode === 'register' && (
+          {mode === 'login' ? (
+            <form onSubmit={handleLoginSubmit} className="space-y-5">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Nome Completo</label>
+                <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">E-mail</label>
                 <input
                   required
-                  type="text"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  placeholder="Seu nome"
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="seu@email.com"
                   className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3.5 text-white outline-none transition-all placeholder:text-zinc-600 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50"
                 />
               </div>
-            )}
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">E-mail</label>
-              <input
-                required
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="seu@email.com"
-                className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3.5 text-white outline-none transition-all placeholder:text-zinc-600 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50"
-              />
-            </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Senha</label>
+                <div className="relative">
+                  <input
+                    required
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="••••••••"
+                    minLength={6}
+                    className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3.5 pr-12 text-white outline-none transition-all placeholder:text-zinc-600 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((current) => !current)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 transition-colors hover:text-white"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Senha</label>
-              <div className="relative">
+              <button
+                type="submit"
+                disabled={submitting}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 py-4 text-lg font-bold text-black shadow-lg shadow-orange-500/20 transition-all active:scale-95 hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {submitting && <Loader2 className="animate-spin" size={20} />}
+                Entrar
+              </button>
+            </form>
+          ) : recoveryStep === 'lookup' ? (
+            <form onSubmit={handleRecoveryLookup} className="space-y-5">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">E-mail</label>
                 <input
                   required
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="••••••••"
-                  minLength={6}
-                  className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3.5 pr-12 text-white outline-none transition-all placeholder:text-zinc-600 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50"
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="seu@email.com"
+                  className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3.5 text-white outline-none transition-all placeholder:text-zinc-600 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50"
                 />
+              </div>
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 py-4 text-lg font-bold text-black shadow-lg shadow-orange-500/20 transition-all active:scale-95 hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {submitting && <Loader2 className="animate-spin" size={20} />}
+                Buscar pergunta secreta
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleRecoveryReset} className="space-y-5">
+              <div className="rounded-2xl border border-zinc-800 bg-black/40 p-4">
+                <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
+                  Pergunta secreta
+                </p>
+                <p className="mt-2 text-sm text-white">{recoveryQuestion}</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Resposta secreta</label>
+                <input
+                  required
+                  type="text"
+                  value={recoveryAnswer}
+                  onChange={(event) => setRecoveryAnswer(event.target.value)}
+                  placeholder="Sua resposta"
+                  className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3.5 text-white outline-none transition-all placeholder:text-zinc-600 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Nova senha</label>
+                <input
+                  required
+                  type="password"
+                  value={recoveryPassword}
+                  onChange={(event) => setRecoveryPassword(event.target.value)}
+                  minLength={6}
+                  className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3.5 text-white outline-none transition-all placeholder:text-zinc-600 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Confirmar nova senha</label>
+                <input
+                  required
+                  type="password"
+                  value={recoveryPasswordConfirm}
+                  onChange={(event) => setRecoveryPasswordConfirm(event.target.value)}
+                  minLength={6}
+                  className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3.5 text-white outline-none transition-all placeholder:text-zinc-600 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50"
+                />
+              </div>
+
+              <div className="flex gap-3">
                 <button
                   type="button"
-                  onClick={() => setShowPassword((current) => !current)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 transition-colors hover:text-white"
+                  onClick={() => {
+                    setRecoveryQuestion('');
+                    setRecoveryStep('lookup');
+                    resetFeedback();
+                  }}
+                  className="flex-1 rounded-2xl border border-zinc-800 bg-black/30 py-4 font-bold text-zinc-300 transition-all hover:border-zinc-700 hover:bg-zinc-800"
                 >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  Voltar
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-orange-500 py-4 font-bold text-black shadow-lg shadow-orange-500/20 transition-all active:scale-95 hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {submitting && <Loader2 className="animate-spin" size={20} />}
+                  Redefinir senha
                 </button>
               </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 py-4 text-lg font-bold text-black shadow-lg shadow-orange-500/20 transition-all active:scale-95 hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {submitting && <Loader2 className="animate-spin" size={20} />}
-              {mode === 'login' ? 'Entrar' : 'Criar Conta'}
-            </button>
-          </form>
+            </form>
+          )}
 
           <div className="mt-6 text-center">
-            <p className="text-sm text-zinc-500">
-              {mode === 'login' ? 'Nao tem conta?' : 'Ja tem conta?'}{' '}
+            {mode === 'login' ? (
+              <div className="space-y-3">
+                <p className="text-sm text-zinc-500">
+                  Seu acesso e criado pela administracao. Se ainda nao tiver credenciais, fale com o painel admin.
+                </p>
+                <button
+                  onClick={() => switchMode('recover')}
+                  className="font-bold text-orange-500 transition-colors hover:text-orange-400"
+                >
+                  Esqueci minha senha
+                </button>
+              </div>
+            ) : (
               <button
-                onClick={() => {
-                  setMode((current) => (current === 'login' ? 'register' : 'login'));
-                  setError('');
-                  setSuccess('');
-                }}
+                onClick={() => switchMode('login')}
                 className="font-bold text-orange-500 transition-colors hover:text-orange-400"
               >
-                {mode === 'login' ? 'Criar conta' : 'Entrar'}
+                Voltar para o login
               </button>
-            </p>
+            )}
           </div>
         </div>
       </motion.div>

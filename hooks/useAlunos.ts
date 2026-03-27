@@ -62,12 +62,6 @@ export function useAlunos(userRole: UserRole | null) {
     loadData();
   }, [loadData]);
 
-  // Realtime subscription
-  useEffect(() => {
-    const unsubscribe = alunosService.subscribeToAlunosChanges(loadData);
-    return unsubscribe;
-  }, [loadData]);
-
   /** Alunos filtrados por busca e status */
   const filteredAlunos = alunos.filter((aluno) => {
     const matchesSearch = aluno.nome.toLowerCase().includes(searchTerm.toLowerCase());
@@ -90,7 +84,7 @@ export function useAlunos(userRole: UserRole | null) {
         showNotification('Aluno atualizado com sucesso!', 'success');
       } else {
         await alunosService.createAluno(formData, planos, selectedPlanoId);
-        showNotification('Aluno cadastrado com sucesso!', 'success');
+        showNotification('Aluno e acesso criados com senha inicial 123456.', 'success');
       }
       setShowAddModal(false);
       setEditingAluno(null);

@@ -232,6 +232,10 @@ CREATE TABLE IF NOT EXISTS public.user_profiles (
     display_name TEXT,
     must_change_password BOOLEAN NOT NULL DEFAULT FALSE,
     is_super_admin BOOLEAN NOT NULL DEFAULT FALSE,
+    secret_question TEXT,
+    secret_answer_hash TEXT,
+    password_recovery_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    last_password_change_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

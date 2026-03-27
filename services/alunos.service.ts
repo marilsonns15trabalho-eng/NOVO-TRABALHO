@@ -1,4 +1,5 @@
 import { getAuthenticatedUser, supabase } from '@/lib/supabase';
+import { authorizedApiJson } from '@/lib/api-client';
 import { TABLES } from '@/lib/constants';
 import { mapAlunoToStudentRow, mapStudentRowToAluno } from '@/lib/mappers';
 import { assertAdminForUserId } from '@/lib/authz';
@@ -8,7 +9,40 @@ import type { Aluno } from '@/types/aluno';
 export async function fetchAlunos(): Promise<Aluno[]> {
   const { data, error } = await supabase
     .from(TABLES.STUDENTS)
-    .select('*')
+    .select(`
+      id,
+      name,
+      cpf,
+      rg,
+      birth_date,
+      gender,
+      marital_status,
+      profession,
+      phone,
+      cellphone,
+      email,
+      zip_code,
+      address,
+      number,
+      complement,
+      bairro,
+      city,
+      state,
+      emergency_contact,
+      emergency_phone,
+      emergency_relationship,
+      plan_id,
+      join_date,
+      due_day,
+      status,
+      notes,
+      objectives,
+      desired_weight,
+      "group",
+      modality,
+      created_at,
+      linked_auth_user_id
+    `)
     .order('name', { ascending: true });
 
   if (error) {
@@ -32,36 +66,28 @@ export async function createAluno(
   alunoData: Partial<Aluno>,
   planos: PlanoListItem[],
   selectedPlanoId: string
-): Promise<{ id: string } | null> {
-  const user = await getAuthenticatedUser();
-  await assertAdminForUserId(user.id);
-
-  const dbAluno = mapAlunoToStudentRow(alunoData, planos, selectedPlanoId);
-
-  const { data, error } = await supabase
-    .from(TABLES.STUDENTS)
-    .insert([dbAluno])
-    .select('id')
-    .single();
-
-  if (error) throw error;
-
-  const studentId = data?.id;
-  if (selectedPlanoId && studentId) {
-    const plano = planos.find((item) => item.id === selectedPlanoId);
-    if (plano) {
-      await supabase.from(TABLES.ASSINATURAS).insert([
-        {
-          student_id: studentId,
-          plan_id: plano.id,
-          plan_name: plano.name,
-          plan_price: plano.price,
-        },
-      ]);
-    }
+): Promise<{ id: string; auth_user_id: string; temporary_password: string } | null> {
+  if (!alunoData.nome?.trim()) {
+    throw new Error('O nome do aluno e obrigatorio.');
   }
 
-  return data;
+  if (!alunoData.email?.trim()) {
+    throw new Error('O e-mail do aluno e obrigatorio para criar o acesso.');
+  }
+
+  const result = await authorizedApiJson<{
+    id: string;
+    auth_user_id: string;
+    temporary_password: string;
+  }>('/api/admin/students', {
+    method: 'POST',
+    body: JSON.stringify({
+      aluno: alunoData,
+      selectedPlanoId: selectedPlanoId || null,
+    }),
+  });
+
+  return result;
 }
 
 const RESTRICTED_FIELDS_FOR_ALUNO = [

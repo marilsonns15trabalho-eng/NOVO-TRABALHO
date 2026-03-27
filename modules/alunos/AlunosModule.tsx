@@ -24,12 +24,10 @@ import AlunoForm from '@/modules/alunos/AlunoForm';
 import type { Aluno, AlunoFormData } from '@/types/aluno';
 import * as usersService from '@/services/users.service';
 import type { UserProfileRow } from '@/services/users.service';
-import { SUPER_ADMIN_EMAIL } from '@/lib/constants';
-import { supabase } from '@/lib/supabase';
 import { resetStudentPassword } from '@/services/admin.service';
 
 export default function AlunosModule() {
-  const { user, role } = useAuth();
+  const { user, role, isSuperAdmin } = useAuth();
   const userRole = role;
   const isAdmin = userRole === 'admin';
   const isReadOnly = userRole === 'professor';
@@ -38,7 +36,6 @@ export default function AlunosModule() {
   const [userProfiles, setUserProfiles] = useState<UserProfileRow[]>([]);
   const [loadingRoles, setLoadingRoles] = useState(false);
   const [roleNotification, setRoleNotification] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
-  const [superAdminId, setSuperAdminId] = useState<string | null>(null);
   const [resetPasswordTarget, setResetPasswordTarget] = useState<Aluno | null>(null);
   const [resettingPasswordForId, setResettingPasswordForId] = useState<string | null>(null);
 
@@ -50,21 +47,13 @@ export default function AlunosModule() {
     const profiles = await usersService.fetchAllProfiles();
     setUserProfiles(profiles);
 
-    const { data: saStudent } = await supabase
-      .from('students')
-      .select('linked_auth_user_id')
-      .eq('email', SUPER_ADMIN_EMAIL)
-      .single();
-
-    if (saStudent?.linked_auth_user_id) {
-      setSuperAdminId(saStudent.linked_auth_user_id);
-    }
-
     setLoadingRoles(false);
   }, [isAdmin]);
 
   const handleRoleChange = async (targetUserId: string, newRole: UserRole) => {
-    if (targetUserId === superAdminId) {
+    const targetProfile = userProfiles.find((profile) => profile.id === targetUserId);
+
+    if (targetProfile?.is_super_admin) {
       setRoleNotification({ msg: 'Super admin nao pode ser alterado.', type: 'error' });
       setTimeout(() => setRoleNotification(null), 3000);
       return;
@@ -186,15 +175,6 @@ export default function AlunosModule() {
 
       await resetStudentPassword(aluno.linked_auth_user_id);
 
-      const { error } = await supabase
-        .from('user_profiles')
-        .update({ must_change_password: true })
-        .eq('id', aluno.linked_auth_user_id);
-
-      if (error) {
-        throw error;
-      }
-
       showNotification('Senha resetada para 123456. Troca obrigatoria ativada.', 'success');
       setResetPasswordTarget(null);
     } catch (error: any) {
@@ -209,6 +189,11 @@ export default function AlunosModule() {
 
     if (!formData.nome) {
       showNotification('O nome do aluno e obrigatorio.', 'error');
+      return;
+    }
+
+    if (!editingAluno && !formData.email) {
+      showNotification('O e-mail do aluno e obrigatorio para criar o acesso.', 'error');
       return;
     }
 
@@ -484,8 +469,10 @@ export default function AlunosModule() {
               <div className="divide-y divide-zinc-800">
                 {userProfiles.map((up) => {
                   const isSelf = up.id === user?.id;
-                  const isSuperAdminUser = up.id === superAdminId;
-                  const isProtected = isSelf || isSuperAdminUser;
+                  const isSuperAdminUser = !!up.is_super_admin;
+                  const isOtherAdminManagedByRegularAdmin =
+                    !isSuperAdmin && up.role === 'admin';
+                  const isProtected = isSelf || isSuperAdminUser || isOtherAdminManagedByRegularAdmin;
 
                   return (
                     <div key={up.id} className={`flex items-center justify-between px-2 py-4 ${isProtected ? 'opacity-60' : ''}`}>
@@ -511,7 +498,9 @@ export default function AlunosModule() {
                       >
                         <option value="aluno">Aluno</option>
                         <option value="professor">Professor</option>
-                        <option value="admin">Admin</option>
+                        {(isSuperAdmin || up.role === 'admin') && (
+                          <option value="admin">Admin</option>
+                        )}
                       </select>
                     </div>
                   );

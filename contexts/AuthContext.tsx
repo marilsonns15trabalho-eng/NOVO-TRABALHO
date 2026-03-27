@@ -27,6 +27,10 @@ export interface UserProfile {
   role: UserRole;
   display_name?: string | null;
   created_at?: string;
+  is_super_admin?: boolean;
+  must_change_password?: boolean;
+  secret_question?: string | null;
+  password_recovery_enabled?: boolean;
 }
 
 interface AuthContextType {
@@ -40,9 +44,11 @@ interface AuthContextType {
   loadingProfile: boolean;
   isReady: boolean;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
   isProfessor: boolean;
   isAluno: boolean;
   clearAuthError: () => void;
+  patchProfile: (patch: Partial<UserProfile>) => void;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string, name: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
@@ -54,6 +60,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const CACHE_KEY = (userId: string) => `profile_cache_${userId}`;
 const CACHE_TTL = 1000 * 60 * 10;
 const PROFILE_SYNC_COOLDOWN_MS = 1000 * 60;
+const INACTIVITY_TIMEOUT_MS = 1000 * 60 * 60 * 2;
+const AUTH_FLASH_MESSAGE_KEY = 'lioness-auth-flash-message';
 
 function isValidRole(value: unknown): value is UserRole {
   return value === 'admin' || value === 'professor' || value === 'aluno';
@@ -73,7 +81,20 @@ function normalizeProfile(raw: unknown): UserProfile | null {
         ? candidate.display_name
         : undefined,
     created_at: typeof candidate.created_at === 'string' ? candidate.created_at : undefined,
+    is_super_admin: Boolean(candidate.is_super_admin),
+    must_change_password: Boolean(candidate.must_change_password),
+    secret_question:
+      typeof candidate.secret_question === 'string' || candidate.secret_question === null
+        ? candidate.secret_question
+        : null,
+    password_recovery_enabled: Boolean(candidate.password_recovery_enabled),
   };
+}
+
+function saveAuthFlashMessage(message: string) {
+  try {
+    sessionStorage.setItem(AUTH_FLASH_MESSAGE_KEY, message);
+  } catch {}
 }
 
 function saveProfileCache(profile: UserProfile) {
@@ -181,6 +202,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const clearAuthError = useCallback(() => {
     setAuthError(null);
+  }, []);
+
+  const patchProfile = useCallback((patch: Partial<UserProfile>) => {
+    setProfile((current) => {
+      if (!current) return current;
+
+      const nextProfile = {
+        ...current,
+        ...patch,
+      };
+
+      saveProfileCache(nextProfile);
+      return nextProfile;
+    });
   }, []);
 
   useEffect(() => {
@@ -367,6 +402,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
   }, [clearUserCaches, resetAuthState]);
 
+  useEffect(() => {
+    if (!user) return;
+
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const armIdleTimeout = () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+
+      timeoutId = setTimeout(() => {
+        saveAuthFlashMessage('Sua sessao foi encerrada apos 2 horas de inatividade.');
+        void signOut();
+      }, INACTIVITY_TIMEOUT_MS);
+    };
+
+    const registerActivity = () => {
+      armIdleTimeout();
+    };
+
+    const events: Array<keyof WindowEventMap> = [
+      'mousemove',
+      'mousedown',
+      'keydown',
+      'scroll',
+      'touchstart',
+      'focus',
+    ];
+
+    armIdleTimeout();
+
+    events.forEach((eventName) => {
+      window.addEventListener(eventName, registerActivity, { passive: true });
+    });
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+
+      events.forEach((eventName) => {
+        window.removeEventListener(eventName, registerActivity);
+      });
+    };
+  }, [signOut, user]);
+
   const updateRole = useCallback(
     async (userId: string, newRole: UserRole) => {
       if (profile?.role !== 'admin') {
@@ -408,9 +489,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loadingProfile,
       isReady,
       isAdmin: role === 'admin',
+      isSuperAdmin: !!profile?.is_super_admin,
       isProfessor: role === 'professor',
       isAluno: role === 'aluno',
       clearAuthError,
+      patchProfile,
       signIn,
       signUp,
       signOut,
@@ -423,6 +506,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       loadingProfile,
       loadingSession,
+      patchProfile,
       profile,
       role,
       session,
