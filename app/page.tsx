@@ -4,16 +4,63 @@ import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
 import {
+  Activity,
   ArrowRight,
-  BarChart3,
-  ChevronRight,
+  BriefcaseBusiness,
+  CalendarRange,
+  CreditCard,
   Dumbbell,
-  Shield,
+  ShieldCheck,
   Users,
-  Zap,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { getDefaultRouteForRole } from '@/lib/navigation';
+
+const featureCards = [
+  {
+    icon: Users,
+    title: 'Alunos',
+    description: 'Cadastro, status, acesso e historico em uma base unica.',
+    accent: 'text-sky-300',
+    bg: 'bg-sky-500/10',
+  },
+  {
+    icon: Dumbbell,
+    title: 'Treinos',
+    description: 'Planos, fichas e progresso mensal por aluno.',
+    accent: 'text-orange-300',
+    bg: 'bg-orange-500/10',
+  },
+  {
+    icon: CreditCard,
+    title: 'Financeiro',
+    description: 'Cobrancas, boletos e movimentacao do periodo.',
+    accent: 'text-emerald-300',
+    bg: 'bg-emerald-500/10',
+  },
+  {
+    icon: Activity,
+    title: 'Avaliacoes',
+    description: 'Registros corporais e consulta rapida da evolucao.',
+    accent: 'text-fuchsia-300',
+    bg: 'bg-fuchsia-500/10',
+  },
+];
+
+const roleCards = [
+  {
+    title: 'Administracao',
+    description: 'Controla cadastros, planos, financeiro e acessos.',
+  },
+  {
+    title: 'Professor',
+    description: 'Acompanha alunos, treinos, anamneses e avaliacoes.',
+  },
+  {
+    title: 'Aluno',
+    description: 'Consulta plano, treino, progresso e historico pessoal.',
+  },
+];
 
 export default function LandingPage() {
   const { user, role, isReady } = useAuth();
@@ -27,116 +74,204 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen overflow-hidden bg-black text-white">
-      <header className="fixed left-0 right-0 top-0 z-50 border-b border-zinc-800/50 bg-black/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-500 text-2xl font-bold text-black">
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute left-1/2 top-0 h-[560px] w-[560px] -translate-x-1/2 rounded-full bg-orange-500/8 blur-[120px]" />
+        <div className="absolute right-0 top-1/3 h-[340px] w-[340px] rounded-full bg-sky-500/8 blur-[120px]" />
+      </div>
+
+      <header className="fixed left-0 right-0 top-0 z-50 border-b border-zinc-800/60 bg-black/75 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 md:px-6">
+          <button
+            onClick={() => router.push('/')}
+            className="flex items-center gap-3 text-left"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-500 text-xl font-black text-black">
               L
             </div>
             <div>
-              <h1 className="text-lg font-bold leading-tight text-white">LIONESS</h1>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-orange-500">Prime</p>
+              <h1 className="text-sm font-bold tracking-[0.2em] text-white md:text-base">LIONESS</h1>
+              <p className="text-[10px] font-bold uppercase tracking-[0.32em] text-orange-400">Prime</p>
             </div>
-          </div>
-          <button
-            onClick={() => router.push('/auth')}
-            className="rounded-xl border border-zinc-800 bg-zinc-900 px-6 py-2.5 text-sm font-bold text-white transition-all hover:bg-zinc-800"
-          >
-            Login
           </button>
+
+          <div className="flex items-center gap-2 md:gap-3">
+            <button
+              onClick={() => router.push('/auth?mode=recover')}
+              className="rounded-full border border-zinc-800 bg-zinc-950/80 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-zinc-300 transition-all hover:border-zinc-700 hover:text-white md:px-5"
+            >
+              Recuperar senha
+            </button>
+            <button
+              onClick={() => router.push('/auth')}
+              className="rounded-full bg-orange-500 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-black transition-all hover:bg-orange-400 md:px-5"
+            >
+              Entrar
+            </button>
+          </div>
         </div>
       </header>
 
-      <section className="relative px-6 pb-20 pt-32">
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute left-1/2 top-1/4 h-[800px] w-[800px] -translate-x-1/2 rounded-full bg-orange-500/5 blur-[120px]" />
-          <div className="absolute left-1/3 top-1/3 h-[400px] w-[400px] rounded-full bg-orange-600/3 blur-[80px]" />
-        </div>
-
-        <div className="relative mx-auto max-w-5xl text-center">
+      <main className="relative px-4 pb-16 pt-28 md:px-6 md:pb-20 md:pt-32">
+        <section className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[1.08fr_0.92fr]">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
+            transition={{ duration: 0.45 }}
+            className="rounded-[30px] border border-zinc-800 bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.14),_transparent_34%),linear-gradient(135deg,rgba(20,20,24,0.96),rgba(8,8,8,0.98))] p-5 shadow-[0_40px_120px_-70px_rgba(249,115,22,0.45)] md:p-8"
           >
-            <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/10 px-4 py-2 text-xs font-bold uppercase tracking-widest text-orange-500">
-              <Zap size={14} />
-              Plataforma SaaS para Personal Trainers
+            <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/10 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.28em] text-orange-300">
+              <BriefcaseBusiness size={14} />
+              Sistema de gestao
             </div>
 
-            <h2 className="mb-6 text-5xl font-bold leading-tight tracking-tight md:text-7xl">
-              Gestao completa para{' '}
-              <span className="bg-gradient-to-r from-orange-400 to-orange-600 bg-clip-text text-transparent">
-                personal trainers
-              </span>{' '}
-              e academias
+            <h2 className="mt-5 max-w-3xl text-4xl font-bold leading-[1.02] tracking-tight text-white md:text-6xl">
+              Operacao do estudio, acompanhamento de alunos e rotina da equipe.
             </h2>
 
-            <p className="mx-auto mb-12 max-w-2xl text-xl leading-relaxed text-zinc-400">
-              Controle seus alunos, treinos, financas e avaliacoes em uma unica plataforma profissional.
-              Simples, rapido e poderoso.
+            <p className="mt-5 max-w-2xl text-sm leading-7 text-zinc-300 md:text-base">
+              Uma plataforma unica para controlar acessos, treinos, avaliacoes, historico
+              nutricional e financeiro sem espalhar informacoes em varias ferramentas.
             </p>
 
-            <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <button
-                onClick={() => router.push('/auth?mode=register')}
-                className="group flex items-center gap-3 rounded-2xl bg-orange-500 px-8 py-4 text-lg font-bold text-black shadow-lg shadow-orange-500/20 transition-all active:scale-95 hover:bg-orange-600"
-              >
-                Criar Conta Gratis
-                <ArrowRight size={20} className="transition-transform group-hover:translate-x-1" />
-              </button>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <button
                 onClick={() => router.push('/auth')}
-                className="flex items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900 px-8 py-4 text-lg font-bold text-white transition-all hover:bg-zinc-800"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-6 py-3 text-sm font-bold text-black transition-all hover:bg-orange-400"
               >
-                Ja tenho conta
-                <ChevronRight size={20} />
+                Acessar plataforma
+                <ArrowRight size={18} />
+              </button>
+              <button
+                onClick={() => router.push('/auth?mode=recover')}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-950/80 px-6 py-3 text-sm font-bold text-zinc-200 transition-all hover:border-zinc-700 hover:bg-zinc-900"
+              >
+                Recuperar acesso
               </button>
             </div>
-          </motion.div>
-        </div>
-      </section>
 
-      <section className="relative px-6 py-20">
-        <div className="mx-auto max-w-6xl">
+            <div className="mt-8 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-4">
+                <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-500">
+                  Fluxo diario
+                </p>
+                <p className="mt-3 text-lg font-bold text-white">Equipe, alunos e operacao</p>
+              </div>
+              <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-4">
+                <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-500">
+                  Acompanhamento
+                </p>
+                <p className="mt-3 text-lg font-bold text-white">Treino, progresso e historico</p>
+              </div>
+              <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-4">
+                <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-500">
+                  Financeiro
+                </p>
+                <p className="mt-3 text-lg font-bold text-white">Cobrancas e caixa</p>
+              </div>
+            </div>
+          </motion.div>
+
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.6 }}
+            transition={{ duration: 0.45, delay: 0.08 }}
+            className="grid gap-6"
           >
-            <h3 className="mb-4 text-center text-3xl font-bold">Tudo que voce precisa</h3>
-            <p className="mx-auto mb-16 max-w-lg text-center text-zinc-500">
-              Uma plataforma completa para gerenciar cada aspecto do seu negocio fitness.
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {[
-              { icon: Users, title: 'Gestao de Alunos', desc: 'Cadastro completo, historico e acompanhamento.', color: 'text-blue-500', bg: 'bg-blue-500/10' },
-              { icon: Dumbbell, title: 'Treinos', desc: 'Crie e gerencie programas de treinamento.', color: 'text-orange-500', bg: 'bg-orange-500/10' },
-              { icon: BarChart3, title: 'Financeiro', desc: 'Controle total de receitas, despesas e boletos.', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-              { icon: Shield, title: 'Avaliacoes', desc: 'Avaliacao fisica e anamnese completas.', color: 'text-purple-500', bg: 'bg-purple-500/10' },
-            ].map((feature, index) => (
-              <motion.div
-                key={feature.title}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 + index * 0.1, duration: 0.5 }}
-                className="group rounded-3xl border border-zinc-800 bg-zinc-900 p-8 transition-colors hover:border-zinc-700"
-              >
-                <div className={`mb-6 flex h-14 w-14 items-center justify-center rounded-2xl ${feature.bg} ${feature.color}`}>
-                  <feature.icon size={28} />
+            <div className="rounded-[30px] border border-zinc-800 bg-zinc-950/90 p-5 shadow-[0_28px_90px_-60px_rgba(0,0,0,0.9)] md:p-6">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-zinc-500">
+                    Dentro da plataforma
+                  </p>
+                  <h3 className="mt-2 text-2xl font-bold text-white">Modulos principais</h3>
                 </div>
-                <h4 className="mb-2 text-xl font-bold transition-colors group-hover:text-orange-500">{feature.title}</h4>
-                <p className="text-sm leading-relaxed text-zinc-500">{feature.desc}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
+                <ShieldCheck className="text-orange-400" size={20} />
+              </div>
 
-      <footer className="border-t border-zinc-800 px-6 py-8 text-center">
-        <p className="text-sm text-zinc-600">© {new Date().getFullYear()} Lioness Prime. Todos os direitos reservados.</p>
+              <div className="mt-5 grid gap-3">
+                {featureCards.map((item) => (
+                  <div
+                    key={item.title}
+                    className="flex items-start gap-4 rounded-2xl border border-zinc-800 bg-black/25 px-4 py-4"
+                  >
+                    <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${item.bg}`}>
+                      <item.icon size={20} className={item.accent} />
+                    </div>
+                    <div>
+                      <p className="font-bold text-white">{item.title}</p>
+                      <p className="mt-1 text-sm leading-6 text-zinc-500">{item.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="rounded-[28px] border border-zinc-800 bg-zinc-950/90 p-5 shadow-[0_28px_90px_-60px_rgba(0,0,0,0.9)] md:p-6">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-300">
+                    <CalendarRange size={20} />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-500">
+                      Rotina
+                    </p>
+                    <p className="mt-1 text-lg font-bold text-white">Fluxo organizado</p>
+                  </div>
+                </div>
+                <p className="mt-4 text-sm leading-6 text-zinc-500">
+                  Cadastro, atendimento, treinos, registros corporais e cobrancas em um fluxo unico.
+                </p>
+              </div>
+
+              <div className="rounded-[28px] border border-zinc-800 bg-zinc-950/90 p-5 shadow-[0_28px_90px_-60px_rgba(0,0,0,0.9)] md:p-6">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-300">
+                    <ShieldCheck size={20} />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-500">
+                      Acesso
+                    </p>
+                    <p className="mt-1 text-lg font-bold text-white">Perfis separados</p>
+                  </div>
+                </div>
+                <p className="mt-4 text-sm leading-6 text-zinc-500">
+                  Permissoes para administracao, professor e aluno com leitura apropriada para cada area.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        </section>
+
+        <section className="mx-auto mt-8 max-w-7xl">
+          <div className="rounded-[30px] border border-zinc-800 bg-zinc-950/80 p-5 shadow-[0_28px_90px_-60px_rgba(0,0,0,0.9)] md:p-6">
+            <div className="mb-6">
+              <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-zinc-500">
+                Niveis de acesso
+              </p>
+              <h3 className="mt-2 text-2xl font-bold text-white">Cada perfil enxerga o que precisa</h3>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              {roleCards.map((roleCard) => (
+                <div
+                  key={roleCard.title}
+                  className="rounded-2xl border border-zinc-800 bg-black/25 p-5"
+                >
+                  <p className="text-lg font-bold text-white">{roleCard.title}</p>
+                  <p className="mt-2 text-sm leading-6 text-zinc-500">{roleCard.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer className="border-t border-zinc-800/70 px-4 py-6 text-center md:px-6">
+        <p className="text-xs uppercase tracking-[0.18em] text-zinc-600">
+          {new Date().getFullYear()} Lioness Prime
+        </p>
       </footer>
     </div>
   );
