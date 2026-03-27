@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import type { User } from '@supabase/supabase-js';
+import type { Session, User } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder';
@@ -17,7 +17,19 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-/** Segundos antes do fim da validade do access token em que já forçamos refresh (rede + relógio). */
+export interface SafeUserProfile {
+  id: string;
+  role: string;
+  display_name: string | null;
+  created_at: string | null;
+}
+
+type SafeSupabaseResponse<T> = {
+  data: T;
+  error: { message?: string } | null;
+};
+
+/** Segundos antes do fim da validade do access token em que ja forcamos refresh (rede + relogio). */
 const SESSION_REFRESH_LEEWAY_SEC = 120;
 
 function isSessionStale(session: { expires_at?: number } | null): boolean {
@@ -28,29 +40,142 @@ function isSessionStale(session: { expires_at?: number } | null): boolean {
 
 /**
  * Renova o access token se estiver expirado ou perto de expirar.
- * Navegadores reduzem timers em abas em segundo plano; o refresh automático pode não rodar a tempo.
+ * Navegadores reduzem timers em abas em segundo plano; o refresh automatico pode nao rodar a tempo.
  */
 export async function refreshSessionIfStale(): Promise<void> {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!isSessionStale(session)) return;
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session || !isSessionStale(session)) return;
+
   await supabase.auth.refreshSession();
 }
 
-/**
- * Usuário autenticado com JWT válido para o PostgREST (renova se o token estiver velho).
- */
-export async function getAuthenticatedUser(): Promise<User> {
-  const { data: { session: s0 } } = await supabase.auth.getSession();
-  if (!s0?.user) {
-    throw new Error('Sessão expirada. Faça login novamente.');
-  }
-  if (isSessionStale(s0)) {
-    const { data: { session: s1 }, error } = await supabase.auth.refreshSession();
-    if (error || !s1?.user) {
-      throw new Error('Sessão expirada. Faça login novamente.');
+export async function getSafeSession(): Promise<Session | null> {
+  try {
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.getSession();
+
+    if (error) {
+      console.error('Erro ao obter sessao:', error);
+      return null;
     }
-    return s1.user;
+
+    if (!session) {
+      console.warn('Sessao nao encontrada');
+      return null;
+    }
+
+    if (!isSessionStale(session)) {
+      return session;
+    }
+
+    const {
+      data: { session: refreshedSession },
+      error: refreshError,
+    } = await supabase.auth.refreshSession();
+
+    if (refreshError) {
+      console.error('Erro ao renovar sessao:', refreshError);
+      return null;
+    }
+
+    if (!refreshedSession) {
+      console.warn('Sessao renovada nao encontrada');
+      return null;
+    }
+
+    return refreshedSession;
+  } catch (error) {
+    console.error('Erro inesperado ao obter sessao:', error);
+    return null;
   }
-  return s0.user;
 }
 
+export async function safeSupabaseQuery<T>(
+  query: PromiseLike<SafeSupabaseResponse<T>>
+): Promise<T> {
+  const session = await getSafeSession();
+
+  if (!session) {
+    throw new Error('SEM SESSAO -> BLOQUEADO');
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('ERRO SUPABASE:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function getUserProfileSafe(): Promise<SafeUserProfile | null> {
+  const session = await getSafeSession();
+
+  if (!session) return null;
+
+  try {
+    return await safeSupabaseQuery<SafeUserProfile | null>(
+      supabase
+        .from('user_profiles')
+        .select('id, role, display_name, created_at')
+        .eq('id', session.user.id)
+        .maybeSingle()
+    );
+  } catch (error) {
+    console.error('Erro ao buscar profile:', error);
+    throw error;
+  }
+}
+
+const activeFetches = new Set<string>();
+
+export async function preventMultipleFetch<T>(
+  fn: () => Promise<T>,
+  key = 'global'
+): Promise<T | undefined> {
+  if (activeFetches.has(key)) {
+    console.warn('Bloqueado fetch duplicado');
+    return undefined;
+  }
+
+  try {
+    activeFetches.add(key);
+    return await fn();
+  } finally {
+    activeFetches.delete(key);
+  }
+}
+
+export function assertUser<T extends { id?: string | null }>(
+  user: T | null | undefined
+): asserts user is T & { id: string } {
+  if (!user?.id) {
+    throw new Error('USER INVALIDO');
+  }
+}
+
+export function debugSession() {
+  supabase.auth.getSession().then((res) => {
+    console.log('SESSION DEBUG:', res);
+  });
+}
+
+/**
+ * Usuario autenticado com JWT valido para o PostgREST (renova se o token estiver velho).
+ */
+export async function getAuthenticatedUser(): Promise<User> {
+  const session = await getSafeSession();
+
+  if (!session?.user) {
+    throw new Error('Sessao expirada. Faca login novamente.');
+  }
+
+  assertUser(session.user);
+  return session.user;
+}

@@ -9,7 +9,12 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { supabase, refreshSessionIfStale } from '@/lib/supabase';
+import {
+  getSafeSession,
+  getUserProfileSafe,
+  refreshSessionIfStale,
+  supabase,
+} from '@/lib/supabase';
 import { SUPER_ADMIN_EMAIL } from '@/lib/constants';
 import type { Session, User } from '@supabase/supabase-js';
 import { clearAlunosCache } from '@/lib/cache/alunosCache';
@@ -178,7 +183,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoadingProfile(true);
 
       try {
-        const syncedProfile = await ensureUserSetup(currentUser, displayName);
+        let syncedProfile: UserProfile | null = null;
+
+        try {
+          const safeProfile = await getUserProfileSafe();
+          if (safeProfile?.id === currentUser.id) {
+            syncedProfile = normalizeProfile(safeProfile);
+          }
+        } catch (error) {
+          console.warn('Falha ao buscar profile seguro:', error);
+        }
+
+        if (!syncedProfile) {
+          syncedProfile = await ensureUserSetup(currentUser, displayName);
+        }
+
         if (latestRequestRef.current !== requestId || currentUserIdRef.current !== currentUser.id) {
           return;
         }
@@ -222,9 +241,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     void (async () => {
       try {
-        const {
-          data: { session: initialSession },
-        } = await supabase.auth.getSession();
+        const initialSession = await getSafeSession();
         await applySession(initialSession);
       } catch (error) {
         console.warn('Falha ao recuperar sessao inicial:', error);
