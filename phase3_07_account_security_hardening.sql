@@ -21,7 +21,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_students_email_unique
     ON public.students (LOWER(email))
     WHERE email IS NOT NULL;
 
-CREATE OR REPLACE FUNCTION public.get_my_profile()
+DROP FUNCTION IF EXISTS public.get_my_profile();
+
+CREATE FUNCTION public.get_my_profile()
 RETURNS TABLE (
     id UUID,
     role TEXT,

@@ -3,6 +3,7 @@ import {
   ApiRouteError,
   requireAuthenticatedCaller,
 } from '@/lib/server/admin-auth';
+import { updateUserProfileSecurity } from '@/lib/server/profile-security';
 import { hashSecretAnswer } from '@/lib/server/secret-recovery';
 
 export const runtime = 'nodejs';
@@ -61,23 +62,19 @@ export async function POST(request: NextRequest) {
       profileUpdates.password_recovery_enabled = true;
     }
 
+    let warning: string | null = null;
     if (Object.keys(profileUpdates).length > 0) {
-      const { error: profileError } = await admin
-        .from('user_profiles')
-        .update(profileUpdates)
-        .eq('id', callerUserId);
-
-      if (profileError) {
-        throw profileError;
-      }
+      const result = await updateUserProfileSecurity(admin, callerUserId, profileUpdates);
+      warning = result.warning;
     }
 
     return NextResponse.json({
-      message: 'Seguranca da conta atualizada com sucesso.',
+      message: warning || 'Seguranca da conta atualizada com sucesso.',
       must_change_password: false,
-      password_recovery_enabled: Boolean(
-        profileUpdates.password_recovery_enabled
-      ),
+      password_recovery_enabled: warning
+        ? false
+        : Boolean(profileUpdates.password_recovery_enabled),
+      warning,
     });
   } catch (error) {
     if (error instanceof ApiRouteError) {

@@ -72,7 +72,9 @@ export default function AccountSecurityForm({
 
       patchProfile({
         must_change_password: false,
-        secret_question: secretQuestion || undefined,
+        secret_question: result.password_recovery_enabled
+          ? secretQuestion || undefined
+          : null,
         password_recovery_enabled: result.password_recovery_enabled,
       });
 

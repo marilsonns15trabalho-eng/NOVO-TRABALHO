@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ApiRouteError } from '@/lib/server/admin-auth';
+import {
+  isMissingProfileSecurityColumnError,
+  updateUserProfileSecurity,
+} from '@/lib/server/profile-security';
 import { hashSecretAnswer } from '@/lib/server/secret-recovery';
 import { findAuthUserByEmail, getSupabaseAdmin } from '@/lib/server/supabase-admin';
 
@@ -40,6 +44,12 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (profileError) {
+      if (isMissingProfileSecurityColumnError(profileError)) {
+        throw new ApiRouteError(
+          503,
+          'A recuperacao por pergunta secreta ainda nao foi habilitada neste banco. Rode phase3_07_account_security_hardening.sql.'
+        );
+      }
       throw profileError;
     }
 
@@ -59,17 +69,10 @@ export async function POST(request: NextRequest) {
       throw new ApiRouteError(400, passwordError.message);
     }
 
-    const { error: updateProfileError } = await admin
-      .from('user_profiles')
-      .update({
+    await updateUserProfileSecurity(admin, authUser.id, {
         must_change_password: false,
         last_password_change_at: new Date().toISOString(),
-      })
-      .eq('id', authUser.id);
-
-    if (updateProfileError) {
-      throw updateProfileError;
-    }
+      });
 
     return NextResponse.json({
       message: 'Senha atualizada com sucesso.',
