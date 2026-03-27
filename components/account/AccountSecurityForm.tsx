@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Loader2, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Loader2, ShieldCheck, Sparkles } from 'lucide-react';
 import { saveAccountSecurity } from '@/services/account.service';
 import { useAuth } from '@/hooks/useAuth';
 import { SECRET_QUESTIONS } from '@/lib/security-questions';
@@ -27,7 +27,23 @@ export default function AccountSecurityForm({
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const title = useMemo(
-    () => (required ? 'Troca obrigatoria de senha' : 'Senha e recuperacao'),
+    () => (required ? 'Primeiro acesso protegido' : 'Senha e recuperacao'),
+    [required]
+  );
+
+  const summaryCards = useMemo(
+    () => [
+      {
+        label: 'Senha',
+        value: required ? 'Troca obrigatoria agora' : 'Atualize quando quiser',
+        tone: required ? 'text-orange-300' : 'text-emerald-300',
+      },
+      {
+        label: 'Recuperacao',
+        value: '5 perguntas prontas com resposta unica',
+        tone: 'text-sky-300',
+      },
+    ],
     [required]
   );
 
@@ -58,7 +74,7 @@ export default function AccountSecurityForm({
     if ((secretQuestion && !secretAnswer) || (!secretQuestion && secretAnswer)) {
       setMessage({
         type: 'error',
-        text: 'Informe a pergunta secreta e a resposta secreta juntas.',
+        text: 'Selecione a pergunta e informe a resposta secreta juntas.',
       });
       return;
     }
@@ -115,18 +131,53 @@ export default function AccountSecurityForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="flex items-start gap-3">
-        <div className="rounded-2xl bg-orange-500/10 p-3 text-orange-500">
-          <ShieldCheck size={20} />
-        </div>
-        <div>
-          <h3 className="text-lg font-bold text-white">{title}</h3>
-          <p className="text-sm text-zinc-400">
-            {required
-              ? 'Para continuar usando o sistema, atualize sua senha agora. Aproveite e configure a recuperacao por pergunta secreta.'
-              : 'Atualize sua senha quando quiser e cadastre uma pergunta secreta para recuperar o acesso.'}
-          </p>
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <div className="relative overflow-hidden rounded-[30px] border border-zinc-800 bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.14),_transparent_34%),linear-gradient(135deg,rgba(24,24,27,0.98),rgba(10,10,10,0.98))] p-6 shadow-[0_28px_90px_-48px_rgba(249,115,22,0.45)]">
+        <div className="absolute inset-y-0 right-0 w-48 bg-gradient-to-l from-orange-500/5 to-transparent" />
+
+        <div className="relative flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+          <div className="max-w-2xl">
+            <div className="flex items-start gap-4">
+              <div className="rounded-3xl border border-orange-500/20 bg-orange-500/10 p-3 text-orange-400 shadow-lg shadow-orange-500/10">
+                <ShieldCheck size={22} />
+              </div>
+
+              <div className="space-y-2">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-orange-400/80">
+                    Seguranca da conta
+                  </p>
+                  <h3 className="mt-1 text-2xl font-bold text-white">{title}</h3>
+                </div>
+
+                <p className="max-w-xl text-sm leading-6 text-zinc-400">
+                  {required
+                    ? 'Defina sua nova senha para liberar o acesso e escolha uma das perguntas prontas para recuperar a conta quando precisar.'
+                    : 'Mantenha sua conta protegida com uma senha forte e uma pergunta secreta pronta para recuperacao.'}
+                </p>
+
+                {required && (
+                  <div className="inline-flex rounded-full border border-orange-500/20 bg-orange-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-orange-300">
+                    Acao obrigatoria antes de usar o painel
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 xl:w-[380px]">
+            {summaryCards.map((card) => (
+              <div
+                key={card.label}
+                className="rounded-2xl border border-white/6 bg-white/[0.03] px-4 py-4 backdrop-blur-sm"
+              >
+                <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-zinc-500">
+                  {card.label}
+                </p>
+                <p className={`mt-2 text-sm font-semibold ${card.tone}`}>{card.value}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -134,79 +185,128 @@ export default function AccountSecurityForm({
         <div
           className={`rounded-2xl border px-4 py-3 text-sm font-bold ${
             message.type === 'success'
-              ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-500'
-              : 'border-rose-500/20 bg-rose-500/10 text-rose-500'
+              ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400'
+              : 'border-rose-500/20 bg-rose-500/10 text-rose-400'
           }`}
         >
           {message.text}
         </div>
       )}
 
-      <div className={`grid gap-4 ${compact ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
-        <div className="space-y-1.5">
-          <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Nova senha</label>
-          <input
-            type="password"
-            value={newPassword}
-            onChange={(event) => setNewPassword(event.target.value)}
-            minLength={6}
-            required={required}
-            className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all placeholder:text-zinc-600 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50"
-            placeholder="Minimo de 6 caracteres"
-          />
+      <div className={`grid gap-5 ${compact ? 'grid-cols-1' : 'grid-cols-1 xl:grid-cols-[1.05fr_0.95fr]'}`}>
+        <div className="rounded-[28px] border border-zinc-800 bg-zinc-950/85 p-5 shadow-[0_24px_70px_-48px_rgba(0,0,0,0.9)]">
+          <div className="mb-5 flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">
+                Atualizar senha
+              </p>
+              <h4 className="mt-2 text-xl font-bold text-white">Renove seu acesso</h4>
+              <p className="mt-2 max-w-lg text-sm leading-6 text-zinc-400">
+                Use uma senha nova, com pelo menos 6 caracteres, para proteger seu acesso ao painel.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-3 text-zinc-300">
+              <Sparkles size={18} />
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">
+                Nova senha
+              </label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                minLength={6}
+                required={required}
+                className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3.5 text-white outline-none transition-all placeholder:text-zinc-600 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/40"
+                placeholder="Minimo de 6 caracteres"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">
+                Confirmar nova senha
+              </label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                minLength={6}
+                required={required}
+                className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3.5 text-white outline-none transition-all placeholder:text-zinc-600 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/40"
+                placeholder="Repita a nova senha"
+              />
+            </div>
+          </div>
         </div>
 
-        <div className="space-y-1.5">
-          <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Confirmar nova senha</label>
-          <input
-            type="password"
-            value={confirmPassword}
-            onChange={(event) => setConfirmPassword(event.target.value)}
-            minLength={6}
-            required={required}
-            className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all placeholder:text-zinc-600 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50"
-            placeholder="Repita a nova senha"
-          />
+        <div className="rounded-[28px] border border-zinc-800 bg-zinc-950/85 p-5 shadow-[0_24px_70px_-48px_rgba(0,0,0,0.9)]">
+          <div className="mb-5">
+            <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">
+              Recuperacao
+            </p>
+            <h4 className="mt-2 text-xl font-bold text-white">Pergunta secreta pronta</h4>
+            <p className="mt-2 max-w-lg text-sm leading-6 text-zinc-400">
+              Escolha uma das 5 perguntas oficiais do sistema e salve apenas a sua resposta.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">
+                Pergunta secreta
+              </label>
+              <select
+                value={secretQuestion}
+                onChange={(event) => setSecretQuestion(event.target.value)}
+                className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3.5 text-white outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/40"
+              >
+                <option value="">Selecione uma pergunta</option>
+                {SECRET_QUESTIONS.map((question) => (
+                  <option key={question} value={question}>
+                    {question}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">
+                Resposta secreta
+              </label>
+              <input
+                type="text"
+                value={secretAnswer}
+                onChange={(event) => setSecretAnswer(event.target.value)}
+                className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3.5 text-white outline-none transition-all placeholder:text-zinc-600 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/40"
+                placeholder="Digite somente a resposta"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className={`grid gap-4 ${compact ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
-        <div className="space-y-1.5">
-          <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Pergunta secreta</label>
-          <select
-            value={secretQuestion}
-            onChange={(event) => setSecretQuestion(event.target.value)}
-            className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all placeholder:text-zinc-600 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50"
-          >
-            <option value="">Selecione uma pergunta</option>
-            {SECRET_QUESTIONS.map((question) => (
-              <option key={question} value={question}>
-                {question}
-              </option>
-            ))}
-          </select>
+      <div className="flex flex-col gap-3 rounded-[26px] border border-zinc-800 bg-zinc-950/80 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-white">Finalize a protecao do seu acesso</p>
+          <p className="mt-1 text-sm text-zinc-500">
+            Sua senha e seus dados de recuperacao ficam vinculados ao seu perfil.
+          </p>
         </div>
 
-        <div className="space-y-1.5">
-          <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Resposta secreta</label>
-          <input
-            type="text"
-            value={secretAnswer}
-            onChange={(event) => setSecretAnswer(event.target.value)}
-            className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all placeholder:text-zinc-600 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50"
-            placeholder="Sua resposta"
-          />
-        </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-5 py-3.5 font-bold text-black shadow-lg shadow-orange-500/20 transition-all active:scale-[0.99] hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {loading ? <Loader2 size={18} className="animate-spin" /> : <ArrowRight size={18} />}
+          Salvar seguranca da conta
+        </button>
       </div>
-
-      <button
-        type="submit"
-        disabled={loading}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 py-3.5 font-bold text-black shadow-lg shadow-orange-500/20 transition-all active:scale-95 hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {loading && <Loader2 size={18} className="animate-spin" />}
-        Salvar seguranca da conta
-      </button>
     </form>
   );
 }
