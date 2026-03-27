@@ -34,7 +34,11 @@ function createDefaultTreinoForm(): TreinoFormData {
     ativo: true,
     assigned_student_ids: [],
     training_plan_id: '',
+    training_plan_version_id: '',
     sort_order: 0,
+    split_label: '',
+    day_of_week: null,
+    coach_notes: '',
   };
 }
 
@@ -44,6 +48,10 @@ function createDefaultTrainingPlanForm() {
     weekly_frequency: 3,
     description: '',
     active: true,
+    objective: '',
+    level: 'iniciante',
+    duration_weeks: 4,
+    coach_notes: '',
   };
 }
 
@@ -273,8 +281,12 @@ export function useTreinos() {
       exercicios: treino.exercicios?.length ? treino.exercicios : [{ ...EMPTY_EXERCICIO }],
       ativo: treino.ativo !== false,
       training_plan_id: treino.training_plan_id || '',
+      training_plan_version_id: treino.training_plan_version_id || '',
       assigned_student_ids: (treino.assigned_students || []).map((student) => student.id),
       sort_order: treino.sort_order || 0,
+      split_label: treino.split_label || '',
+      day_of_week: treino.day_of_week ?? null,
+      coach_notes: treino.coach_notes || '',
     });
     setShowAddModal(true);
   }, []);

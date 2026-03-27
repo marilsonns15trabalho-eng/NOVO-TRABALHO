@@ -17,6 +17,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useTreinos } from '@/hooks/useTreinos';
 import { useUserRole } from '@/hooks/useUserRole';
 import { Toast } from '@/components/ui';
+import { formatTrainingDay } from '@/lib/training';
 import type { TrainingPlan, Treino } from '@/types/treino';
 
 function SectionTitle({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
@@ -113,6 +114,30 @@ function TrainingPlanCard({
           {plan.weekly_frequency}x / semana
         </div>
       </div>
+      {plan.active_version && (
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-4 py-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Versao</p>
+            <p className="mt-2 text-xl font-bold text-white">v{plan.active_version.version_number}</p>
+          </div>
+          <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-4 py-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Nivel</p>
+            <p className="mt-2 text-xl font-bold text-white">{plan.active_version.level || '-'}</p>
+          </div>
+          <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-4 py-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Duracao</p>
+            <p className="mt-2 text-xl font-bold text-white">
+              {plan.active_version.duration_weeks ? `${plan.active_version.duration_weeks} sem` : '-'}
+            </p>
+          </div>
+        </div>
+      )}
+      {(plan.active_version?.objective || plan.active_version?.coach_notes) && (
+        <div className="mt-4 rounded-2xl border border-white/6 bg-white/[0.03] px-4 py-4 text-sm leading-6 text-zinc-400">
+          <p className="font-bold text-white">{plan.active_version?.objective || 'Plano ativo'}</p>
+          {plan.active_version?.coach_notes && <p className="mt-2">{plan.active_version.coach_notes}</p>}
+        </div>
+      )}
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-4 py-4">
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Alunos</p>
@@ -166,6 +191,16 @@ function TreinoCard({
           </p>
         </div>
         <div className="flex flex-wrap gap-2 text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">
+          {treino.split_label ? (
+            <span className="rounded-full border border-orange-500/20 px-3 py-1.5 text-orange-300">
+              Split {treino.split_label}
+            </span>
+          ) : null}
+          {treino.day_of_week != null ? (
+            <span className="rounded-full border border-zinc-800 px-3 py-1.5">
+              {formatTrainingDay(treino.day_of_week)}
+            </span>
+          ) : null}
           <span className="rounded-full border border-zinc-800 px-3 py-1.5">{treino.exercicios?.length || 0} exercicios</span>
           <span className="rounded-full border border-zinc-800 px-3 py-1.5">{treino.assigned_students?.length || 0} alunos</span>
           <span className="rounded-full border border-zinc-800 px-3 py-1.5">{treino.completions_this_month || 0} concluidos</span>
@@ -179,6 +214,11 @@ function TreinoCard({
         <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-2 text-xs font-semibold text-zinc-400">
           Objetivo: {treino.objetivo || 'Nao informado'}
         </div>
+        {treino.training_plan_version?.version_number ? (
+          <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-2 text-xs font-semibold text-zinc-400">
+            Versao {treino.training_plan_version.version_number}
+          </div>
+        ) : null}
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
         {(treino.assigned_students || []).slice(0, 4).map((student) => (
@@ -328,8 +368,16 @@ export default function TreinosModule() {
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <input value={newTrainingPlan.name} onChange={(e) => setNewTrainingPlan((c) => ({ ...c, name: e.target.value }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Nome do plano" />
                   <input type="number" min="1" max="7" value={newTrainingPlan.weekly_frequency} onChange={(e) => setNewTrainingPlan((c) => ({ ...c, weekly_frequency: Number(e.target.value) || 1 }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Frequencia semanal" />
+                  <input value={newTrainingPlan.objective} onChange={(e) => setNewTrainingPlan((c) => ({ ...c, objective: e.target.value }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Objetivo do plano" />
+                  <select value={newTrainingPlan.level} onChange={(e) => setNewTrainingPlan((c) => ({ ...c, level: e.target.value }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30">
+                    <option value="iniciante">Iniciante</option>
+                    <option value="intermediario">Intermediario</option>
+                    <option value="avancado">Avancado</option>
+                  </select>
+                  <input type="number" min="1" max="52" value={newTrainingPlan.duration_weeks} onChange={(e) => setNewTrainingPlan((c) => ({ ...c, duration_weeks: Number(e.target.value) || 1 }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Duracao em semanas" />
                 </div>
                 <textarea rows={4} value={newTrainingPlan.description} onChange={(e) => setNewTrainingPlan((c) => ({ ...c, description: e.target.value }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Descricao do plano" />
+                <textarea rows={3} value={newTrainingPlan.coach_notes} onChange={(e) => setNewTrainingPlan((c) => ({ ...c, coach_notes: e.target.value }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Orientacoes do treinador" />
                 <div className="flex gap-3">
                   <button type="button" onClick={() => setShowTrainingPlanModal(false)} className="flex-1 rounded-2xl bg-zinc-800 px-4 py-4 font-bold text-white transition-all hover:bg-zinc-700">Cancelar</button>
                   <button type="submit" className="flex-1 rounded-2xl bg-sky-500 px-4 py-4 font-bold text-black transition-all hover:bg-sky-400">Salvar plano</button>
@@ -378,6 +426,17 @@ export default function TreinosModule() {
                     <option value="">Sem plano especifico</option>
                     {trainingPlans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} ({plan.weekly_frequency}x/semana)</option>)}
                   </select>
+                  <input value={newTreino.split_label || ''} onChange={(e) => setNewTreino((c) => ({ ...c, split_label: e.target.value.toUpperCase() }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Split (A, B, C...)" />
+                  <select value={newTreino.day_of_week ?? ''} onChange={(e) => setNewTreino((c) => ({ ...c, day_of_week: e.target.value === '' ? null : Number(e.target.value) }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30">
+                    <option value="">Sem dia fixo</option>
+                    <option value="0">Domingo</option>
+                    <option value="1">Segunda</option>
+                    <option value="2">Terca</option>
+                    <option value="3">Quarta</option>
+                    <option value="4">Quinta</option>
+                    <option value="5">Sexta</option>
+                    <option value="6">Sabado</option>
+                  </select>
                   <input value={newTreino.objetivo || ''} onChange={(e) => setNewTreino((c) => ({ ...c, objetivo: e.target.value }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Objetivo" />
                   <select value={newTreino.nivel || 'iniciante'} onChange={(e) => setNewTreino((c) => ({ ...c, nivel: e.target.value }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30">
                     <option value="iniciante">Iniciante</option>
@@ -389,6 +448,7 @@ export default function TreinosModule() {
                 </div>
 
                 <textarea rows={4} value={newTreino.descricao || ''} onChange={(e) => setNewTreino((c) => ({ ...c, descricao: e.target.value }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Descricao do treino" />
+                <textarea rows={3} value={newTreino.coach_notes || ''} onChange={(e) => setNewTreino((c) => ({ ...c, coach_notes: e.target.value }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Orientacoes do treinador" />
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
@@ -455,6 +515,17 @@ export default function TreinosModule() {
                 <div className="rounded-2xl border border-zinc-800 bg-black/25 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Nivel</p><p className="mt-2 text-lg font-bold text-white">{selectedTreino.nivel || '-'}</p></div>
                 <div className="rounded-2xl border border-zinc-800 bg-black/25 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Duracao</p><p className="mt-2 text-lg font-bold text-white">{selectedTreino.duracao_minutos || 0} min</p></div>
               </div>
+              <div className="mt-4 grid gap-4 md:grid-cols-3">
+                <div className="rounded-2xl border border-zinc-800 bg-black/25 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Split</p><p className="mt-2 text-lg font-bold text-white">{selectedTreino.split_label || '-'}</p></div>
+                <div className="rounded-2xl border border-zinc-800 bg-black/25 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Dia sugerido</p><p className="mt-2 text-lg font-bold text-white">{formatTrainingDay(selectedTreino.day_of_week)}</p></div>
+                <div className="rounded-2xl border border-zinc-800 bg-black/25 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Versao</p><p className="mt-2 text-lg font-bold text-white">{selectedTreino.training_plan_version?.version_number ? `v${selectedTreino.training_plan_version.version_number}` : '-'}</p></div>
+              </div>
+              {selectedTreino.coach_notes && (
+                <div className="mt-4 rounded-[24px] border border-zinc-800 bg-black/25 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Orientacoes</p>
+                  <p className="mt-2 text-sm leading-6 text-zinc-400">{selectedTreino.coach_notes}</p>
+                </div>
+              )}
 
               <div className="mt-8 space-y-4">
                 <SectionTitle eyebrow="Alunos ligados" title="Distribuicao atual" description="Cada aluno pode concluir o treino por conta propria ou a equipe pode registrar a conclusao." />

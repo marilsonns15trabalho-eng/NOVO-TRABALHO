@@ -39,3 +39,12 @@ export async function recoverPasswordWithSecretQuestion(
     }),
   });
 }
+
+export async function ensureStudentWorkspace() {
+  return authorizedApiJson<{
+    student_id: string | null;
+    mode: 'existing' | 'linked_existing' | 'created' | 'skipped';
+  }>('/api/account/bootstrap-student', {
+    method: 'POST',
+  });
+}

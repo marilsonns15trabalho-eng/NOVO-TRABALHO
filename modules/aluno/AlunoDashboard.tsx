@@ -12,6 +12,8 @@ import {
   Dumbbell,
   Loader2,
   LogOut,
+  PlayCircle,
+  Save,
   ShieldCheck,
   Sparkles,
   XCircle,
@@ -20,10 +22,17 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import AccountSecurityForm from '@/components/account/AccountSecurityForm';
+import { formatTrainingDay, pickTodayWorkout } from '@/lib/training';
+import { ensureStudentWorkspace } from '@/services/account.service';
 import * as avaliacoesService from '@/services/avaliacoes.service';
 import * as treinosService from '@/services/treinos.service';
 import type { Avaliacao } from '@/types/avaliacao';
-import type { StudentMonthlyTrainingProgress, TrainingPlan, Treino } from '@/types/treino';
+import type {
+  StudentMonthlyTrainingProgress,
+  TrainingPlan,
+  Treino,
+  TreinoExecutionSession,
+} from '@/types/treino';
 
 interface StudentPlan {
   plan_name?: string;
@@ -100,6 +109,9 @@ export default function AlunoDashboard() {
   const [treinos, setTreinos] = useState<Treino[]>([]);
   const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([]);
   const [completingTreinoId, setCompletingTreinoId] = useState<string | null>(null);
+  const [executionSession, setExecutionSession] = useState<TreinoExecutionSession | null>(null);
+  const [executionTreino, setExecutionTreino] = useState<Treino | null>(null);
+  const [executionSaving, setExecutionSaving] = useState(false);
 
   useEffect(() => {
     const run = async () => {
@@ -108,11 +120,24 @@ export default function AlunoDashboard() {
       try {
         setLoading(true);
 
-        const { data: studentRow } = await supabase
-          .from('students')
-          .select('id, plan_id, plan_name')
-          .eq('linked_auth_user_id', user.id)
-          .maybeSingle();
+        const loadStudentRow = async () => {
+          const { data } = await supabase
+            .from('students')
+            .select('id, plan_id, plan_name')
+            .eq('linked_auth_user_id', user.id)
+            .maybeSingle();
+
+          return data ?? null;
+        };
+
+        let studentRow = await loadStudentRow();
+
+        if (!studentRow) {
+          await ensureStudentWorkspace().catch((error) => {
+            console.warn('Nao foi possivel preparar automaticamente o cadastro do aluno:', error);
+          });
+          studentRow = await loadStudentRow();
+        }
 
         const resolvedStudentId = studentRow?.id ?? null;
         setStudentId(resolvedStudentId);
@@ -193,15 +218,11 @@ export default function AlunoDashboard() {
 
   const heroTitle = mustChangePassword
     ? 'Seu primeiro acesso esta quase pronto'
-    : studentId
-      ? 'Seu painel pessoal esta organizado'
-      : 'Seu acesso foi criado com sucesso';
+    : 'Seu painel pessoal esta organizado';
 
   const heroDescription = mustChangePassword
     ? 'Atualize sua senha e escolha uma pergunta secreta para liberar o uso completo do painel com seguranca.'
-    : studentId
-      ? 'Acompanhe seus treinos, avaliacoes e informacoes do plano em um ambiente mais claro e profissional.'
-      : 'Agora falta apenas a equipe vincular este acesso ao seu cadastro de aluno para liberar plano, treinos e avaliacoes.';
+    : 'Acompanhe seus treinos, avaliacoes e informacoes do plano em um ambiente mais claro e profissional.';
 
   const statusItems = [
     {
@@ -210,7 +231,7 @@ export default function AlunoDashboard() {
     },
     {
       label: 'Cadastro',
-      value: studentId ? 'Vinculado' : 'Pendente',
+      value: studentId ? 'Ativo' : 'Inicializando',
     },
     {
       label: 'Plano',
@@ -221,6 +242,75 @@ export default function AlunoDashboard() {
       value: workoutPlan?.name || 'Sem plano de treino',
     },
   ];
+
+  const todayWorkout = useMemo(() => pickTodayWorkout(treinos), [treinos]);
+
+  const refreshStudentTrainingState = async () => {
+    if (!user) {
+      return;
+    }
+
+    const [treinosData, progressData] = await Promise.all([
+      treinosService.fetchTreinos(user.id),
+      treinosService.fetchStudentMonthlyProgress(user.id),
+    ]);
+
+    setTreinos(treinosData);
+    setTrainingProgress(progressData);
+  };
+
+  const openExecutionForTreino = async (treino: Treino) => {
+    try {
+      const session = await treinosService.startTreinoExecution({ treinoId: treino.id });
+      setExecutionTreino(treino);
+      setExecutionSession(session);
+    } catch (error) {
+      console.error('Erro ao iniciar execucao do treino:', error);
+    }
+  };
+
+  const updateExecutionItem = (index: number, field: string, value: string | number | boolean) => {
+    setExecutionSession((current) => {
+      if (!current) {
+        return current;
+      }
+
+      return {
+        ...current,
+        items: current.items.map((item, itemIndex) =>
+          itemIndex === index ? { ...item, [field]: value } : item,
+        ),
+      };
+    });
+  };
+
+  const handleSaveExecution = async (markCompleted = false) => {
+    if (!executionSession) {
+      return;
+    }
+
+    try {
+      setExecutionSaving(true);
+      const saved = await treinosService.saveTreinoExecution({
+        sessionId: executionSession.id,
+        items: executionSession.items,
+        notes: executionSession.notes || '',
+        markCompleted,
+      });
+
+      setExecutionSession(saved);
+      await refreshStudentTrainingState();
+
+      if (markCompleted) {
+        setExecutionSession(null);
+        setExecutionTreino(null);
+      }
+    } catch (error) {
+      console.error('Erro ao salvar execucao do treino:', error);
+    } finally {
+      setExecutionSaving(false);
+    }
+  };
 
   const handleToggleTreinoCompletion = async (treino: Treino) => {
     if (!studentId || !user || completingTreinoId) {
@@ -234,13 +324,7 @@ export default function AlunoDashboard() {
         completed: !treino.completed_today,
       });
 
-      const [treinosData, progressData] = await Promise.all([
-        treinosService.fetchTreinos(user.id),
-        treinosService.fetchStudentMonthlyProgress(user.id),
-      ]);
-
-      setTreinos(treinosData);
-      setTrainingProgress(progressData);
+      await refreshStudentTrainingState();
     } catch (error) {
       console.error('Erro ao atualizar conclusao do treino:', error);
     } finally {
@@ -403,7 +487,7 @@ export default function AlunoDashboard() {
             description={
               studentId
                 ? 'Seus programas de treino ficam organizados aqui para consulta rapida.'
-                : 'Seu cadastro ainda precisa ser vinculado para liberar a leitura dos treinos.'
+                : 'Seu ambiente ainda esta sendo preparado para exibir os treinos.'
             }
             icon={<ShieldCheck size={24} className="text-emerald-400" />}
             accentClassName="bg-gradient-to-r from-emerald-500/90 via-emerald-400/70 to-transparent"
@@ -430,6 +514,93 @@ export default function AlunoDashboard() {
           <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">
+                Agenda
+              </p>
+              <h2 className="mt-2 text-3xl font-bold text-white">Treino do dia</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
+                Abra a execucao do treino, salve progresso manualmente e conclua quando terminar.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-white/6 bg-white/[0.03] p-3 text-orange-400">
+              <PlayCircle size={22} />
+            </div>
+          </div>
+
+          {!todayWorkout ? (
+            <EmptyState
+              title="Nenhum treino programado para hoje"
+              description="Se houver treino sem agenda fixa, ele continua disponivel na biblioteca abaixo."
+              icon={<Calendar size={18} />}
+            />
+          ) : (
+            <div className="rounded-[26px] border border-zinc-800 bg-black/30 p-5">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="max-w-3xl">
+                  <div className="flex flex-wrap gap-2">
+                    {todayWorkout.split_label ? (
+                      <span className="rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-orange-300">
+                        Split {todayWorkout.split_label}
+                      </span>
+                    ) : null}
+                    <span className="rounded-full border border-zinc-800 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-400">
+                      {formatTrainingDay(todayWorkout.day_of_week)}
+                    </span>
+                  </div>
+                  <h3 className="mt-4 text-2xl font-bold text-white">{todayWorkout.nome}</h3>
+                  <p className="mt-2 text-sm leading-6 text-zinc-400">
+                    {todayWorkout.descricao || 'Sem descricao adicional para o treino de hoje.'}
+                  </p>
+                  {todayWorkout.coach_notes && (
+                    <div className="mt-4 rounded-2xl border border-zinc-800 bg-zinc-900/50 px-4 py-4 text-sm leading-6 text-zinc-400">
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">
+                        Orientacoes
+                      </p>
+                      <p className="mt-2">{todayWorkout.coach_notes}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-4 py-4">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                      Exercicios
+                    </p>
+                    <p className="mt-2 text-xl font-bold text-white">
+                      {todayWorkout.exercicios?.length || 0}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-4 py-4">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                      Status
+                    </p>
+                    <p className="mt-2 text-xl font-bold text-white">
+                      {todayWorkout.completed_today ? 'Concluido' : 'Pendente'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => void openExecutionForTreino(todayWorkout)}
+                    className="rounded-2xl border border-orange-500/20 bg-orange-500/10 px-4 py-3 text-sm font-bold text-orange-300 transition-all hover:bg-orange-500 hover:text-black"
+                  >
+                    Abrir execucao
+                  </button>
+                  <button
+                    onClick={() => void handleToggleTreinoCompletion(todayWorkout)}
+                    disabled={!studentId || completingTreinoId === todayWorkout.id}
+                    className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-300 transition-all hover:bg-emerald-500 hover:text-black disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {todayWorkout.completed_today ? 'Remover conclusao' : 'Concluir direto'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
+        <section className="rounded-[32px] border border-zinc-800 bg-zinc-950/85 p-6 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)]">
+          <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">
                 Leitura
               </p>
               <h2 className="mt-2 text-3xl font-bold text-white">Meus Treinos</h2>
@@ -445,11 +616,11 @@ export default function AlunoDashboard() {
 
           {treinos.length === 0 ? (
             <EmptyState
-              title={studentId ? 'Nenhum treino disponivel no momento' : 'Seu cadastro ainda nao foi vinculado'}
+              title={studentId ? 'Nenhum treino disponivel no momento' : 'Preparando sua area de treino'}
               description={
                 studentId
                   ? 'Assim que a equipe liberar uma ficha para voce, ela aparecera aqui com todos os detalhes.'
-                  : 'Seu acesso ja esta ativo, mas ainda falta conectar esta conta ao cadastro de aluno para liberar plano, treinos e historico.'
+                  : 'Seu acesso ja esta ativo. Assim que o sistema terminar a preparacao inicial, seus dados aparecerao aqui.'
               }
               icon={studentId ? <Dumbbell size={18} /> : <AlertTriangle size={18} />}
             />
@@ -493,12 +664,32 @@ export default function AlunoDashboard() {
                       Objetivo: {treino.objetivo || 'Nao informado'}
                     </div>
 
+                    {treino.split_label ? (
+                      <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-2 text-xs font-semibold text-zinc-400">
+                        Split {treino.split_label}
+                      </div>
+                    ) : null}
+
+                    {treino.day_of_week != null ? (
+                      <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-2 text-xs font-semibold text-zinc-400">
+                        {formatTrainingDay(treino.day_of_week)}
+                      </div>
+                    ) : null}
+
                     <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-2 text-xs font-semibold text-zinc-400">
                       Exercicios: {treino.exercicios?.length || 0}
                     </div>
                   </div>
 
                   <div className="mt-5 flex flex-wrap gap-3">
+                    <button
+                      onClick={() => void openExecutionForTreino(treino)}
+                      disabled={!studentId}
+                      className="inline-flex items-center gap-2 rounded-2xl border border-orange-500/20 bg-orange-500/10 px-4 py-3 text-sm font-bold text-orange-300 transition-all hover:bg-orange-500 hover:text-black disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <PlayCircle size={16} />
+                      {treino.current_execution?.status === 'in_progress' ? 'Continuar execucao' : 'Abrir execucao'}
+                    </button>
                     {treino.completed_today ? (
                       <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">
                         <ShieldCheck size={14} />
@@ -556,7 +747,7 @@ export default function AlunoDashboard() {
           {!trainingProgress ? (
             <EmptyState
               title="Progresso ainda indisponivel"
-              description="Assim que seu plano de treino estiver vinculado e os treinos forem concluidos, o acompanhamento mensal aparecera aqui."
+              description="Assim que houver plano ativo e treinos concluidos, o acompanhamento mensal aparecera aqui."
               icon={<ShieldCheck size={18} />}
             />
           ) : (
@@ -593,6 +784,31 @@ export default function AlunoDashboard() {
                   icon={<Sparkles size={24} className="text-orange-400" />}
                   accentClassName="bg-gradient-to-r from-orange-500/90 via-orange-400/70 to-transparent"
                 />
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="rounded-[24px] border border-zinc-800 bg-black/25 p-5">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                    Frequencia nesta semana
+                  </p>
+                  <p className="mt-3 text-2xl font-bold text-white">
+                    {trainingProgress.this_week_trained_days} dia(s)
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-zinc-500">
+                    Dias da semana atual com pelo menos um treino concluido.
+                  </p>
+                </div>
+                <div className="rounded-[24px] border border-zinc-800 bg-black/25 p-5">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                    Sequencia atual
+                  </p>
+                  <p className="mt-3 text-2xl font-bold text-white">
+                    {trainingProgress.current_streak} dia(s)
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-zinc-500">
+                    Dias consecutivos com treino registrado ate hoje.
+                  </p>
+                </div>
               </div>
 
               <div className="mt-6 rounded-[26px] border border-zinc-800 bg-black/25 p-5">
@@ -732,6 +948,133 @@ export default function AlunoDashboard() {
           )}
         </section>
       </div>
+
+      {executionSession && executionTreino && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/88 px-4 py-6 backdrop-blur-md">
+          <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-[34px] border border-zinc-800 bg-zinc-950 p-5 shadow-[0_40px_120px_-56px_rgba(0,0,0,0.95)] md:p-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">
+                  Execucao do treino
+                </p>
+                <h2 className="mt-2 text-3xl font-bold text-white">{executionTreino.nome}</h2>
+                <p className="mt-2 text-sm leading-6 text-zinc-500">
+                  Marque os exercicios concluidos, ajuste carga ou repeticoes e salve quando quiser.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <span className="rounded-full border border-zinc-800 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-zinc-400">
+                  {formatTrainingDay(executionTreino.day_of_week)}
+                </span>
+                {executionTreino.split_label ? (
+                  <span className="rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-orange-300">
+                    Split {executionTreino.split_label}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-4">
+              {executionSession.items.map((item, index) => (
+                <div key={`${executionSession.id}-${item.exercise_index}`} className="rounded-[24px] border border-zinc-800 bg-black/25 p-4">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="max-w-3xl">
+                      <p className="text-lg font-bold text-white">{item.exercise_name}</p>
+                      <p className="mt-2 text-xs uppercase tracking-[0.18em] text-zinc-500">
+                        Planejado: {item.planned_sets || '-'} series • {item.planned_reps || '-'} reps • carga {item.planned_load || '-'}
+                      </p>
+                    </div>
+
+                    <label className="inline-flex items-center gap-3 rounded-full border border-zinc-800 bg-zinc-900/70 px-4 py-2 text-sm font-bold text-white">
+                      <input
+                        type="checkbox"
+                        checked={item.completed}
+                        onChange={(e) => updateExecutionItem(index, 'completed', e.target.checked)}
+                        className="h-4 w-4 rounded border-zinc-700 bg-black text-orange-500 focus:ring-orange-500/40"
+                      />
+                      Concluido
+                    </label>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 md:grid-cols-3">
+                    <input
+                      type="number"
+                      min="0"
+                      value={item.performed_sets ?? ''}
+                      onChange={(e) => updateExecutionItem(index, 'performed_sets', Number(e.target.value) || 0)}
+                      className="rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/30"
+                      placeholder="Series feitas"
+                    />
+                    <input
+                      value={item.performed_reps ?? ''}
+                      onChange={(e) => updateExecutionItem(index, 'performed_reps', e.target.value)}
+                      className="rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/30"
+                      placeholder="Repeticoes feitas"
+                    />
+                    <input
+                      value={item.performed_load ?? ''}
+                      onChange={(e) => updateExecutionItem(index, 'performed_load', e.target.value)}
+                      className="rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/30"
+                      placeholder="Carga utilizada"
+                    />
+                  </div>
+
+                  <textarea
+                    rows={2}
+                    value={item.notes ?? ''}
+                    onChange={(e) => updateExecutionItem(index, 'notes', e.target.value)}
+                    className="mt-3 w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/30"
+                    placeholder="Observacoes do exercicio"
+                  />
+                </div>
+              ))}
+            </div>
+
+            <textarea
+              rows={3}
+              value={executionSession.notes ?? ''}
+              onChange={(e) =>
+                setExecutionSession((current) => (current ? { ...current, notes: e.target.value } : current))
+              }
+              className="mt-5 w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/30"
+              placeholder="Observacoes gerais da execucao"
+            />
+
+            <div className="mt-6 flex flex-col gap-3 md:flex-row">
+              <button
+                onClick={() => {
+                  setExecutionSession(null);
+                  setExecutionTreino(null);
+                }}
+                className="flex-1 rounded-2xl bg-zinc-800 px-4 py-4 font-bold text-white transition-all hover:bg-zinc-700"
+              >
+                Fechar
+              </button>
+              <button
+                onClick={() => void handleSaveExecution(false)}
+                disabled={executionSaving}
+                className="flex-1 rounded-2xl border border-orange-500/20 bg-orange-500/10 px-4 py-4 font-bold text-orange-300 transition-all hover:bg-orange-500 hover:text-black disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <span className="inline-flex items-center gap-2">
+                  {executionSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  Salvar progresso
+                </span>
+              </button>
+              <button
+                onClick={() => void handleSaveExecution(true)}
+                disabled={executionSaving}
+                className="flex-1 rounded-2xl bg-emerald-500 px-4 py-4 font-bold text-black transition-all hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <span className="inline-flex items-center gap-2">
+                  {executionSaving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                  Concluir treino
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {mustChangePassword && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/92 px-6 py-10 backdrop-blur-md">
