@@ -29,11 +29,12 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
   const router = useRouter();
   const [notifications, setNotifications] = useState<dashboardService.HeaderNotificationItem[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [clearingNotifications, setClearingNotifications] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const notificationsRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (role !== 'admin' && role !== 'professor') {
+    if ((role !== 'admin' && role !== 'professor') || !user?.id) {
       setNotifications([]);
       return;
     }
@@ -41,7 +42,7 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
     const loadNotifications = async () => {
       try {
         setLoadingNotifications(true);
-        const items = await dashboardService.fetchHeaderNotifications(role);
+        const items = await dashboardService.fetchHeaderNotifications(user.id, role);
         setNotifications(items);
       } finally {
         setLoadingNotifications(false);
@@ -50,9 +51,9 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
 
     void loadNotifications();
 
-    const unsubscribe = dashboardService.subscribeToHeaderNotifications(role, loadNotifications);
+    const unsubscribe = dashboardService.subscribeToHeaderNotifications(user.id, role, loadNotifications);
     return unsubscribe;
-  }, [role]);
+  }, [role, user?.id]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -79,9 +80,37 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
     router.push('/');
   };
 
-  const handleNotificationClick = (notification: dashboardService.HeaderNotificationItem) => {
+  const handleNotificationClick = async (notification: dashboardService.HeaderNotificationItem) => {
+    if (!user?.id) {
+      return;
+    }
+
+    setNotifications((current) => current.filter((item) => item.id !== notification.id));
     setIsNotificationsOpen(false);
+    try {
+      await dashboardService.markHeaderNotificationsAsRead(user.id, [notification.id]);
+    } catch (error) {
+      console.error('Erro ao marcar notificacao como lida:', error);
+    }
     router.push(notification.route);
+  };
+
+  const handleClearNotifications = async () => {
+    if (!user?.id || notifications.length === 0 || clearingNotifications) {
+      return;
+    }
+
+    const notificationIds = notifications.map((notification) => notification.id);
+    setClearingNotifications(true);
+    setNotifications([]);
+
+    try {
+      await dashboardService.markHeaderNotificationsAsRead(user.id, notificationIds);
+    } catch (error) {
+      console.error('Erro ao limpar notificacoes:', error);
+    } finally {
+      setClearingNotifications(false);
+    }
   };
 
   const displayName = profile?.display_name || user?.email?.split('@')[0] || 'Usuario';
@@ -225,6 +254,20 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
                     </span>
                   </div>
 
+                  <div className="mt-3 flex items-center justify-between px-3">
+                    <p className="text-[11px] uppercase tracking-[0.22em] text-zinc-600">
+                      Nao lidas
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void handleClearNotifications()}
+                      disabled={notifications.length === 0 || clearingNotifications}
+                      className="rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400 transition-all hover:border-zinc-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {clearingNotifications ? 'Limpando...' : 'Limpar notificacoes'}
+                    </button>
+                  </div>
+
                   <div className="mt-3 max-h-[420px] space-y-2 overflow-y-auto pr-1">
                     {notifications.length === 0 ? (
                       <div className="rounded-[22px] border border-dashed border-zinc-800 bg-black/20 px-4 py-6 text-sm text-zinc-500">
@@ -234,7 +277,7 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
                       notifications.map((notification) => (
                         <button
                           key={notification.id}
-                          onClick={() => handleNotificationClick(notification)}
+                          onClick={() => void handleNotificationClick(notification)}
                           className="w-full rounded-[22px] border border-zinc-800 bg-black/20 px-4 py-4 text-left transition-all hover:border-zinc-700 hover:bg-zinc-900/70"
                         >
                           <div className="flex items-start gap-3">

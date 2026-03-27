@@ -54,6 +54,7 @@ export const TABLES = {
   ASSINATURAS: 'assinaturas',
   CONFIGURACOES: 'configuracoes',
   USER_PROFILES: 'user_profiles',
+  USER_NOTIFICATION_READS: 'user_notification_reads',
 } as const;
 
 /** Super admin — protegido contra alterações */

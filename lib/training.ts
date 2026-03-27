@@ -14,6 +14,30 @@ export function getTodayDayOfWeek(referenceDate = new Date()): number {
   return referenceDate.getDay();
 }
 
+export function isTreinoRecentlyUpdated(
+  treino: Pick<Treino, 'created_at' | 'updated_at'>,
+  referenceDate = new Date(),
+  windowHours = 72,
+): boolean {
+  if (!treino.updated_at || !treino.created_at) {
+    return false;
+  }
+
+  const updatedAt = new Date(treino.updated_at).getTime();
+  const createdAt = new Date(treino.created_at).getTime();
+  const referenceTime = referenceDate.getTime();
+
+  if (Number.isNaN(updatedAt) || Number.isNaN(createdAt)) {
+    return false;
+  }
+
+  if (updatedAt <= createdAt) {
+    return false;
+  }
+
+  return referenceTime - updatedAt <= windowHours * 60 * 60 * 1000;
+}
+
 export function isTreinoScheduledForToday(
   treino: Pick<Treino, 'day_of_week'>,
   referenceDate = new Date(),
@@ -30,6 +54,12 @@ export function pickTodayWorkout(treinos: Treino[], referenceDate = new Date()):
     .filter((treino) => treino.ativo !== false)
     .filter((treino) => isTreinoScheduledForToday(treino, referenceDate))
     .sort((a, b) => {
+      const aInProgress = a.current_execution?.status === 'in_progress' ? 1 : 0;
+      const bInProgress = b.current_execution?.status === 'in_progress' ? 1 : 0;
+      if (aInProgress !== bInProgress) {
+        return bInProgress - aInProgress;
+      }
+
       const aCompleted = a.completed_today ? 1 : 0;
       const bCompleted = b.completed_today ? 1 : 0;
       if (aCompleted !== bCompleted) {

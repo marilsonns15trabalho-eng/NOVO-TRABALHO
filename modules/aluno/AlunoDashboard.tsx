@@ -23,7 +23,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { formatDatePtBr } from '@/lib/date';
 import { supabase } from '@/lib/supabase';
 import AccountSecurityForm from '@/components/account/AccountSecurityForm';
-import { formatTrainingDay, pickTodayWorkout } from '@/lib/training';
+import { formatTrainingDay, isTreinoRecentlyUpdated, pickTodayWorkout } from '@/lib/training';
 import { ensureStudentWorkspace } from '@/services/account.service';
 import * as avaliacoesService from '@/services/avaliacoes.service';
 import * as treinosService from '@/services/treinos.service';
@@ -292,15 +292,23 @@ export default function AlunoDashboard() {
   const hour = new Date().getHours();
   const salutation = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
   const todayWorkout = useMemo(() => pickTodayWorkout(treinos), [treinos]);
+  const todayWorkoutRecentlyUpdated = useMemo(
+    () => (todayWorkout ? isTreinoRecentlyUpdated(todayWorkout) : false),
+    [todayWorkout],
+  );
   const heroTitle = mustChangePassword
     ? 'Seu primeiro acesso esta quase pronto'
     : `${salutation}, ${firstName}`;
 
   const heroDescription = mustChangePassword
     ? 'Atualize sua senha e escolha uma pergunta secreta para liberar o uso completo do painel com seguranca.'
-    : todayWorkout
-      ? 'Seu treino de hoje ja esta separado. Abra a execucao quando estiver pronta e acompanhe seu mes pela navegacao abaixo.'
-      : 'Use a navegacao abaixo para acompanhar progresso, treinos, avaliacoes e seguranca da conta.';
+    : todayWorkout?.current_execution?.status === 'in_progress'
+      ? 'Seu treino de hoje ja esta em andamento. Continue a execucao quando voltar ao treino e acompanhe seu progresso do mes.'
+      : todayWorkoutRecentlyUpdated
+        ? 'Seu treino de hoje recebeu atualizacao recente. Revise as orientacoes antes de iniciar a execucao.'
+        : todayWorkout
+          ? 'Seu treino de hoje ja esta separado. Abra a execucao quando estiver pronta e acompanhe seu mes pela navegacao abaixo.'
+          : 'Use a navegacao abaixo para acompanhar progresso, treinos, avaliacoes e seguranca da conta.';
 
   const statusItems = [
     {
@@ -391,6 +399,18 @@ export default function AlunoDashboard() {
 
     setTreinos(treinosData);
     setTrainingProgress(progressData);
+  };
+
+  const getTreinoStatusLabel = (treino: Treino) => {
+    if (treino.completed_today) {
+      return 'Concluido';
+    }
+
+    if (treino.current_execution?.status === 'in_progress') {
+      return 'Em andamento';
+    }
+
+    return 'Pendente';
   };
 
   const openExecutionForTreino = async (treino: Treino) => {
@@ -818,6 +838,11 @@ export default function AlunoDashboard() {
                         Split {todayWorkout.split_label}
                       </span>
                     ) : null}
+                    {todayWorkoutRecentlyUpdated ? (
+                      <span className="rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-sky-300">
+                        Atualizado recentemente
+                      </span>
+                    ) : null}
                     <span className="rounded-full border border-zinc-800 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-400">
                       {formatTrainingDay(todayWorkout.day_of_week)}
                     </span>
@@ -850,14 +875,14 @@ export default function AlunoDashboard() {
                       Status
                     </p>
                     <p className="mt-2 text-xl font-bold text-white">
-                      {todayWorkout.completed_today ? 'Concluido' : 'Pendente'}
+                      {getTreinoStatusLabel(todayWorkout)}
                     </p>
                   </div>
                   <button
                     onClick={() => void openExecutionForTreino(todayWorkout)}
                     className="rounded-2xl border border-orange-500/20 bg-orange-500/10 px-4 py-3 text-sm font-bold text-orange-300 transition-all hover:bg-orange-500 hover:text-black"
                   >
-                    Abrir execucao
+                    {todayWorkout.current_execution?.status === 'in_progress' ? 'Continuar execucao' : 'Abrir execucao'}
                   </button>
                   <button
                     onClick={() => void handleToggleTreinoCompletion(todayWorkout)}
@@ -948,6 +973,12 @@ export default function AlunoDashboard() {
                       </div>
                     ) : null}
 
+                    {isTreinoRecentlyUpdated(treino) ? (
+                      <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-300">
+                        Atualizado recentemente
+                      </div>
+                    ) : null}
+
                     {treino.day_of_week != null ? (
                       <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-2 text-xs font-semibold text-zinc-400">
                         {formatTrainingDay(treino.day_of_week)}
@@ -972,6 +1003,11 @@ export default function AlunoDashboard() {
                       <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">
                         <ShieldCheck size={14} />
                         Concluido hoje
+                      </span>
+                    ) : treino.current_execution?.status === 'in_progress' ? (
+                      <span className="inline-flex items-center gap-2 rounded-full border border-sky-500/20 bg-sky-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-sky-300">
+                        <PlayCircle size={14} />
+                        Em andamento
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">

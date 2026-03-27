@@ -250,6 +250,22 @@ function sortNotifications(items: HeaderNotificationItem[]) {
   });
 }
 
+async function fetchReadNotificationIds(userId: string, notificationIds: string[]) {
+  if (!userId || notificationIds.length === 0) {
+    return new Set<string>();
+  }
+
+  const { data, error } = await supabase
+    .from(TABLES.USER_NOTIFICATION_READS)
+    .select('notification_id')
+    .eq('user_id', userId)
+    .in('notification_id', notificationIds);
+
+  assertNoQueryError('HeaderNotifications.reads', error);
+
+  return new Set((data || []).map((row: any) => row.notification_id).filter(Boolean));
+}
+
 async function fetchBillingNotifications(): Promise<HeaderNotificationItem[]> {
   const today = getLocalDateInputValue();
   const dueWindowEnd = getLocalDateInputValue(addDays(new Date(), 3));
@@ -272,7 +288,7 @@ async function fetchBillingNotifications(): Promise<HeaderNotificationItem[]> {
       const isLate = row.status === 'late' || row.due_date < today;
 
       return {
-        id: `bill-${row.id}`,
+        id: `bill-${row.id}-${isLate ? 'late' : 'due'}`,
         type: isLate ? 'billing_late' : 'billing_due',
         title: isLate ? 'Boleto em atraso' : 'Boleto vencendo',
         description: `${studentName} • R$ ${amount} • ${isLate ? `vencido em ${formatDatePtBr(row.due_date)}` : `vence em ${formatDatePtBr(row.due_date)}`}`,
@@ -392,10 +408,10 @@ async function fetchTrainingUpdateNotifications(): Promise<HeaderNotificationIte
       }
 
       return {
-        id: `training-update-${treino.id}`,
+        id: `training-update-${treino.id}-${new Date(treino.updated_at).getTime()}`,
         type: 'training_update' as const,
         title: 'Treino atualizado',
-        description: `${treino.nome || 'Treino'} foi atualizado para ${impactedStudents.size} aluno(s).`,
+        description: `${treino.nome || 'Treino'} foi atualizado para ${impactedStudents.size} ${impactedStudents.size === 1 ? 'aluno' : 'alunos'}.`,
         occurred_at: treino.updated_at,
         route: '/dashboard/treinos',
         priority: 1,
@@ -406,7 +422,10 @@ async function fetchTrainingUpdateNotifications(): Promise<HeaderNotificationIte
     .map(({ impactedCount: _impactedCount, ...item }) => item);
 }
 
-export async function fetchHeaderNotifications(role: 'admin' | 'professor'): Promise<HeaderNotificationItem[]> {
+export async function fetchHeaderNotifications(
+  userId: string,
+  role: 'admin' | 'professor',
+): Promise<HeaderNotificationItem[]> {
   const tasks: Array<Promise<HeaderNotificationItem[]>> = [
     fetchWorkoutCompletionNotifications(),
     fetchTrainingUpdateNotifications(),
@@ -417,10 +436,39 @@ export async function fetchHeaderNotifications(role: 'admin' | 'professor'): Pro
   }
 
   const groups = await Promise.all(tasks);
-  return sortNotifications(groups.flat()).slice(0, 12);
+  const sorted = sortNotifications(groups.flat());
+  const readIds = await fetchReadNotificationIds(
+    userId,
+    sorted.map((item) => item.id),
+  );
+
+  return sorted.filter((item) => !readIds.has(item.id)).slice(0, 12);
+}
+
+export async function markHeaderNotificationsAsRead(
+  userId: string,
+  notificationIds: string[],
+): Promise<void> {
+  const uniqueIds = Array.from(new Set(notificationIds.filter(Boolean)));
+  if (!userId || uniqueIds.length === 0) {
+    return;
+  }
+
+  const payload = uniqueIds.map((notificationId) => ({
+    user_id: userId,
+    notification_id: notificationId,
+    read_at: new Date().toISOString(),
+  }));
+
+  const { error } = await supabase
+    .from(TABLES.USER_NOTIFICATION_READS)
+    .upsert(payload, { onConflict: 'user_id,notification_id' });
+
+  assertNoQueryError('HeaderNotifications.markAsRead', error);
 }
 
 export function subscribeToHeaderNotifications(
+  userId: string,
   role: 'admin' | 'professor',
   callback: () => void,
 ) {
@@ -432,6 +480,17 @@ export function subscribeToHeaderNotifications(
   if (role === 'admin') {
     channel.on('postgres_changes', { event: '*', schema: 'public', table: TABLES.BILLS }, callback);
   }
+
+  channel.on(
+    'postgres_changes',
+    {
+      event: '*',
+      schema: 'public',
+      table: TABLES.USER_NOTIFICATION_READS,
+      filter: `user_id=eq.${userId}`,
+    },
+    callback,
+  );
 
   channel.subscribe();
 
