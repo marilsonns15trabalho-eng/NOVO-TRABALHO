@@ -29,6 +29,8 @@ type SafeSupabaseResponse<T> = {
   error: { message?: string } | null;
 };
 
+let refreshSessionPromise: Promise<Session | null> | null = null;
+
 /** Segundos antes do fim da validade do access token em que ja forcamos refresh (rede + relogio). */
 const SESSION_REFRESH_LEEWAY_SEC = 120;
 
@@ -49,7 +51,34 @@ export async function refreshSessionIfStale(): Promise<void> {
 
   if (!session || !isSessionStale(session)) return;
 
-  await supabase.auth.refreshSession();
+  await refreshSessionWithLock();
+}
+
+async function refreshSessionWithLock(): Promise<Session | null> {
+  if (!refreshSessionPromise) {
+    refreshSessionPromise = (async () => {
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.refreshSession();
+
+      if (error) {
+        console.error('Erro ao renovar sessao:', error);
+        return null;
+      }
+
+      if (!session) {
+        console.warn('Sessao renovada nao encontrada');
+        return null;
+      }
+
+      return session;
+    })().finally(() => {
+      refreshSessionPromise = null;
+    });
+  }
+
+  return refreshSessionPromise;
 }
 
 export async function getSafeSession(): Promise<Session | null> {
@@ -73,22 +102,7 @@ export async function getSafeSession(): Promise<Session | null> {
       return session;
     }
 
-    const {
-      data: { session: refreshedSession },
-      error: refreshError,
-    } = await supabase.auth.refreshSession();
-
-    if (refreshError) {
-      console.error('Erro ao renovar sessao:', refreshError);
-      return null;
-    }
-
-    if (!refreshedSession) {
-      console.warn('Sessao renovada nao encontrada');
-      return null;
-    }
-
-    return refreshedSession;
+    return await refreshSessionWithLock();
   } catch (error) {
     console.error('Erro inesperado ao obter sessao:', error);
     return null;
@@ -120,13 +134,18 @@ export async function getUserProfileSafe(): Promise<SafeUserProfile | null> {
   if (!session) return null;
 
   try {
-    return await safeSupabaseQuery<SafeUserProfile | null>(
-      supabase
-        .from('user_profiles')
-        .select('id, role, display_name, created_at')
-        .eq('id', session.user.id)
-        .maybeSingle()
-    );
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('id, role, display_name, created_at')
+      .eq('id', session.user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.error('ERRO SUPABASE:', error);
+      throw error;
+    }
+
+    return data;
   } catch (error) {
     console.error('Erro ao buscar profile:', error);
     throw error;

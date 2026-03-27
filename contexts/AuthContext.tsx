@@ -278,7 +278,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const handler = () => {
       if (document.visibilityState === 'visible') {
-        refreshSessionIfStale();
+        void refreshSessionIfStale().catch((error) => {
+          console.warn('Falha ao renovar sessao em foco:', error);
+        });
       }
     };
 
