@@ -31,7 +31,6 @@ export function useAlunos(userRole: UserRole | null) {
 
     const cached = getAlunosCache(user.id);
     if (cached) {
-      console.log('Usando cache de alunos');
       setAlunos(cached);
       setLoading(false);
     } else {

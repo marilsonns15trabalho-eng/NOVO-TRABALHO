@@ -196,24 +196,12 @@ export async function updateAluno(
 }
 
 export async function deleteAluno(alunoId: string): Promise<void> {
-  const user = await getAuthenticatedUser();
-  await assertAdminForUserId(user.id);
-
-  await supabase.from(TABLES.TREINO_COMPLETION_LOGS).delete().eq('student_id', alunoId);
-  await supabase.from(TABLES.TREINO_STUDENT_ASSIGNMENTS).delete().eq('student_id', alunoId);
-  await supabase.from(TABLES.STUDENT_TRAINING_PLANS).delete().eq('student_id', alunoId);
-  await supabase.from(TABLES.ASSINATURAS).delete().eq('student_id', alunoId);
-  await supabase.from(TABLES.ANAMNESES).delete().eq('student_id', alunoId);
-  await supabase.from(TABLES.AVALIACOES).delete().eq('student_id', alunoId);
-  await supabase.from(TABLES.TREINOS).delete().eq('student_id', alunoId);
-  await supabase.from(TABLES.BILLS).delete().eq('student_id', alunoId);
-
-  const { error } = await supabase
-    .from(TABLES.STUDENTS)
-    .delete()
-    .eq('id', alunoId);
-
-  if (error) throw error;
+  await authorizedApiJson<{ message: string }>(
+    `/api/admin/students?id=${encodeURIComponent(alunoId)}`,
+    {
+      method: 'DELETE',
+    },
+  );
 }
 
 export async function toggleAlunoStatus(alunoId: string, currentStatus: string): Promise<void> {

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   ApiRouteError,
   assertAdminCaller,
+  getTargetProfile,
+  preventEditingProtectedSuperAdmin,
   requireAuthenticatedCaller,
 } from '@/lib/server/admin-auth';
 import {
@@ -64,6 +66,40 @@ function asStringArray(value: unknown): string[] {
   return value
     .map((item) => (typeof item === 'string' ? item.trim() : ''))
     .filter(Boolean);
+}
+
+async function deleteStudentCascade(admin: ReturnType<typeof getSupabaseAdmin>, studentId: string) {
+  const deletions: Array<{ table: string; column: string }> = [
+    { table: 'treino_completion_logs', column: 'student_id' },
+    { table: 'treino_student_assignments', column: 'student_id' },
+    { table: 'student_training_plans', column: 'student_id' },
+    { table: 'treino_execution_sessions', column: 'student_id' },
+    { table: 'assinaturas', column: 'student_id' },
+    { table: 'anamneses', column: 'student_id' },
+    { table: 'avaliacoes', column: 'student_id' },
+    { table: 'treinos', column: 'student_id' },
+    { table: 'bills', column: 'student_id' },
+  ];
+
+  for (const deletion of deletions) {
+    const { error } = await admin
+      .from(deletion.table)
+      .delete()
+      .eq(deletion.column, studentId);
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  const { error: studentDeleteError } = await admin
+    .from('students')
+    .delete()
+    .eq('id', studentId);
+
+  if (studentDeleteError) {
+    throw studentDeleteError;
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -271,6 +307,75 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: diagnosticMessage },
       { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { admin, callerProfile } = await requireAuthenticatedCaller(request);
+    assertAdminCaller(callerProfile);
+
+    const studentId = request.nextUrl.searchParams.get('id')?.trim();
+    if (!studentId) {
+      throw new ApiRouteError(400, 'Informe o aluno que sera excluido.');
+    }
+
+    const { data: student, error: studentError } = await admin
+      .from('students')
+      .select('id, name, linked_auth_user_id')
+      .eq('id', studentId)
+      .maybeSingle();
+
+    if (studentError) {
+      throw studentError;
+    }
+
+    if (!student) {
+      throw new ApiRouteError(404, 'Aluno nao encontrado.');
+    }
+
+    if (student.linked_auth_user_id) {
+      const targetProfile = await getTargetProfile(student.linked_auth_user_id);
+      preventEditingProtectedSuperAdmin(callerProfile, targetProfile);
+    }
+
+    await deleteStudentCascade(admin, studentId);
+
+    if (student.linked_auth_user_id) {
+      const { error: profileDeleteError } = await admin
+        .from('user_profiles')
+        .delete()
+        .eq('id', student.linked_auth_user_id);
+
+      if (profileDeleteError) {
+        throw profileDeleteError;
+      }
+
+      const { error: authDeleteError } = await admin.auth.admin.deleteUser(student.linked_auth_user_id);
+      if (authDeleteError) {
+        throw authDeleteError;
+      }
+    }
+
+    return NextResponse.json({
+      message: 'Aluno excluido com sucesso.',
+      deleted_student_id: studentId,
+    });
+  } catch (error) {
+    if (error instanceof ApiRouteError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+
+    console.error('Erro ao excluir aluno:', error);
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error && error.message
+            ? error.message
+            : 'Nao foi possivel excluir o aluno.',
+      },
+      { status: 500 },
     );
   }
 }

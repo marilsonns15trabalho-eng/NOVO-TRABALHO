@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import {
   Activity,
@@ -134,23 +134,23 @@ export default function ProfessorDashboard({ onNavigate }: ProfessorDashboardPro
   const [data, setData] = useState<ProfessorDashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const run = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const result = await fetchProfessorDashboardData();
-        setData(result);
-      } catch (err: any) {
-        setData(null);
-        setError(err?.message || 'Nao foi possivel carregar a visao do professor.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void run();
+  const loadDashboard = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await fetchProfessorDashboardData();
+      setData(result);
+    } catch (err: any) {
+      setData(null);
+      setError(err?.message || 'Nao foi possivel carregar a visao do professor.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadDashboard();
+  }, [loadDashboard]);
 
   const actionTiles = useMemo(
     () => [
@@ -207,7 +207,7 @@ export default function ProfessorDashboard({ onNavigate }: ProfessorDashboardPro
           <h3 className="mb-3 text-2xl font-bold">Falha ao carregar o painel do professor</h3>
           <p className="mb-6 text-sm text-zinc-400">{error}</p>
           <button
-            onClick={() => window.location.reload()}
+            onClick={() => void loadDashboard()}
             className="rounded-2xl bg-sky-500 px-6 py-3 font-bold text-black transition-all hover:bg-sky-400"
           >
             Tentar novamente

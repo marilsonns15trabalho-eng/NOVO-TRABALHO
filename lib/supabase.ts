@@ -229,8 +229,16 @@ export function assertUser<T extends { id?: string | null }>(
 }
 
 export function debugSession() {
+  if (process.env.NODE_ENV === 'production') {
+    return;
+  }
+
   supabase.auth.getSession().then((res) => {
-    console.log('SESSION DEBUG:', res);
+    console.debug('SESSION DEBUG:', {
+      hasSession: Boolean(res.data.session),
+      userId: res.data.session?.user?.id ?? null,
+      expiresAt: res.data.session?.expires_at ?? null,
+    });
   });
 }
 

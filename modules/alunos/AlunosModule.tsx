@@ -37,6 +37,13 @@ import type { UserProfileRow } from '@/services/users.service';
 import { resetStudentPassword } from '@/services/admin.service';
 import { buildWhatsAppUrl, normalizeWhatsAppPhone } from '@/lib/phone';
 
+const EMPTY_ALUNO_FORM: Partial<AlunoFormData> = {
+  nome: '',
+  email: '',
+  telefone: '',
+  status: 'ativo',
+};
+
 export default function AlunosModule() {
   const { user, role, isSuperAdmin } = useAuth();
   const userRole = role;
@@ -110,21 +117,21 @@ export default function AlunosModule() {
     showNotification,
   } = useAlunos(userRole);
 
-  const [formData, setFormData] = useState<Partial<AlunoFormData>>({
-    nome: '',
-    email: '',
-    telefone: '',
-    status: 'ativo',
-  });
+  const [formData, setFormData] = useState<Partial<AlunoFormData>>({ ...EMPTY_ALUNO_FORM });
 
   const handleStartEdit = (aluno: Aluno) => {
-    setFormData(aluno);
+    setFormData({ ...aluno });
     startEdit(aluno);
   };
 
   const handleOpenAdd = () => {
-    setFormData({ nome: '', email: '', telefone: '', status: 'ativo' });
+    setFormData({ ...EMPTY_ALUNO_FORM });
     openAddModal();
+  };
+
+  const handleCloseAlunoModal = () => {
+    setFormData({ ...EMPTY_ALUNO_FORM });
+    closeAddModal();
   };
 
   const sendWhatsApp = (aluno: Aluno) => {
@@ -463,18 +470,18 @@ export default function AlunosModule() {
       {!isReadOnly && (
         <Modal
           isOpen={showAddModal}
-          onClose={closeAddModal}
+          onClose={handleCloseAlunoModal}
           title={editingAluno ? 'Editar Aluno' : 'Novo Aluno'}
           maxWidth="max-w-4xl"
         >
           <AlunoForm
-            data={editingAluno || formData}
-            onChange={(d) => (editingAluno ? startEdit({ ...editingAluno, ...d } as Aluno) : setFormData(d))}
+            data={formData}
+            onChange={setFormData}
             planos={planos}
             selectedPlanoId={selectedPlanoId}
             onPlanoChange={setSelectedPlanoId}
             onSubmit={handleFormSubmit}
-            onCancel={closeAddModal}
+            onCancel={handleCloseAlunoModal}
             isEditing={!!editingAluno}
             userRole={userRole}
           />
