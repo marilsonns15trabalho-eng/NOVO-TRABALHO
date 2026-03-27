@@ -2,6 +2,7 @@ import { authorizedApiJson, publicApiJson } from '@/lib/api-client';
 
 export interface SaveAccountSecurityPayload {
   newPassword?: string;
+  passwordWasUpdated?: boolean;
   secretQuestion?: string;
   secretAnswer?: string;
 }

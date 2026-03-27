@@ -3,6 +3,7 @@ import {
   ApiRouteError,
   requireAuthenticatedCaller,
 } from '@/lib/server/admin-auth';
+import { isAllowedSecretQuestion } from '@/lib/security-questions';
 import { updateUserProfileSecurity } from '@/lib/server/profile-security';
 import { hashSecretAnswer } from '@/lib/server/secret-recovery';
 
@@ -13,18 +14,20 @@ export async function POST(request: NextRequest) {
     const { admin, callerUserId } = await requireAuthenticatedCaller(request);
     const body = (await request.json()) as {
       newPassword?: string;
+      passwordWasUpdated?: boolean;
       secretQuestion?: string;
       secretAnswer?: string;
     };
 
     const newPassword =
       typeof body?.newPassword === 'string' ? body.newPassword.trim() : '';
+    const passwordWasUpdated = body?.passwordWasUpdated === true;
     const secretQuestion =
       typeof body?.secretQuestion === 'string' ? body.secretQuestion.trim() : '';
     const secretAnswer =
       typeof body?.secretAnswer === 'string' ? body.secretAnswer.trim() : '';
 
-    if (!newPassword && !secretQuestion && !secretAnswer) {
+    if (!newPassword && !passwordWasUpdated && !secretQuestion && !secretAnswer) {
       throw new ApiRouteError(400, 'Nenhuma alteracao de seguranca foi informada.');
     }
 
@@ -39,7 +42,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (newPassword) {
+    if (secretQuestion && !isAllowedSecretQuestion(secretQuestion)) {
+      throw new ApiRouteError(400, 'Selecione uma pergunta secreta valida.');
+    }
+
+    if (newPassword && !passwordWasUpdated) {
       const { error: passwordError } = await admin.auth.admin.updateUserById(callerUserId, {
         password: newPassword,
       });
@@ -51,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     const profileUpdates: Record<string, unknown> = {};
 
-    if (newPassword) {
+    if (newPassword || passwordWasUpdated) {
       profileUpdates.must_change_password = false;
       profileUpdates.last_password_change_at = new Date().toISOString();
     }

@@ -4,6 +4,8 @@ import React, { useMemo, useState } from 'react';
 import { Loader2, ShieldCheck } from 'lucide-react';
 import { saveAccountSecurity } from '@/services/account.service';
 import { useAuth } from '@/hooks/useAuth';
+import { SECRET_QUESTIONS } from '@/lib/security-questions';
+import { supabase } from '@/lib/supabase';
 
 interface AccountSecurityFormProps {
   required?: boolean;
@@ -64,8 +66,23 @@ export default function AccountSecurityForm({
     setLoading(true);
 
     try {
+      let passwordWasUpdated = false;
+
+      if (newPassword) {
+        const { error: passwordError } = await supabase.auth.updateUser({
+          password: newPassword,
+        });
+
+        if (passwordError) {
+          throw new Error(passwordError.message);
+        }
+
+        passwordWasUpdated = true;
+      }
+
       const result = await saveAccountSecurity({
-        newPassword: newPassword || undefined,
+        newPassword: passwordWasUpdated ? undefined : newPassword || undefined,
+        passwordWasUpdated,
         secretQuestion: secretQuestion || undefined,
         secretAnswer: secretAnswer || undefined,
       });
@@ -156,13 +173,18 @@ export default function AccountSecurityForm({
       <div className={`grid gap-4 ${compact ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
         <div className="space-y-1.5">
           <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Pergunta secreta</label>
-          <input
-            type="text"
+          <select
             value={secretQuestion}
             onChange={(event) => setSecretQuestion(event.target.value)}
             className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all placeholder:text-zinc-600 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50"
-            placeholder="Ex: Qual o nome do seu primeiro animal?"
-          />
+          >
+            <option value="">Selecione uma pergunta</option>
+            {SECRET_QUESTIONS.map((question) => (
+              <option key={question} value={question}>
+                {question}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="space-y-1.5">
