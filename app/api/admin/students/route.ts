@@ -5,7 +5,6 @@ import {
   requireAuthenticatedCaller,
 } from '@/lib/server/admin-auth';
 import {
-  findAuthUserByEmail,
   getSupabaseAdmin,
   normalizeEmail,
 } from '@/lib/server/supabase-admin';
@@ -107,11 +106,6 @@ export async function POST(request: NextRequest) {
       throw new ApiRouteError(409, 'Ja existe um aluno cadastrado com este e-mail.');
     }
 
-    const existingAuthUser = await findAuthUserByEmail(normalizedEmail);
-    if (existingAuthUser) {
-      throw new ApiRouteError(409, 'Ja existe um usuario autenticado com este e-mail.');
-    }
-
     const {
       data: createdUserResult,
       error: createUserError,
@@ -126,9 +120,13 @@ export async function POST(request: NextRequest) {
     });
 
     if (createUserError || !createdUserResult.user) {
+      const authMessage = createUserError?.message || 'Nao foi possivel criar o usuario autenticado.';
+      if (/already|exists|registered|duplicate/i.test(authMessage)) {
+        throw new ApiRouteError(409, 'Ja existe um usuario autenticado com este e-mail.');
+      }
       throw new ApiRouteError(
         400,
-        createUserError?.message || 'Nao foi possivel criar o usuario autenticado.'
+        authMessage
       );
     }
 
@@ -266,8 +264,12 @@ export async function POST(request: NextRequest) {
     }
 
     console.error('Erro ao criar aluno com acesso:', error);
+    const diagnosticMessage =
+      error instanceof Error && error.message
+        ? error.message
+        : 'Nao foi possivel criar o aluno com acesso.';
     return NextResponse.json(
-      { error: 'Nao foi possivel criar o aluno com acesso.' },
+      { error: diagnosticMessage },
       { status: 500 }
     );
   }
