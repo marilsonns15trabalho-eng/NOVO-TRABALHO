@@ -39,6 +39,8 @@ interface StudentPlan {
   plan_price?: number;
 }
 
+type StudentSectionKey = 'inicio' | 'treinos' | 'avaliacoes' | 'conta';
+
 interface OverviewCardProps {
   eyebrow: string;
   title: string;
@@ -136,6 +138,7 @@ export default function AlunoDashboard() {
   const [trainingProgress, setTrainingProgress] = useState<StudentMonthlyTrainingProgress | null>(null);
   const [treinos, setTreinos] = useState<Treino[]>([]);
   const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([]);
+  const [activeSection, setActiveSection] = useState<StudentSectionKey>('inicio');
   const [completingTreinoId, setCompletingTreinoId] = useState<string | null>(null);
   const [executionSession, setExecutionSession] = useState<TreinoExecutionSession | null>(null);
   const [executionTreino, setExecutionTreino] = useState<Treino | null>(null);
@@ -254,8 +257,8 @@ export default function AlunoDashboard() {
   const heroDescription = mustChangePassword
     ? 'Atualize sua senha e escolha uma pergunta secreta para liberar o uso completo do painel com seguranca.'
     : todayWorkout
-      ? `Seu treino de hoje ja esta separado. Veja o progresso do mes e avance com a execucao quando estiver pronta.`
-      : 'Comece pelo seu painel de progresso e acompanhe plano, treinos e avaliacoes em blocos mais organizados.';
+      ? 'Seu treino de hoje ja esta separado. Abra a execucao quando estiver pronta e acompanhe seu mes pela navegacao abaixo.'
+      : 'Use a navegacao abaixo para acompanhar progresso, treinos, avaliacoes e seguranca da conta.';
 
   const statusItems = [
     {
@@ -300,6 +303,37 @@ export default function AlunoDashboard() {
       value: `${trainingProgress?.current_streak ?? 0} dia(s)`,
       icon: <Sparkles size={18} className="text-orange-400" />,
       accentClassName: 'bg-gradient-to-r from-orange-500/90 via-orange-400/70 to-transparent',
+    },
+  ];
+  const sectionItems: Array<{
+    key: StudentSectionKey;
+    label: string;
+    helper: string;
+    icon: React.ReactNode;
+  }> = [
+    {
+      key: 'inicio',
+      label: 'Inicio',
+      helper: 'Resumo do mes, plano e treino do dia',
+      icon: <ClipboardList size={16} />,
+    },
+    {
+      key: 'treinos',
+      label: 'Treinos',
+      helper: `${treinos.length} disponiveis`,
+      icon: <Dumbbell size={16} />,
+    },
+    {
+      key: 'avaliacoes',
+      label: 'Avaliacoes',
+      helper: `${avaliacoes.length} registros`,
+      icon: <Activity size={16} />,
+    },
+    {
+      key: 'conta',
+      label: 'Conta',
+      helper: mustChangePassword ? 'Seguranca pendente' : 'Senha e recuperacao',
+      icon: <ShieldCheck size={16} />,
     },
   ];
 
@@ -476,6 +510,41 @@ export default function AlunoDashboard() {
           </div>
         </section>
 
+        <section className="rounded-[28px] border border-zinc-800 bg-zinc-950/85 p-3 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)]">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {sectionItems.map((item) => {
+              const isActive = activeSection === item.key;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setActiveSection(item.key)}
+                  className={`rounded-[22px] border px-4 py-4 text-left transition-all ${
+                    isActive
+                      ? 'border-orange-500/30 bg-orange-500/10 text-white'
+                      : 'border-zinc-800 bg-black/20 text-zinc-300 hover:border-zinc-700 hover:bg-zinc-900/70'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold">{item.label}</p>
+                      <p className={`mt-1 text-xs leading-5 ${isActive ? 'text-orange-100/80' : 'text-zinc-500'}`}>
+                        {item.helper}
+                      </p>
+                    </div>
+
+                    <div className={`rounded-2xl p-3 ${isActive ? 'bg-orange-500/15 text-orange-300' : 'bg-zinc-900 text-zinc-400'}`}>
+                      {item.icon}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        {activeSection === 'inicio' && (
+          <>
         <section className="rounded-[32px] border border-zinc-800 bg-zinc-950/85 p-6 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)]">
           <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
@@ -603,7 +672,7 @@ export default function AlunoDashboard() {
             description={
               plan?.plan_price
                 ? `Investimento atual de R$ ${Number(plan.plan_price).toFixed(2)} por mes.`
-                : 'Consulte a recepcao para definir ou confirmar o plano mais adequado.'
+                : 'Nenhum plano financeiro vinculado a esta conta.'
             }
             icon={<ClipboardList size={24} className="text-orange-400" />}
             accentClassName="bg-gradient-to-r from-orange-500/90 via-orange-400/70 to-transparent"
@@ -615,7 +684,7 @@ export default function AlunoDashboard() {
             description={
               workoutPlan
                 ? `${workoutPlan.weekly_frequency} dias previstos por semana para acompanhar seu progresso.`
-                : 'Assim que a equipe definir seu plano de treino, ele aparecera aqui.'
+                : 'Nenhum plano de treino ativo vinculado a esta conta.'
             }
             icon={<Dumbbell size={24} className="text-sky-400" />}
             accentClassName="bg-gradient-to-r from-sky-500/90 via-sky-400/70 to-transparent"
@@ -631,7 +700,7 @@ export default function AlunoDashboard() {
             description={
               latestAvaliacao?.percentual_gordura != null
                 ? `Percentual de gordura registrado: ${latestAvaliacao.percentual_gordura}%.`
-                : 'Nenhuma avaliacao fisica disponivel neste acesso por enquanto.'
+                : 'Nenhuma avaliacao fisica registrada para esta conta.'
             }
             icon={<Activity size={24} className="text-purple-400" />}
             accentClassName="bg-gradient-to-r from-purple-500/90 via-purple-400/70 to-transparent"
@@ -646,7 +715,7 @@ export default function AlunoDashboard() {
               </p>
               <h2 className="mt-2 text-3xl font-bold text-white">Treino do dia</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
-                Abra a execucao do treino, salve progresso manualmente e conclua quando terminar.
+                Abra o treino programado, registre sua execucao e conclua quando terminar.
               </p>
             </div>
 
@@ -658,7 +727,7 @@ export default function AlunoDashboard() {
           {!todayWorkout ? (
             <EmptyState
               title="Nenhum treino programado para hoje"
-              description="Se houver treino sem agenda fixa, ele continua disponivel na biblioteca abaixo."
+                description="Hoje nao ha treino agendado. Confira a aba de treinos para ver as fichas disponiveis."
               icon={<Calendar size={18} />}
             />
           ) : (
@@ -724,16 +793,19 @@ export default function AlunoDashboard() {
             </div>
           )}
         </section>
+          </>
+        )}
 
+        {activeSection === 'treinos' && (
         <section className="rounded-[32px] border border-zinc-800 bg-zinc-950/85 p-6 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)]">
           <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">
-                Leitura
+                Treinos
               </p>
               <h2 className="mt-2 text-3xl font-bold text-white">Meus Treinos</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
-                Consulte suas fichas e acompanhe a estrutura dos treinos liberados pela equipe.
+                Veja suas fichas liberadas, abra a execucao e acompanhe o que ja foi concluido.
               </p>
             </div>
 
@@ -747,8 +819,8 @@ export default function AlunoDashboard() {
               title={studentId ? 'Nenhum treino disponivel no momento' : 'Preparando sua area de treino'}
               description={
                 studentId
-                  ? 'Assim que a equipe liberar uma ficha para voce, ela aparecera aqui com todos os detalhes.'
-                  : 'Seu acesso ja esta ativo. Assim que o sistema terminar a preparacao inicial, seus dados aparecerao aqui.'
+                  ? 'Nenhum treino foi liberado para esta conta ate o momento.'
+                  : 'Seu cadastro ainda esta finalizando a preparacao dos treinos.'
               }
               icon={studentId ? <Dumbbell size={18} /> : <AlertTriangle size={18} />}
             />
@@ -854,7 +926,9 @@ export default function AlunoDashboard() {
             </div>
           )}
         </section>
+        )}
 
+        {activeSection === 'avaliacoes' && (
         <section className="rounded-[32px] border border-zinc-800 bg-zinc-950/85 p-6 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)]">
           <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
@@ -863,7 +937,7 @@ export default function AlunoDashboard() {
               </p>
               <h2 className="mt-2 text-3xl font-bold text-white">Minhas Avaliacoes</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
-                Veja os registros mais recentes de composicao corporal e acompanhe sua linha de evolucao.
+                Consulte seus registros corporais e acompanhe a evolucao ja cadastrada no sistema.
               </p>
             </div>
 
@@ -875,7 +949,7 @@ export default function AlunoDashboard() {
           {avaliacoes.length === 0 ? (
             <EmptyState
               title="Nenhuma avaliacao fisica disponivel"
-              description="Quando a equipe registrar sua primeira avaliacao, os dados aparecerao aqui com resumo visual e historico."
+              description="Ainda nao existe avaliacao fisica registrada para esta conta."
               icon={<Activity size={18} />}
             />
           ) : (
@@ -955,8 +1029,9 @@ export default function AlunoDashboard() {
             </div>
           )}
         </section>
+        )}
 
-        {!mustChangePassword && (
+        {activeSection === 'conta' && !mustChangePassword && (
           <section className="space-y-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
               <div>

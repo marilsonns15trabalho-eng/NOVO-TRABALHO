@@ -34,6 +34,7 @@ import type { Aluno, AlunoFormData } from '@/types/aluno';
 import * as usersService from '@/services/users.service';
 import type { UserProfileRow } from '@/services/users.service';
 import { resetStudentPassword } from '@/services/admin.service';
+import { buildWhatsAppUrl, normalizeWhatsAppPhone } from '@/lib/phone';
 
 export default function AlunosModule() {
   const { user, role, isSuperAdmin } = useAuth();
@@ -126,16 +127,20 @@ export default function AlunosModule() {
   };
 
   const sendWhatsApp = (aluno: Aluno) => {
-    const phone = aluno.celular || aluno.telefone;
+    const normalizedPhone = normalizeWhatsAppPhone(aluno.celular || aluno.telefone);
 
-    if (!phone) {
+    if (!normalizedPhone) {
       showNotification('Aluno sem telefone cadastrado.', 'error');
       return;
     }
 
-    const cleanPhone = phone.replace(/\D/g, '');
-    const message = encodeURIComponent(`Ola ${aluno.nome}, tudo bem? Gostaria de falar sobre sua matricula na academia.`);
-    window.open(`https://wa.me/55${cleanPhone}?text=${message}`, '_blank');
+    window.open(
+      buildWhatsAppUrl(
+        normalizedPhone,
+        `Ola ${aluno.nome}, tudo bem? Gostaria de falar sobre sua matricula na academia.`
+      ),
+      '_blank'
+    );
   };
 
   const openResetPasswordDialog = (aluno: Aluno) => {

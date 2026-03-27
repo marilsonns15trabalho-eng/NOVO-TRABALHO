@@ -20,6 +20,7 @@ import { motion } from 'motion/react';
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import ChartWrapper from '@/components/ChartWrapper';
 import { useDashboard } from '@/hooks/useDashboard';
+import { buildWhatsAppUrl, normalizeWhatsAppPhone } from '@/lib/phone';
 
 interface DashboardProps {
   setActiveTab: (tab: string) => void;
@@ -146,13 +147,13 @@ export default function Dashboard({ setActiveTab }: DashboardProps) {
   const [chartView, setChartView] = useState<'mensal' | 'anual'>('mensal');
 
   const handleWhatsAppReminder = (aluno: any, bill: any) => {
-    const phone = aluno.phone?.replace(/\D/g, '');
+    const phone = normalizeWhatsAppPhone(aluno.phone);
     const dueDate = new Date(bill.due_date).toLocaleDateString('pt-BR');
     const amount = Number(bill.amount || 0).toFixed(2);
     const message = `Ola ${aluno.name}, passando para lembrar que sua mensalidade de R$ ${amount} vence em ${dueDate}.`;
 
     if (phone) {
-      window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(message)}`, '_blank');
+      window.open(buildWhatsAppUrl(phone, message), '_blank');
     } else {
       alert('Aluno sem telefone cadastrado.');
     }

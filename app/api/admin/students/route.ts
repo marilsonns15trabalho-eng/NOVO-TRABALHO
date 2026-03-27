@@ -4,7 +4,11 @@ import {
   assertAdminCaller,
   requireAuthenticatedCaller,
 } from '@/lib/server/admin-auth';
-import { getSupabaseAdmin, normalizeEmail } from '@/lib/server/supabase-admin';
+import {
+  findAuthUserByEmail,
+  getSupabaseAdmin,
+  normalizeEmail,
+} from '@/lib/server/supabase-admin';
 
 export const runtime = 'nodejs';
 
@@ -65,6 +69,7 @@ function asStringArray(value: unknown): string[] {
 
 export async function POST(request: NextRequest) {
   let createdAuthUserId: string | null = null;
+  let createdStudentId: string | null = null;
 
   try {
     const { callerProfile, callerUserId } = await requireAuthenticatedCaller(request);
@@ -102,17 +107,7 @@ export async function POST(request: NextRequest) {
       throw new ApiRouteError(409, 'Ja existe um aluno cadastrado com este e-mail.');
     }
 
-    const { data: existingAuthUser, error: existingAuthError } = await admin
-      .schema('auth')
-      .from('users')
-      .select('id')
-      .eq('email', normalizedEmail)
-      .maybeSingle();
-
-    if (existingAuthError) {
-      throw existingAuthError;
-    }
-
+    const existingAuthUser = await findAuthUserByEmail(normalizedEmail);
     if (existingAuthUser) {
       throw new ApiRouteError(409, 'Ja existe um usuario autenticado com este e-mail.');
     }
@@ -214,14 +209,17 @@ export async function POST(request: NextRequest) {
       throw studentError || new Error('Nao foi possivel criar o aluno.');
     }
 
+    createdStudentId = studentResult.id;
+
     const { error: profileError } = await admin
       .from('user_profiles')
-      .update({
+      .upsert({
+        id: createdAuthUserId,
         role: 'aluno',
         display_name: nome,
         must_change_password: true,
-      })
-      .eq('id', createdAuthUserId);
+        is_super_admin: false,
+      });
 
     if (profileError) {
       throw profileError;
@@ -251,6 +249,12 @@ export async function POST(request: NextRequest) {
       message: 'Aluno e acesso criados com sucesso.',
     });
   } catch (error) {
+    if (createdStudentId) {
+      try {
+        await getSupabaseAdmin().from('students').delete().eq('id', createdStudentId);
+      } catch {}
+    }
+
     if (createdAuthUserId) {
       try {
         await getSupabaseAdmin().auth.admin.deleteUser(createdAuthUserId);
