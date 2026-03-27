@@ -1,194 +1,116 @@
-/* ============================================================
-   RESPONSIVIDADE COMPLETA
-   Baseada em tamanho de tela (sem detecção de dispositivo)
-   Mobile: ≤768px | Tablet: 769-1024px | Desktop: >1024px
-   ============================================================ */
-
-/* ── GLOBAL ── */
 body {
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* ── TIPOGRAFIA ADAPTÁVEL ── */
-h1, .text-3xl, .text-4xl {
-  font-size: clamp(18px, 4vw, 28px) !important;
+body.device-mobile,
+body.device-tablet {
+  --lioness-shell-gap: 1rem;
 }
 
-h2, .text-2xl {
-  font-size: clamp(16px, 3.5vw, 24px) !important;
+body.device-mobile [data-lioness-shell] {
+  padding: 0.95rem;
+  gap: var(--lioness-shell-gap);
 }
 
-/* ── TABLET (≤1024px) ── */
-@media (max-width: 1024px) {
-  .p-8 {
-    padding: 16px !important;
-  }
-
-  .px-8 {
-    padding-left: 16px !important;
-    padding-right: 16px !important;
-  }
-
-  .gap-8 {
-    gap: 14px !important;
-  }
-
-  /* Grids: 4 cols → 3 cols */
-  .grid-cols-4,
-  .xl\:grid-cols-4,
-  .lg\:grid-cols-4 {
-    grid-template-columns: repeat(3, 1fr) !important;
-  }
+body.device-tablet [data-lioness-shell] {
+  padding: 1.15rem;
+  gap: 1.15rem;
 }
 
-/* ── MOBILE (≤768px) ── */
-@media (max-width: 768px) {
-
-  /* ── Touch targets (padrão Google Material) ── */
-  button,
-  a,
-  input,
-  select,
-  textarea {
-    min-height: 44px;
-    font-size: 16px !important;
-  }
-
-  /* ── Inputs full-width ── */
-  input,
-  select,
-  textarea {
-    width: 100%;
-    padding: 10px 12px;
-    border-radius: 10px;
-  }
-
-  /* ── Botões visíveis ── */
-  button {
-    font-weight: 600;
-    border-radius: 10px;
-    padding: 10px 14px;
-  }
-
-  /* ── Containers compactos ── */
-  .p-8 {
-    padding: 12px !important;
-  }
-
-  .px-8 {
-    padding-left: 12px !important;
-    padding-right: 12px !important;
-  }
-
-  .py-8 {
-    padding-top: 12px !important;
-    padding-bottom: 12px !important;
-  }
-
-  .p-6 {
-    padding: 12px !important;
-  }
-
-  .px-6 {
-    padding-left: 12px !important;
-    padding-right: 12px !important;
-  }
-
-  /* ── Gaps compactos ── */
-  .gap-8 {
-    gap: 12px !important;
-  }
-
-  .gap-6 {
-    gap: 10px !important;
-  }
-
-  /* ── Cards visual app ── */
-  .rounded-2xl,
-  .rounded-3xl {
-    border-radius: 14px !important;
-  }
-
-  /* ── Grids responsivos: tudo vira 2 cols ou 1 col ── */
-  .grid-cols-2,
-  .grid-cols-3,
-  .grid-cols-4,
-  .md\:grid-cols-2,
-  .md\:grid-cols-3,
-  .lg\:grid-cols-3,
-  .lg\:grid-cols-4,
-  .xl\:grid-cols-4 {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
-
-  /* Grids de 1 col para telas muito pequenas */
-  @media (max-width: 480px) {
-    .grid-cols-2,
-    .grid-cols-3,
-    .grid-cols-4,
-    .md\:grid-cols-2,
-    .md\:grid-cols-3,
-    .lg\:grid-cols-3 {
-      grid-template-columns: 1fr !important;
-    }
-  }
-
-  /* ── Flex wrap ── */
-  .flex-row {
-    flex-wrap: wrap;
-  }
-
-  /* ── Tabelas scroll horizontal ── */
-  table {
-    display: block;
-    overflow-x: auto;
-    white-space: nowrap;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  /* ── Modais adaptativos ── */
-  .fixed.inset-0 > div {
-    max-width: 95vw !important;
-    max-height: 90vh !important;
-    margin: auto !important;
-    border-radius: 14px !important;
-  }
-
-  /* ── Texto responsivo ── */
-  .text-3xl, .text-4xl {
-    font-size: 1.375rem !important;
-  }
-
-  .text-2xl {
-    font-size: 1.125rem !important;
-  }
-
-  .text-xl {
-    font-size: 1rem !important;
-  }
-
-  /* ── Scroll suave ── */
-  .overflow-y-auto {
-    -webkit-overflow-scrolling: touch;
-  }
-
-  /* ── Header menor no mobile ── */
-  header {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-  }
-
-  /* ── Conteúdo ocupa tela toda ── */
-  main {
-    width: 100% !important;
-    max-width: 100vw !important;
-  }
+body.device-mobile [data-lioness-hero] {
+  padding: 1rem;
+  border-radius: 1.5rem;
 }
 
-/* ── APP MODE (Capacitor) ── */
+body.device-tablet [data-lioness-hero] {
+  padding: 1.25rem;
+  border-radius: 1.75rem;
+}
+
+body.device-mobile [data-lioness-hero-title] {
+  font-size: clamp(1.65rem, 7vw, 2.2rem);
+  line-height: 1.08;
+}
+
+body.device-tablet [data-lioness-hero-title] {
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  line-height: 1.08;
+}
+
+body.device-mobile [data-lioness-hero-description] {
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+body.device-mobile [data-lioness-chip-list] {
+  gap: 0.55rem;
+}
+
+body.device-mobile [data-lioness-chip-list] > * {
+  padding: 0.55rem 0.8rem;
+  font-size: 0.78rem;
+}
+
+body.device-mobile [data-lioness-hero-actions] {
+  grid-template-columns: 1fr;
+  width: 100%;
+}
+
+body.device-tablet [data-lioness-hero-actions] {
+  width: 100%;
+}
+
+body.device-mobile [data-lioness-action],
+body.device-mobile [data-lioness-stat],
+body.device-mobile [data-lioness-surface],
+body.device-mobile [data-lioness-empty] {
+  border-radius: 1.2rem;
+  padding: 0.95rem;
+}
+
+body.device-tablet [data-lioness-action],
+body.device-tablet [data-lioness-stat],
+body.device-tablet [data-lioness-surface],
+body.device-tablet [data-lioness-empty] {
+  border-radius: 1.4rem;
+}
+
+body.device-mobile [data-lioness-stat-value] {
+  font-size: 1.7rem;
+}
+
+body.device-mobile .lioness-toolbar {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+body.device-mobile .lioness-toolbar > * {
+  width: 100%;
+}
+
+body.device-mobile button,
+body.device-mobile a,
+body.device-mobile input,
+body.device-mobile select,
+body.device-mobile textarea {
+  min-height: 42px;
+}
+
+body.device-mobile table {
+  display: block;
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+}
+
+body.device-mobile .lioness-modal-card {
+  width: min(100%, 96vw);
+  max-height: 92vh;
+  border-radius: 1.3rem;
+}
+
 .app-mode {
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
@@ -200,7 +122,6 @@ h2, .text-2xl {
   padding-top: env(safe-area-inset-top);
 }
 
-/* Desabilitar seleção de texto (app feel) */
 .app-mode * {
   -webkit-user-select: none;
   user-select: none;
@@ -213,7 +134,6 @@ h2, .text-2xl {
   user-select: text;
 }
 
-/* Scrollbar fina (app feel) */
 .app-mode ::-webkit-scrollbar {
   width: 3px;
 }

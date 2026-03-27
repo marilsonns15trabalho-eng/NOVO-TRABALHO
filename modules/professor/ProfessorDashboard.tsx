@@ -62,7 +62,7 @@ function ProfessorMetricCard({
 
   if (!onClick) {
     return (
-      <div className="relative overflow-hidden rounded-[28px] border border-zinc-800 bg-zinc-950/85 p-5 shadow-[0_28px_80px_-54px_rgba(0,0,0,0.9)]">
+      <div data-lioness-stat className="relative overflow-hidden rounded-[22px] border border-zinc-800 bg-zinc-950/85 p-4 shadow-[0_28px_80px_-54px_rgba(0,0,0,0.9)] md:rounded-[28px] md:p-5">
         {content}
       </div>
     );
@@ -71,7 +71,8 @@ function ProfessorMetricCard({
   return (
     <button
       onClick={onClick}
-      className="group relative overflow-hidden rounded-[28px] border border-zinc-800 bg-zinc-950/85 p-5 text-left shadow-[0_28px_80px_-54px_rgba(0,0,0,0.9)] transition-all hover:border-zinc-700"
+      data-lioness-stat
+      className="group relative overflow-hidden rounded-[22px] border border-zinc-800 bg-zinc-950/85 p-4 text-left shadow-[0_28px_80px_-54px_rgba(0,0,0,0.9)] transition-all hover:border-zinc-700 md:rounded-[28px] md:p-5"
     >
       {content}
       <span className="mt-6 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-zinc-600 transition-colors group-hover:text-zinc-400">
@@ -100,7 +101,8 @@ function ProfessorActionTile({
   return (
     <button
       onClick={onClick}
-      className={`group rounded-[24px] border p-4 text-left transition-all ${
+      data-lioness-action
+      className={`group rounded-[20px] border p-3.5 text-left transition-all md:rounded-[24px] md:p-4 ${
         filled
           ? 'border-sky-500/20 bg-sky-500 text-black hover:bg-sky-400'
           : 'border-zinc-800 bg-zinc-950/80 text-white hover:border-zinc-700 hover:bg-zinc-900'
@@ -223,9 +225,10 @@ export default function ProfessorDashboard({ onNavigate }: ProfessorDashboardPro
       initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: 'easeInOut' }}
-      className="min-h-screen space-y-8 bg-transparent p-6 text-white md:p-8"
+      data-lioness-shell
+      className="min-h-screen space-y-6 bg-transparent p-4 text-white md:space-y-8 md:p-8"
     >
-      <section className="relative overflow-hidden rounded-[34px] border border-zinc-800 bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.18),_transparent_36%),linear-gradient(135deg,rgba(24,24,27,0.98),rgba(10,10,10,0.98))] p-6 shadow-[0_36px_120px_-60px_rgba(14,165,233,0.38)] md:p-8">
+      <section data-lioness-hero className="relative overflow-hidden rounded-[28px] border border-zinc-800 bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.18),_transparent_36%),linear-gradient(135deg,rgba(24,24,27,0.98),rgba(10,10,10,0.98))] p-5 shadow-[0_36px_120px_-60px_rgba(14,165,233,0.38)] md:rounded-[34px] md:p-8">
         <div className="absolute right-0 top-0 h-56 w-56 rounded-full bg-sky-500/10 blur-3xl" />
         <div className="absolute bottom-0 left-1/4 h-36 w-36 rounded-full bg-violet-500/10 blur-3xl" />
 
@@ -235,15 +238,15 @@ export default function ProfessorDashboard({ onNavigate }: ProfessorDashboardPro
               Area do professor
             </div>
 
-            <h2 className="mt-5 text-3xl font-bold leading-tight text-white md:text-5xl">
-              Operacao diaria mais clara para acompanhar alunos, treinos e evolucao
+            <h2 data-lioness-hero-title className="mt-4 text-2xl font-bold leading-tight text-white md:text-4xl xl:text-5xl">
+              Acompanhamento da carteira
             </h2>
 
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-300 md:text-base">
-              Veja quem esta ativo, quantas avaliacoes entraram no periodo e quais frentes precisam de atencao imediata.
+            <p data-lioness-hero-description className="mt-3 max-w-2xl text-sm leading-6 text-zinc-300 md:text-base md:leading-7">
+              Alunos, treinos e avaliacoes em uma visao direta para o dia a dia.
             </p>
 
-            <div className="mt-6 flex flex-wrap gap-3">
+            <div data-lioness-chip-list className="mt-5 flex flex-wrap gap-2.5">
               <div className="rounded-full border border-white/8 bg-white/[0.03] px-4 py-2 text-sm text-zinc-300">
                 <span className="font-bold text-white">Alunos ativos:</span> {alunosAtivos}
               </div>
@@ -256,7 +259,7 @@ export default function ProfessorDashboard({ onNavigate }: ProfessorDashboardPro
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:w-[430px]">
+          <div data-lioness-hero-actions className="grid gap-3 sm:grid-cols-2 xl:w-[400px]">
             {actionTiles.map((tile) => (
               <ProfessorActionTile
                 key={tile.id}

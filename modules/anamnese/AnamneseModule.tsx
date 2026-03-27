@@ -133,8 +133,8 @@ export default function AnamneseModule() {
     <ModuleShell>
       <ModuleHero
         badge="Historico nutricional"
-        title="Anamneses mais claras, melhor organizadas e prontas para consulta"
-        description="Mantenha o historico de saude e habitos alimentares em uma experiencia mais profissional, sem mexer no seu fluxo de cadastro."
+        title="Historico nutricional dos alunos"
+        description="Registros de saude, rotina alimentar e observacoes em consulta rapida."
         accent="orange"
         chips={[
           { label: 'Anamneses', value: String(totalAnamneses) },
@@ -181,7 +181,7 @@ export default function AnamneseModule() {
       </div>
 
       <div className="space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="lioness-toolbar flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Anamnese Nutricional</h2>
           <p className="text-zinc-500">Gerencie o histórico de saúde e hábitos alimentares dos alunos.</p>
@@ -189,7 +189,7 @@ export default function AnamneseModule() {
         {canManageRecords && (
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-black font-bold px-6 py-3 rounded-2xl transition-all active:scale-95 shadow-lg shadow-orange-500/20"
+            className="flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-2.5 text-sm font-bold text-black shadow-lg shadow-orange-500/20 transition-all hover:bg-orange-600 active:scale-95"
           >
             <Plus size={20} />
             Nova Anamnese
@@ -197,7 +197,7 @@ export default function AnamneseModule() {
         )}
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="lioness-toolbar flex flex-col gap-4 sm:flex-row">
         <div className="relative flex-1 group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-hover:text-orange-500 transition-colors" size={20} />
           <input

@@ -79,7 +79,11 @@ interface ModuleShellProps {
 }
 
 export function ModuleShell({ children }: ModuleShellProps) {
-  return <div className="min-h-screen space-y-8 bg-transparent p-6 text-white md:p-8">{children}</div>;
+  return (
+    <div data-lioness-shell className="min-h-screen space-y-6 bg-transparent p-4 text-white md:space-y-8 md:p-8">
+      {children}
+    </div>
+  );
 }
 
 interface HeroChip {
@@ -110,7 +114,8 @@ export function ModuleHero({
 
   return (
     <section
-      className={`relative overflow-hidden rounded-[34px] border p-6 shadow-[0_36px_120px_-60px_rgba(0,0,0,0.75)] md:p-8 ${styles.hero}`}
+      data-lioness-hero
+      className={`relative overflow-hidden rounded-[28px] border p-5 shadow-[0_36px_120px_-60px_rgba(0,0,0,0.75)] md:rounded-[34px] md:p-8 ${styles.hero}`}
     >
       <div className="absolute right-0 top-0 h-52 w-52 rounded-full bg-white/5 blur-3xl" />
       <div className="absolute bottom-0 left-1/4 h-32 w-32 rounded-full bg-white/5 blur-3xl" />
@@ -123,15 +128,19 @@ export function ModuleHero({
             {badge}
           </div>
 
-          <h2 className="mt-5 text-3xl font-bold leading-tight text-white md:text-5xl">{title}</h2>
-          <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-300 md:text-base">{description}</p>
+          <h2 data-lioness-hero-title className="mt-4 text-2xl font-bold leading-tight text-white md:text-4xl xl:text-5xl">
+            {title}
+          </h2>
+          <p data-lioness-hero-description className="mt-3 max-w-2xl text-sm leading-6 text-zinc-300 md:text-base md:leading-7">
+            {description}
+          </p>
 
           {chips.length > 0 && (
-            <div className="mt-6 flex flex-wrap gap-3">
+            <div data-lioness-chip-list className="mt-5 flex flex-wrap gap-2.5">
               {chips.map((chip) => (
                 <div
                   key={`${chip.label}-${chip.value}`}
-                  className="rounded-full border border-white/8 bg-white/[0.03] px-4 py-2 text-sm text-zinc-300"
+                  className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-2 text-xs text-zinc-300 md:px-4 md:text-sm"
                 >
                   <span className="font-bold text-white">{chip.label}:</span> {chip.value}
                 </div>
@@ -140,7 +149,7 @@ export function ModuleHero({
           )}
         </div>
 
-        {actions ? <div className="grid gap-3 sm:grid-cols-2 xl:w-[430px]">{actions}</div> : null}
+        {actions ? <div data-lioness-hero-actions className="grid gap-3 sm:grid-cols-2 xl:w-[400px]">{actions}</div> : null}
       </div>
 
       {children}
@@ -173,7 +182,8 @@ export function ModuleHeroAction({
   return (
     <Comp
       {...(onClick ? { onClick } : {})}
-      className={`group rounded-[24px] border p-4 text-left transition-all ${
+      data-lioness-action
+      className={`group rounded-[20px] border p-3.5 text-left transition-all md:rounded-[24px] md:p-4 ${
         filled
           ? `${styles.button}`
           : `bg-zinc-950/80 text-white border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900 ${disabled ? 'opacity-60' : ''}`
@@ -218,13 +228,13 @@ export function ModuleStatCard({
   const styles = ACCENT_STYLES[accent];
 
   return (
-    <div className="relative overflow-hidden rounded-[28px] border border-zinc-800 bg-zinc-950/90 p-5 shadow-[0_28px_80px_-54px_rgba(0,0,0,0.9)]">
+    <div data-lioness-stat className="relative overflow-hidden rounded-[22px] border border-zinc-800 bg-zinc-950/90 p-4 shadow-[0_28px_80px_-54px_rgba(0,0,0,0.9)] md:rounded-[28px] md:p-5">
       <div className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r ${styles.statGlow}`} />
 
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-zinc-500">{label}</p>
-          <p className="mt-4 text-3xl font-bold tracking-tight text-white">{value}</p>
+          <p data-lioness-stat-value className="mt-3 text-[1.85rem] font-bold tracking-tight text-white md:mt-4 md:text-3xl">{value}</p>
         </div>
 
         <div className={`rounded-2xl border border-white/6 p-3 ${styles.icon}`}>
@@ -232,7 +242,7 @@ export function ModuleStatCard({
         </div>
       </div>
 
-      <p className="mt-6 text-sm leading-6 text-zinc-500">{detail}</p>
+      <p className="mt-4 text-sm leading-6 text-zinc-500 md:mt-6">{detail}</p>
     </div>
   );
 }
@@ -245,7 +255,8 @@ interface ModuleSurfaceProps {
 export function ModuleSurface({ children, className = '' }: ModuleSurfaceProps) {
   return (
     <div
-      className={`rounded-[30px] border border-zinc-800 bg-zinc-950/90 p-5 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.9)] ${className}`}
+      data-lioness-surface
+      className={`rounded-[24px] border border-zinc-800 bg-zinc-950/90 p-4 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.9)] md:rounded-[30px] md:p-5 ${className}`}
     >
       {children}
     </div>
@@ -271,7 +282,7 @@ export function ModuleSectionHeading({
     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
         <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-zinc-500">{eyebrow}</p>
-        <h3 className="mt-2 text-2xl font-bold text-white">{title}</h3>
+        <h3 className="mt-2 text-xl font-bold text-white md:text-2xl">{title}</h3>
         {description ? <p className="mt-2 text-sm text-zinc-500">{description}</p> : null}
       </div>
 
@@ -300,7 +311,7 @@ export function ModuleEmptyState({
   description,
 }: ModuleEmptyStateProps) {
   return (
-    <div className="rounded-[26px] border border-dashed border-zinc-800 bg-zinc-950/80 px-6 py-10 text-center">
+    <div data-lioness-empty className="rounded-[26px] border border-dashed border-zinc-800 bg-zinc-950/80 px-6 py-10 text-center">
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900 text-zinc-500">
         <Icon size={24} />
       </div>

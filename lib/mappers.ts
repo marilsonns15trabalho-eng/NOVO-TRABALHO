@@ -1,12 +1,6 @@
-// Funções de mapeamento entre banco de dados (Supabase) e UI
-// Centraliza a conversão de nomes de campo en↔pt-BR
-
-import type { Aluno, StudentDBRow } from '@/types/aluno';
+import type { Aluno } from '@/types/aluno';
 import type { PlanoListItem } from '@/types/common';
 
-/**
- * Converte uma row da tabela `students` (Supabase) para o formato `Aluno` (UI).
- */
 export function mapStudentRowToAluno(row: Record<string, any>): Aluno {
   return {
     id: row.id,
@@ -44,21 +38,18 @@ export function mapStudentRowToAluno(row: Record<string, any>): Aluno {
   };
 }
 
-/**
- * Converte um `Aluno` do formulário UI para o formato da tabela `students` (Supabase).
- */
 export function mapAlunoToStudentRow(
   aluno: Partial<Aluno>,
   planos: PlanoListItem[],
   selectedPlanoId: string
 ): Record<string, any> {
-  const plano = planos.find((p) => p.id === selectedPlanoId);
+  const plano = planos.find((item) => item.id === selectedPlanoId);
 
   return {
     name: aluno.nome,
     email: aluno.email || null,
     phone: aluno.telefone || null,
-    plan: plano ? plano.name : (aluno.modalidade || null),
+    plan: plano ? plano.name : aluno.modalidade || null,
     plan_name: plano ? plano.name : null,
     status: aluno.status || 'ativo',
     join_date: aluno.data_matricula || null,
@@ -90,23 +81,41 @@ export function mapAlunoToStudentRow(
   };
 }
 
-/**
- * Mapeia os dados de lista de alunos (usado em selects de vários módulos).
- * Lida com a ambiguidade de campos `name` vs `nome`.
- */
-export function mapStudentToListItem(row: Record<string, any>): { id: string; name: string } {
+export function normalizeStudentRelation<T extends Record<string, any> | null | undefined>(row: T) {
+  if (!row) {
+    return undefined;
+  }
+
+  const name = row.name ?? row.nome ?? '';
+  const gender = row.gender ?? row.sexo ?? null;
+  const birthDate = row.birth_date ?? row.data_nascimento ?? null;
+
   return {
-    id: row.id,
-    name: row.name || row.nome || '',
+    ...row,
+    linked_auth_user_id: row.linked_auth_user_id ?? null,
+    name,
+    nome: name,
+    gender,
+    sexo: gender ?? undefined,
+    birth_date: birthDate,
+    data_nascimento: birthDate ?? undefined,
   };
 }
 
-/**
- * Mapeia aluno para formato com campo `nome` (usado em Anamnese/Avaliação).
- */
-export function mapStudentToAlunoListItem(row: Record<string, any>): { id: string; nome: string } {
+export function mapStudentToListItem(row: Record<string, any>): { id: string; name: string } {
+  const student = normalizeStudentRelation(row);
+
   return {
-    id: row.id,
-    nome: row.name || row.nome || '',
+    id: student?.id || row.id,
+    name: student?.name || '',
+  };
+}
+
+export function mapStudentToAlunoListItem(row: Record<string, any>): { id: string; nome: string } {
+  const student = normalizeStudentRelation(row);
+
+  return {
+    id: student?.id || row.id,
+    nome: student?.nome || '',
   };
 }

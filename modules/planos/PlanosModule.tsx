@@ -42,8 +42,8 @@ export default function PlanosModule() {
     <ModuleShell>
       <ModuleHero
         badge="Portifolio comercial"
-        title="Planos organizados com leitura mais premium para vender melhor"
-        description="Mantenha o catalogo comercial limpo, claro e pronto para operacao, renovacao e criacao de novos cadastros."
+        title="Planos e ofertas ativas"
+        description="Valores, vigencia e status comercial em um unico lugar."
         accent="indigo"
         chips={[
           { label: 'Total de planos', value: String(totalPlanos) },
@@ -102,7 +102,7 @@ export default function PlanosModule() {
         <ModuleSectionHeading
           eyebrow="Catalogo"
           title="Planos cadastrados"
-          description="Visual premium para conferir status, valor e duracao sem alterar a regra comercial existente."
+          description="Status, valor e duracao dos planos ativos e inativos."
           actionLabel="Novo plano"
           onActionClick={() => setShowAddModal(true)}
         />
@@ -204,7 +204,7 @@ export default function PlanosModule() {
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30"
-                    placeholder="Ex: trimestral premium"
+                    placeholder="Ex: trimestral"
                   />
                 </div>
 

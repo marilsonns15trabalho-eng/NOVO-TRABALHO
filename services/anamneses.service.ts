@@ -1,21 +1,17 @@
 import { supabase, getAuthenticatedUser } from '@/lib/supabase';
 import { TABLES } from '@/lib/constants';
+import { mapStudentToAlunoListItem, normalizeStudentRelation } from '@/lib/mappers';
 import { findStudentIdByLinkedAuthUserId, resolveStudentIdForWrite } from '@/lib/student-access';
 import type { Anamnese, AnamneseFormData } from '@/types/anamnese';
 import type { AlunoListItem } from '@/types/common';
 import { assertCanManageStudentDataForUserId } from '@/lib/authz';
 
 function mapAnamneseRow(item: any): Anamnese {
-  const student = item.student ?? item.students;
+  const student = normalizeStudentRelation(item.student ?? item.students);
 
   return {
     ...item,
-    students: student
-      ? {
-          ...student,
-          nome: student.nome ?? student.name,
-        }
-      : undefined,
+    students: student,
   };
 }
 
@@ -53,7 +49,7 @@ export async function fetchAlunosParaAnamnese(linkedAuthUserId?: string): Promis
     throw error;
   }
 
-  return (data || []).map((s: any) => ({ id: s.id, nome: s.nome || s.name }));
+  return (data || []).map(mapStudentToAlunoListItem);
 }
 
 /** Cria uma nova anamnese */

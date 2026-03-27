@@ -115,8 +115,8 @@ export default function RelatoriosModule() {
     <ModuleShell>
       <ModuleHero
         badge="Relatorios executivos"
-        title="Metricas do estudio com leitura mais clara para decisao rapida"
-        description="Acompanhe o pulso comercial e operacional do negocio sem precisar montar planilhas paralelas."
+        title="Relatorios e indicadores"
+        description="Resumo financeiro, base de alunos e pendencias do periodo."
         accent="emerald"
         chips={[
           { label: 'Receitas', value: formatCurrency(metrics.receitas) },

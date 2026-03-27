@@ -2,49 +2,59 @@
 
 import { useEffect } from 'react';
 
-/**
- * Detecta Capacitor e aplica classe app-mode no body.
- * Componente sem render visual — apenas side-effect.
- */
+function resolveDeviceMode() {
+  const hasTouch = window.matchMedia('(pointer: coarse)').matches;
+  const isMobileAgent = /Android|iPhone|iPod|Mobile/i.test(navigator.userAgent);
+  const isTabletAgent = /iPad|Tablet/i.test(navigator.userAgent);
+
+  if (isMobileAgent || (hasTouch && window.innerWidth < 820)) {
+    return 'mobile';
+  }
+
+  if (isTabletAgent || (hasTouch && window.innerWidth < 1180)) {
+    return 'tablet';
+  }
+
+  return 'desktop';
+}
+
 export default function AppModeDetector() {
   useEffect(() => {
-    // Detectar Capacitor
+    const root = document.documentElement;
+    const { body } = document;
     const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.();
 
-    if (isCapacitor) {
-      document.body.classList.add('app-mode');
+    const applyDeviceMode = () => {
+      const device = resolveDeviceMode();
 
-      // Handler para botão voltar do Android
-      const handleBackButton = (e: PopStateEvent) => {
-        // Se há histórico de navegação, o browser já lida com popstate
-        // Se não há, prevenimos o fechamento do app
-        if (window.location.pathname === '/dashboard' || window.location.pathname === '/') {
-          // Na raiz, não fecha o app — apenas ignora
-          window.history.pushState(null, '', window.location.pathname);
-        }
-      };
+      root.dataset.device = device;
+      body.dataset.device = device;
+      body.classList.remove('device-mobile', 'device-tablet', 'device-desktop');
+      body.classList.add(`device-${device}`);
+    };
 
-      // Garantir que há sempre um state no histórico para interceptar
-      window.history.pushState(null, '', window.location.pathname);
-      window.addEventListener('popstate', handleBackButton);
+    applyDeviceMode();
+    window.addEventListener('resize', applyDeviceMode);
 
-      return () => {
-        window.removeEventListener('popstate', handleBackButton);
-      };
+    if (!isCapacitor) {
+      return () => window.removeEventListener('resize', applyDeviceMode);
     }
 
-    // Também ativar em telas pequenas (mobile browser)
-    const checkMobile = () => {
-      if (window.innerWidth < 768) {
-        document.body.classList.add('mobile-mode');
-      } else {
-        document.body.classList.remove('mobile-mode');
+    body.classList.add('app-mode');
+
+    const handleBackButton = () => {
+      if (window.location.pathname === '/dashboard' || window.location.pathname === '/') {
+        window.history.pushState(null, '', window.location.pathname);
       }
     };
 
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    window.history.pushState(null, '', window.location.pathname);
+    window.addEventListener('popstate', handleBackButton);
+
+    return () => {
+      window.removeEventListener('resize', applyDeviceMode);
+      window.removeEventListener('popstate', handleBackButton);
+    };
   }, []);
 
   return null;

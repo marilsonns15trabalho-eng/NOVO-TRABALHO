@@ -139,25 +139,25 @@ export default function FinanceiroModule() {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
+      <div className="lioness-toolbar flex items-center justify-between gap-3">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Financeiro Completo</h2>
           <p className="text-zinc-500">Gestão de transações e boletos.</p>
         </div>
-        <div className="flex gap-3">
+        <div className="lioness-toolbar flex gap-3">
           <button 
             onClick={() => setShowConfirmLote(true)} 
             disabled={batchLoading}
-            className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white font-bold px-6 py-3 rounded-2xl transition-all disabled:opacity-50"
+            className="flex items-center gap-2 rounded-2xl bg-zinc-800 px-4 py-2.5 text-sm font-bold text-white transition-all hover:bg-zinc-700 disabled:opacity-50"
           >
             {batchLoading ? <Loader2 className="animate-spin" size={20} /> : <RefreshCw size={20} />}
             Gerar em Lote
           </button>
-          <button onClick={() => setShowBoletoModal(true)} className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-black font-bold px-6 py-3 rounded-2xl transition-all">
+          <button onClick={() => setShowBoletoModal(true)} className="flex items-center gap-2 rounded-2xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-black transition-all hover:bg-amber-600">
             <FileText size={20} />
             Gerar Boleto
           </button>
-          <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-black font-bold px-6 py-3 rounded-2xl transition-all">
+          <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 rounded-2xl bg-emerald-500 px-4 py-2.5 text-sm font-bold text-black transition-all hover:bg-emerald-600">
             <Plus size={20} />
             Nova Transação
           </button>
@@ -166,8 +166,8 @@ export default function FinanceiroModule() {
 
       <ModuleHero
         badge="Operacao financeira"
-        title="Fluxo financeiro com leitura mais executiva e bem resolvida"
-        description="Receitas, despesas e cobrancas agora aparecem em uma camada mais premium, sem alterar os fluxos que ja funcionam no seu operacional."
+        title="Receitas, despesas e cobrancas"
+        description="Visao do caixa, lancamentos e boletos do periodo."
         accent="emerald"
         chips={[
           { label: 'Receitas', value: `R$ ${totalReceitas.toFixed(2)}` },

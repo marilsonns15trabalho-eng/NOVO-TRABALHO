@@ -226,8 +226,8 @@ export default function AlunosModule() {
     <ModuleShell>
       <ModuleHero
         badge="Base de alunos"
-        title="Cadastros, acessos e operacao diaria com leitura mais premium"
-        description="Visualize rapidamente quem esta ativo, quem ja tem acesso vinculado e quais frentes ainda precisam de atencao da equipe."
+        title="Gestao de alunos e acessos"
+        description="Cadastros, status e vinculos de acesso da base atual."
         accent="orange"
         chips={[
           { label: 'Total', value: String(totalAlunos) },

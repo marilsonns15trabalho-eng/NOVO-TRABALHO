@@ -113,19 +113,22 @@ export async function updateAluno(
   const user = await getAuthenticatedUser();
 
   const dbAluno = mapAlunoToStudentRow(alunoData, planos, selectedPlanoId);
+  const { data: currentStudent, error: currentStudentError } = await supabase
+    .from(TABLES.STUDENTS)
+    .select('linked_auth_user_id, plan_id')
+    .eq('id', alunoId)
+    .single();
+
+  if (currentStudentError) {
+    throw currentStudentError;
+  }
 
   if (userRole === 'aluno') {
     for (const field of RESTRICTED_FIELDS_FOR_ALUNO) {
       delete dbAluno[field];
     }
 
-    const { data: student } = await supabase
-      .from(TABLES.STUDENTS)
-      .select('linked_auth_user_id')
-      .eq('id', alunoId)
-      .single();
-
-    if (student && student.linked_auth_user_id !== user.id) {
+    if (currentStudent && currentStudent.linked_auth_user_id !== user.id) {
       throw new Error('Voce nao tem permissao para editar este registro.');
     }
   } else {
@@ -138,6 +141,58 @@ export async function updateAluno(
     .eq('id', alunoId);
 
   if (error) throw error;
+
+  const trimmedName = alunoData.nome?.trim();
+  if (trimmedName && currentStudent.linked_auth_user_id) {
+    const { error: profileSyncError } = await supabase
+      .from(TABLES.USER_PROFILES)
+      .update({ display_name: trimmedName })
+      .eq('id', currentStudent.linked_auth_user_id);
+
+    if (profileSyncError) {
+      console.error('Nao foi possivel sincronizar o nome do perfil autenticado:', profileSyncError);
+    }
+  }
+
+  if (userRole === 'aluno') {
+    return;
+  }
+
+  const selectedPlan = planos.find((plano) => plano.id === selectedPlanoId);
+  if (!selectedPlan || currentStudent.plan_id === selectedPlan.id) {
+    return;
+  }
+
+  const { data: latestAssinatura, error: latestAssinaturaError } = await supabase
+    .from(TABLES.ASSINATURAS)
+    .select('plan_id')
+    .eq('student_id', alunoId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (latestAssinaturaError) {
+    throw latestAssinaturaError;
+  }
+
+  if (latestAssinatura?.plan_id === selectedPlan.id) {
+    return;
+  }
+
+  const { error: assinaturaError } = await supabase
+    .from(TABLES.ASSINATURAS)
+    .insert([
+      {
+        student_id: alunoId,
+        plan_id: selectedPlan.id,
+        plan_name: selectedPlan.name,
+        plan_price: selectedPlan.price,
+      },
+    ]);
+
+  if (assinaturaError) {
+    throw assinaturaError;
+  }
 }
 
 export async function deleteAluno(alunoId: string): Promise<void> {

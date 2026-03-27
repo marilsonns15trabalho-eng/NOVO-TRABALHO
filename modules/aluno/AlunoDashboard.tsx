@@ -46,7 +46,7 @@ function OverviewCard({
   accentClassName,
 }: OverviewCardProps) {
   return (
-    <div className="relative overflow-hidden rounded-[28px] border border-zinc-800 bg-zinc-950/85 p-5 shadow-[0_28px_80px_-54px_rgba(0,0,0,0.9)]">
+    <div data-lioness-stat className="relative overflow-hidden rounded-[22px] border border-zinc-800 bg-zinc-950/85 p-4 shadow-[0_28px_80px_-54px_rgba(0,0,0,0.9)] md:rounded-[28px] md:p-5">
       <div className={`absolute inset-x-0 top-0 h-px ${accentClassName}`} />
 
       <div className="flex items-start justify-between gap-4">
@@ -54,8 +54,8 @@ function OverviewCard({
           <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">
             {eyebrow}
           </p>
-          <h3 className="mt-3 text-[2rem] font-bold leading-none text-white">{title}</h3>
-          <p className="mt-4 text-sm leading-6 text-zinc-500">{description}</p>
+          <h3 data-lioness-stat-value className="mt-3 text-[1.85rem] font-bold leading-none text-white md:text-[2rem]">{title}</h3>
+          <p className="mt-3 text-sm leading-6 text-zinc-500 md:mt-4">{description}</p>
         </div>
 
         <div className="rounded-2xl border border-white/6 bg-white/[0.03] p-3 text-white/90">
@@ -74,7 +74,7 @@ interface EmptyStateProps {
 
 function EmptyState({ title, description, icon }: EmptyStateProps) {
   return (
-    <div className="rounded-[26px] border border-dashed border-zinc-800 bg-black/25 px-6 py-7">
+    <div data-lioness-empty className="rounded-[22px] border border-dashed border-zinc-800 bg-black/25 px-5 py-6 md:rounded-[26px] md:px-6 md:py-7">
       <div className="flex items-start gap-4">
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-3 text-zinc-300">
           {icon}
@@ -110,7 +110,7 @@ export default function AlunoDashboard() {
 
         const { data: studentRow } = await supabase
           .from('students')
-          .select('id')
+          .select('id, plan_id, plan_name')
           .eq('linked_auth_user_id', user.id)
           .maybeSingle();
 
@@ -136,15 +136,39 @@ export default function AlunoDashboard() {
           return;
         }
 
-        const { data: assinaturaRows } = await supabase
-          .from('assinaturas')
-          .select('plan_name, plan_price')
-          .eq('student_id', resolvedStudentId)
-          .order('created_at', { ascending: false })
-          .limit(1);
+        let currentPlan: StudentPlan | null = studentRow?.plan_name
+          ? {
+              plan_name: studentRow.plan_name,
+            }
+          : null;
 
-        const currentPlan = (assinaturaRows || [])[0] as StudentPlan | undefined;
-        setPlan(currentPlan || null);
+        if (studentRow?.plan_id) {
+          const { data: planRow } = await supabase
+            .from('plans')
+            .select('name, price')
+            .eq('id', studentRow.plan_id)
+            .maybeSingle();
+
+          if (planRow) {
+            currentPlan = {
+              plan_name: planRow.name || studentRow.plan_name || undefined,
+              plan_price: Number(planRow.price),
+            };
+          }
+        }
+
+        if (!currentPlan) {
+          const { data: assinaturaRows } = await supabase
+            .from('assinaturas')
+            .select('plan_name, plan_price')
+            .eq('student_id', resolvedStudentId)
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+          currentPlan = ((assinaturaRows || [])[0] as StudentPlan | undefined) || null;
+        }
+
+        setPlan(currentPlan);
       } catch (error) {
         console.error('Erro ao carregar area do aluno:', error);
         setPlan(null);
@@ -242,6 +266,7 @@ export default function AlunoDashboard() {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: 'easeInOut' }}
+      data-lioness-shell
       className="min-h-screen bg-black text-white"
     >
       <div className="border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-xl">
@@ -263,8 +288,8 @@ export default function AlunoDashboard() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl space-y-8 px-6 py-8">
-        <section className="relative overflow-hidden rounded-[34px] border border-zinc-800 bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.16),_transparent_36%),linear-gradient(135deg,rgba(24,24,27,0.98),rgba(10,10,10,0.98))] p-6 shadow-[0_36px_120px_-60px_rgba(249,115,22,0.42)] md:p-8">
+      <div className="mx-auto max-w-7xl space-y-8 px-4 py-6 md:px-6 md:py-8">
+        <section data-lioness-hero className="relative overflow-hidden rounded-[28px] border border-zinc-800 bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.16),_transparent_36%),linear-gradient(135deg,rgba(24,24,27,0.98),rgba(10,10,10,0.98))] p-5 shadow-[0_36px_120px_-60px_rgba(249,115,22,0.42)] md:rounded-[34px] md:p-8">
           <div className="absolute right-0 top-0 h-56 w-56 rounded-full bg-orange-500/10 blur-3xl" />
           <div className="absolute bottom-0 left-1/3 h-40 w-40 rounded-full bg-purple-500/10 blur-3xl" />
 
@@ -272,18 +297,18 @@ export default function AlunoDashboard() {
             <div className="max-w-3xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.25em] text-orange-300">
                 <Sparkles size={14} />
-                Portal Lioness Prime
+                Area do aluno
               </div>
 
-              <h2 className="mt-5 text-3xl font-bold leading-tight text-white md:text-5xl">
+              <h2 data-lioness-hero-title className="mt-4 text-2xl font-bold leading-tight text-white md:text-4xl xl:text-5xl">
                 {heroTitle}
               </h2>
 
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-300 md:text-base">
+              <p data-lioness-hero-description className="mt-3 max-w-2xl text-sm leading-6 text-zinc-300 md:text-base md:leading-7">
                 {heroDescription}
               </p>
 
-              <div className="mt-6 flex flex-wrap gap-3">
+              <div data-lioness-chip-list className="mt-5 flex flex-wrap gap-2.5">
                 {statusItems.map((item) => (
                   <div
                     key={item.label}
@@ -295,7 +320,7 @@ export default function AlunoDashboard() {
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3 xl:w-[460px]">
+            <div data-lioness-hero-actions className="grid gap-3 sm:grid-cols-3 xl:w-[460px]">
               <div className="rounded-2xl border border-white/8 bg-white/[0.04] px-4 py-4 backdrop-blur-sm">
                 <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-zinc-500">
                   Minha conta

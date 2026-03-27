@@ -193,8 +193,8 @@ export default function AvaliacaoModule() {
     <ModuleShell>
       <ModuleHero
         badge="Leitura corporal"
-        title="Avaliacoes fisicas com leitura mais profissional e relatorio melhor apresentado"
-        description="Organize historico corporal, acompanhe evolucao e gere PDF com uma camada visual mais premium para equipe e alunas."
+        title="Avaliacoes fisicas e relatorios"
+        description="Historico corporal, evolucao e exportacao em PDF."
         accent="rose"
         chips={[
           { label: 'Avaliacoes', value: String(totalAvaliacoes) },
@@ -215,7 +215,7 @@ export default function AvaliacaoModule() {
               />
               <ModuleHeroAction
                 label="Relatorio PDF"
-                subtitle="Exportacao visual mais profissional e objetiva."
+                subtitle="Gerar relatorio em PDF."
                 icon={Download}
                 accent="rose"
               />
@@ -389,7 +389,7 @@ export default function AvaliacaoModule() {
                 </div>
                 <div className="flex gap-3">
                   <button
-                    onClick={() => exportToPDF(selectedReport)}
+                    onClick={() => exportAvaliacaoPdf(selectedReport)}
                     className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 rounded-xl font-bold transition-all flex items-center gap-2"
                   >
                     Exportar PDF

@@ -47,8 +47,8 @@ export default function ConfiguracoesModule() {
     <ModuleShell>
       <ModuleHero
         badge="Identidade do sistema"
-        title="Configure a operacao, a apresentacao e a comunicacao da sua academia"
-        description="Centralize dados institucionais, identidade visual e textos padrao em uma area mais organizada e profissional."
+        title="Dados da academia e identidade visual"
+        description="Contato, cores, textos e informacoes institucionais do sistema."
         accent="sky"
         chips={[
           { label: 'Academia', value: config.nome_academia || 'Nao configurada' },

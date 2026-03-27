@@ -1,6 +1,7 @@
 import { supabase, getAuthenticatedUser } from '@/lib/supabase';
 import { TABLES } from '@/lib/constants';
 import { calcularBiometria } from '@/lib/biometrics';
+import { normalizeStudentRelation } from '@/lib/mappers';
 import { findStudentIdByLinkedAuthUserId, resolveStudentIdForWrite } from '@/lib/student-access';
 import type { Avaliacao, AvaliacaoFormData, AvaliacaoAlunoItem } from '@/types/avaliacao';
 import { assertCanManageStudentDataForUserId } from '@/lib/authz';
@@ -28,21 +29,11 @@ function logSupabaseError(context: string, error: unknown) {
  * Fonte primária: colunas flat. Fallback: JSONB.
  */
 function mapAvaliacaoRow(item: any): Avaliacao {
-  const student = item.student ?? item.students;
+  const student = normalizeStudentRelation(item.student ?? item.students);
 
   return {
     ...item,
-    students: student
-      ? {
-          ...student,
-          nome: student.nome ?? student.name,
-          name: student.name ?? student.nome,
-          sexo: student.sexo ?? student.gender ?? undefined,
-          data_nascimento: student.data_nascimento ?? student.birth_date ?? undefined,
-          gender: student.gender ?? student.sexo ?? null,
-          birth_date: student.birth_date ?? student.data_nascimento ?? null,
-        }
-      : undefined,
+    students: student,
     // Perímetros: flat primeiro, JSONB como fallback
     ombro: item.ombro ?? item.medidas?.ombro,
     torax: item.torax ?? item.medidas?.torax,
@@ -107,14 +98,18 @@ export async function fetchAlunosParaAvaliacao(linkedAuthUserId?: string): Promi
     return [];
   }
 
-  return (data || []).map((a: any) => ({
-    id: a.id,
-    nome: a.name || '',
-    sexo: a.gender || undefined,
-    data_nascimento: a.birth_date || undefined,
-    gender: a.gender || null,
-    birth_date: a.birth_date || null,
-  }));
+  return (data || []).map((row: any) => {
+    const student = normalizeStudentRelation(row);
+
+    return {
+      id: student?.id || row.id,
+      nome: student?.nome || '',
+      sexo: student?.sexo,
+      data_nascimento: student?.data_nascimento,
+      gender: student?.gender ?? null,
+      birth_date: student?.birth_date ?? null,
+    };
+  });
 }
 
 /** Busca histórico de avaliações de um aluno */

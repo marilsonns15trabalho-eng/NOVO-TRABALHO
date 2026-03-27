@@ -47,14 +47,15 @@ function MetricCard({
   return (
     <button
       onClick={onClick}
-      className="group relative overflow-hidden rounded-[28px] border border-zinc-800 bg-zinc-950/85 p-5 text-left shadow-[0_28px_80px_-54px_rgba(0,0,0,0.9)] transition-all hover:border-zinc-700"
+      data-lioness-stat
+      className="group relative overflow-hidden rounded-[22px] border border-zinc-800 bg-zinc-950/85 p-4 text-left shadow-[0_28px_80px_-54px_rgba(0,0,0,0.9)] transition-all hover:border-zinc-700 md:rounded-[28px] md:p-5"
     >
       <div className={`absolute inset-x-0 top-0 h-px ${accentClassName}`} />
 
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-zinc-500">{label}</p>
-          <p className="mt-4 text-3xl font-bold tracking-tight text-white">{value}</p>
+          <p data-lioness-stat-value className="mt-3 text-[1.85rem] font-bold tracking-tight text-white md:mt-4 md:text-3xl">{value}</p>
         </div>
 
         <div className="rounded-2xl border border-white/6 bg-white/[0.03] p-3">
@@ -62,7 +63,7 @@ function MetricCard({
         </div>
       </div>
 
-      <div className="mt-6 flex items-center justify-between">
+      <div className="mt-4 flex items-center justify-between md:mt-6">
         <div
           className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold ${
             trend === 'up'
@@ -101,7 +102,8 @@ function ActionTile({
   return (
     <button
       onClick={onClick}
-      className={`group rounded-[24px] border p-4 text-left transition-all ${
+      data-lioness-action
+      className={`group rounded-[20px] border p-3.5 text-left transition-all md:rounded-[24px] md:p-4 ${
         filled
           ? 'border-orange-500/20 bg-orange-500 text-black hover:bg-orange-600'
           : 'border-zinc-800 bg-zinc-950/80 text-white hover:border-zinc-700 hover:bg-zinc-900'
@@ -224,8 +226,8 @@ export default function Dashboard({ setActiveTab }: DashboardProps) {
   }
 
   return (
-    <div className="min-h-screen space-y-8 bg-transparent p-6 text-white md:p-8">
-      <section className="relative overflow-hidden rounded-[34px] border border-zinc-800 bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.16),_transparent_36%),linear-gradient(135deg,rgba(24,24,27,0.98),rgba(10,10,10,0.98))] p-6 shadow-[0_36px_120px_-60px_rgba(249,115,22,0.42)] md:p-8">
+    <div data-lioness-shell className="min-h-screen space-y-6 bg-transparent p-4 text-white md:space-y-8 md:p-8">
+      <section data-lioness-hero className="relative overflow-hidden rounded-[28px] border border-zinc-800 bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.16),_transparent_36%),linear-gradient(135deg,rgba(24,24,27,0.98),rgba(10,10,10,0.98))] p-5 shadow-[0_36px_120px_-60px_rgba(249,115,22,0.42)] md:rounded-[34px] md:p-8">
         <div className="absolute right-0 top-0 h-56 w-56 rounded-full bg-orange-500/10 blur-3xl" />
         <div className="absolute bottom-0 left-1/3 h-36 w-36 rounded-full bg-emerald-500/10 blur-3xl" />
 
@@ -235,15 +237,15 @@ export default function Dashboard({ setActiveTab }: DashboardProps) {
               Painel executivo
             </div>
 
-            <h2 className="mt-5 text-3xl font-bold leading-tight text-white md:text-5xl">
-              Controle visual, financeiro e operacional em um unico lugar
+            <h2 data-lioness-hero-title className="mt-4 text-2xl font-bold leading-tight text-white md:text-4xl xl:text-5xl">
+              Resumo do estudio
             </h2>
 
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-300 md:text-base">
-              Acompanhe receita, alunos, vencimentos e atividades recentes com uma leitura mais clara e profissional.
+            <p data-lioness-hero-description className="mt-3 max-w-2xl text-sm leading-6 text-zinc-300 md:text-base md:leading-7">
+              Receita, alunos, vencimentos e atividades recentes em uma unica tela.
             </p>
 
-            <div className="mt-6 flex flex-wrap gap-3">
+            <div data-lioness-chip-list className="mt-5 flex flex-wrap gap-2.5">
               <div className="rounded-full border border-white/8 bg-white/[0.03] px-4 py-2 text-sm text-zinc-300">
                 <span className="font-bold text-white">Receita atual:</span> {formatCurrency(stats.receitaMensal)}
               </div>
@@ -256,7 +258,7 @@ export default function Dashboard({ setActiveTab }: DashboardProps) {
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:w-[430px]">
+          <div data-lioness-hero-actions className="grid gap-3 sm:grid-cols-2 xl:w-[400px]">
             <ActionTile
               label="Novo aluno"
               subtitle="Cadastrar e liberar o acesso rapidamente."
