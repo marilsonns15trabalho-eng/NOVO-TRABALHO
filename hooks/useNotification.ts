@@ -1,6 +1,4 @@
 'use client';
-
-// Hook customizado para gerenciar notificações/toasts
 import { useState, useCallback, useRef } from 'react';
 import { DEFAULTS } from '@/lib/constants';
 import type { Notification } from '@/types/common';

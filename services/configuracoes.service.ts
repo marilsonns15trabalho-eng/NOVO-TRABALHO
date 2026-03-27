@@ -1,4 +1,3 @@
-// Camada de serviço para Configurações
 import { supabase, getAuthenticatedUser } from '@/lib/supabase';
 import { TABLES } from '@/lib/constants';
 import type { Configuracoes, ConfiguracoesFormData } from '@/types/configuracoes';
@@ -26,7 +25,6 @@ export async function salvarConfiguracoes(config: ConfiguracoesFormData): Promis
   await assertAdminForUserId(user.id);
 
   if (config.id) {
-    // Update
     const { error } = await supabase
       .from(TABLES.CONFIGURACOES)
       .update(config)
@@ -35,7 +33,6 @@ export async function salvarConfiguracoes(config: ConfiguracoesFormData): Promis
     if (error) throw error;
     return config as Configuracoes;
   } else {
-    // Insert
     const { data, error } = await supabase
       .from(TABLES.CONFIGURACOES)
       .insert([{ ...config }])

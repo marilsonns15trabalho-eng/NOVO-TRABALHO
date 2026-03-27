@@ -1,6 +1,4 @@
 'use client';
-
-// Hook customizado para o módulo Financeiro
 import { useState, useEffect, useCallback } from 'react';
 import * as financeiroService from '@/services/financeiro.service';
 import { useNotification } from '@/hooks/useNotification';

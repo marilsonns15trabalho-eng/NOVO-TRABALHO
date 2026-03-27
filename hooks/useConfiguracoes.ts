@@ -1,6 +1,4 @@
 'use client';
-
-// Hook customizado para o módulo de Configurações
 import { useState, useEffect, useCallback } from 'react';
 import * as configService from '@/services/configuracoes.service';
 import { useNotification } from '@/hooks/useNotification';

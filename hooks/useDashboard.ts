@@ -1,6 +1,4 @@
 'use client';
-
-// Hook customizado para o Dashboard
 import { useState, useEffect, useCallback } from 'react';
 import * as dashboardService from '@/services/dashboard.service';
 import type { DashboardStats, DashboardChartData, ProximoVencimento, RecentActivity } from '@/services/dashboard.service';

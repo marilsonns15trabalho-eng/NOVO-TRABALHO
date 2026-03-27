@@ -1,6 +1,4 @@
 'use client';
-
-// PlanosModule REFATORADO — JSX original preservado, lógica no hook usePlanos
 import React from 'react';
 import {
   ClipboardList,

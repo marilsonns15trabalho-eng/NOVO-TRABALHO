@@ -1,6 +1,4 @@
 'use client';
-
-// Formulário de Aluno extraído — usado pelo Modal de criar/editar aluno
 import React from 'react';
 import FormField, { inputClassName, selectClassName, textareaClassName } from '@/components/ui/FormField';
 import type { AlunoFormData } from '@/types/aluno';

@@ -1,6 +1,4 @@
 'use client';
-
-// ConfiguracoesModule REFATORADO — JSX original preservado, lógica no hook useConfiguracoes
 import React from 'react';
 import {
   Settings,

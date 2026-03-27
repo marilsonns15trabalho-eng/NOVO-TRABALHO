@@ -1,4 +1,3 @@
-// Camada de serviço para Treinos
 import { supabase, getAuthenticatedUser } from '@/lib/supabase';
 import { TABLES } from '@/lib/constants';
 import { mapStudentToListItem } from '@/lib/mappers';

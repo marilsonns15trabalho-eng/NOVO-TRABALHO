@@ -1,4 +1,3 @@
-// Camada de serviço para Avaliações Físicas
 import { supabase, getAuthenticatedUser } from '@/lib/supabase';
 import { TABLES } from '@/lib/constants';
 import { calcularBiometria } from '@/lib/biometrics';

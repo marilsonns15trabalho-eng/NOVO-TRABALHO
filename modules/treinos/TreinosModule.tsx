@@ -1,6 +1,4 @@
 'use client';
-
-// TreinosModule REFATORADO — JSX original preservado, lógica no hook useTreinos
 import React from 'react';
 import {
   Dumbbell,

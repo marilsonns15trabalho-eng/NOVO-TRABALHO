@@ -1,6 +1,4 @@
 'use client';
-
-// Hook customizado para o módulo de Alunos
 import { useState, useEffect, useCallback } from 'react';
 import * as alunosService from '@/services/alunos.service';
 import { useNotification } from '@/hooks/useNotification';

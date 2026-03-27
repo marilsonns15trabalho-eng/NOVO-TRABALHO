@@ -1,4 +1,3 @@
-// Camada de serviço para Planos
 import { supabase, getAuthenticatedUser } from '@/lib/supabase';
 import { TABLES } from '@/lib/constants';
 import type { Plano, PlanoFormData } from '@/types/plano';
@@ -62,14 +61,12 @@ export async function deleteOrDeactivatePlano(plano: Plano): Promise<void> {
   await assertAdminForUserId(user.id);
 
   if (plano.active) {
-    // Desativar
     const { error } = await supabase
       .from(TABLES.PLANS)
       .update({ active: false })
       .eq('id', plano.id);
     if (error) throw error;
   } else {
-    // Excluir permanentemente
     const { error } = await supabase
       .from(TABLES.PLANS)
       .delete()

@@ -1,6 +1,4 @@
 'use client';
-
-// AvaliacaoModule REFATORADO — JSX original preservado, lógica no hook useAvaliacoes
 import React, { useState, useEffect } from 'react';
 import {
   Activity,

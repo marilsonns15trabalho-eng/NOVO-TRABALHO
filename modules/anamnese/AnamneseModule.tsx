@@ -1,6 +1,4 @@
 'use client';
-
-// AnamneseModule REFATORADO — JSX original preservado, lógica no hook useAnamneses
 import React from 'react';
 import {
   ClipboardList,

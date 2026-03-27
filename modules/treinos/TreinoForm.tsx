@@ -1,6 +1,4 @@
 'use client';
-
-// Formulário de Treino extraído
 import React from 'react';
 import { Plus } from 'lucide-react';
 import FormField, { inputClassName, selectClassName, textareaClassName } from '@/components/ui/FormField';

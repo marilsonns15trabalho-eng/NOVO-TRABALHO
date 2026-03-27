@@ -1,6 +1,4 @@
 'use client';
-
-// Dashboard REFATORADO — JSX original preservado, lógica no hook useDashboard
 import React, { useState } from 'react';
 import {
   Users,

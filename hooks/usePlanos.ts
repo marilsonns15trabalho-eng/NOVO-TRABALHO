@@ -1,6 +1,4 @@
 'use client';
-
-// Hook customizado para o módulo de Planos
 import { useState, useEffect, useCallback } from 'react';
 import * as planosService from '@/services/planos.service';
 import { useNotification } from '@/hooks/useNotification';

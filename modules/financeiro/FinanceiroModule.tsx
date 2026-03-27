@@ -1,6 +1,4 @@
 'use client';
-
-// FinanceiroModule REFATORADO — JSX ORIGINAL preservado, lógica no hook useFinanceiro
 import React, { useState, useMemo } from 'react';
 import { 
   DollarSign, 
