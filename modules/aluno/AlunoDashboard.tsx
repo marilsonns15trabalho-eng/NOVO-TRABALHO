@@ -9,18 +9,23 @@ import {
   Calendar,
   CheckCircle2,
   ClipboardList,
+  Download,
   Dumbbell,
+  FileText,
   Loader2,
   LogOut,
   PlayCircle,
   Save,
   ShieldCheck,
   Sparkles,
+  TrendingUp,
   XCircle,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDatePtBr } from '@/lib/date';
+import { exportAvaliacaoEvolutionPdf } from '@/lib/pdf/exportAvaliacaoEvolutionPdf';
+import { exportAvaliacaoPdf } from '@/lib/pdf/exportAvaliacaoPdf';
 import { supabase } from '@/lib/supabase';
 import AccountSecurityForm from '@/components/account/AccountSecurityForm';
 import { formatTrainingDay, isTreinoRecentlyUpdated, pickTodayWorkout } from '@/lib/training';
@@ -126,6 +131,47 @@ function SnapshotCard({ label, value, icon, accentClassName }: SnapshotCardProps
       </div>
     </div>
   );
+}
+
+function formatAvaliacaoMetric(
+  value: number | null | undefined,
+  suffix = '',
+  digits = 1,
+) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return '-';
+  }
+
+  return `${value.toLocaleString('pt-BR', {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  })}${suffix}`;
+}
+
+function formatAvaliacaoDelta(
+  current: number | null | undefined,
+  previous: number | null | undefined,
+  suffix = '',
+  digits = 1,
+) {
+  if (
+    current === null ||
+    current === undefined ||
+    previous === null ||
+    previous === undefined ||
+    Number.isNaN(current) ||
+    Number.isNaN(previous)
+  ) {
+    return '-';
+  }
+
+  const diff = current - previous;
+  const sign = diff > 0 ? '+' : '';
+
+  return `${sign}${diff.toLocaleString('pt-BR', {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  })}${suffix}`;
 }
 
 interface StudentNavItemProps {
@@ -283,6 +329,28 @@ export default function AlunoDashboard() {
   }, [isReady, user]);
 
   const latestAvaliacao = useMemo(() => avaliacoes[0] ?? null, [avaliacoes]);
+  const latestEvolutionBase = useMemo(() => avaliacoes[1] ?? null, [avaliacoes]);
+  const latestEvaluationSummary = useMemo(() => {
+    if (!latestAvaliacao || !latestEvolutionBase) {
+      return null;
+    }
+
+    return {
+      periodLabel: `${formatDatePtBr(latestEvolutionBase.data)} -> ${formatDatePtBr(latestAvaliacao.data)}`,
+      peso: formatAvaliacaoDelta(latestAvaliacao.peso, latestEvolutionBase.peso, ' kg'),
+      gordura: formatAvaliacaoDelta(
+        latestAvaliacao.percentual_gordura,
+        latestEvolutionBase.percentual_gordura,
+        '%',
+      ),
+      massaMagra: formatAvaliacaoDelta(
+        latestAvaliacao.massa_magra,
+        latestEvolutionBase.massa_magra,
+        ' kg',
+      ),
+      cintura: formatAvaliacaoDelta(latestAvaliacao.cintura, latestEvolutionBase.cintura, ' cm'),
+    };
+  }, [latestAvaliacao, latestEvolutionBase]);
   const mustChangePassword = Boolean(profile?.must_change_password);
   const firstName = useMemo(() => {
     const baseName = profile?.display_name || user?.email?.split('@')[0] || 'Aluno';
@@ -1051,12 +1119,40 @@ export default function AlunoDashboard() {
               </p>
               <h2 className="mt-2 text-3xl font-bold text-white">Minhas Avaliacoes</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
-                Consulte seus registros corporais e acompanhe a evolucao ja cadastrada no sistema.
+                Consulte seu historico corporal, acompanhe a comparacao entre registros e exporte os mesmos PDFs usados pela equipe.
               </p>
             </div>
 
-            <div className="rounded-2xl border border-white/6 bg-white/[0.03] p-3 text-purple-400">
-              <Activity size={22} />
+            <div className="flex flex-wrap gap-3">
+              {latestAvaliacao ? (
+                <button
+                  type="button"
+                  onClick={() => void exportAvaliacaoPdf(latestAvaliacao)}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-purple-500/20 bg-purple-500/10 px-4 py-3 text-sm font-bold text-purple-300 transition-all hover:bg-purple-500 hover:text-white"
+                >
+                  <FileText size={16} />
+                  PDF avaliacao atual
+                </button>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={() => latestAvaliacao && latestEvolutionBase && void exportAvaliacaoEvolutionPdf(latestEvolutionBase, latestAvaliacao)}
+                disabled={!latestAvaliacao || !latestEvolutionBase}
+                className={`inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold transition-all ${
+                  latestAvaliacao && latestEvolutionBase
+                    ? 'border border-sky-500/20 bg-sky-500/10 text-sky-300 hover:bg-sky-500 hover:text-black'
+                    : 'cursor-not-allowed border border-zinc-800 bg-zinc-900 text-zinc-500'
+                }`}
+                title={
+                  latestAvaliacao && latestEvolutionBase
+                    ? 'Exportar comparacao entre a avaliacao atual e a anterior.'
+                    : 'A evolucao em PDF e liberada a partir da segunda avaliacao.'
+                }
+              >
+                <TrendingUp size={16} />
+                PDF evolucao
+              </button>
             </div>
           </div>
 
@@ -1067,79 +1163,242 @@ export default function AlunoDashboard() {
               icon={<Activity size={18} />}
             />
           ) : (
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-              {avaliacoes.map((avaliacao) => (
-                <div
-                  key={avaliacao.id}
-                  className="rounded-[26px] border border-zinc-800 bg-black/30 p-5"
-                >
-                  <div className="mb-5 flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-lg font-bold text-white">
-                        {avaliacao.data
-                          ? formatDatePtBr(avaliacao.data)
-                          : 'Sem data'}
-                      </p>
-                      <p className="mt-1 text-xs uppercase tracking-[0.22em] text-zinc-500">
-                        Registro de composicao corporal
-                      </p>
-                    </div>
-
-                    <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-zinc-400">
-                      {avaliacao.protocolo || 'faulkner'}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
-                        Peso
-                      </p>
-                      <p className="mt-2 text-xl font-bold text-white">
-                        {avaliacao.peso ?? '-'} kg
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
-                        IMC
-                      </p>
-                      <p className="mt-2 text-xl font-bold text-white">{avaliacao.imc ?? '-'}</p>
-                    </div>
-
-                    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
-                        Altura
-                      </p>
-                      <p className="mt-2 text-xl font-bold text-white">
-                        {avaliacao.altura ?? '-'} m
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
-                        BF
-                      </p>
-                      <p className="mt-2 text-xl font-bold text-white">
-                        {avaliacao.percentual_gordura != null
-                          ? `${avaliacao.percentual_gordura}%`
-                          : '-'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {avaliacao.observacoes && (
-                    <div className="mt-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4">
-                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">
-                        Observacoes
-                      </p>
-                      <p className="mt-2 text-sm leading-6 text-zinc-400">
-                        {avaliacao.observacoes}
-                      </p>
-                    </div>
-                  )}
+            <div className="space-y-5">
+              <div className="grid gap-4 xl:grid-cols-3">
+                <div className="rounded-[26px] border border-zinc-800 bg-black/30 p-5">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                    Avaliacoes registradas
+                  </p>
+                  <p className="mt-3 text-3xl font-bold text-white">{avaliacoes.length}</p>
+                  <p className="mt-2 text-sm leading-6 text-zinc-500">
+                    Seu historico corporal completo fica salvo aqui para consulta e exportacao.
+                  </p>
                 </div>
-              ))}
+
+                <div className="rounded-[26px] border border-zinc-800 bg-black/30 p-5">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                    Ultima avaliacao
+                  </p>
+                  <p className="mt-3 text-3xl font-bold text-white">
+                    {latestAvaliacao?.data ? formatDatePtBr(latestAvaliacao.data) : '-'}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-zinc-500">
+                    Peso atual: {formatAvaliacaoMetric(latestAvaliacao?.peso, ' kg')} • BF atual:{' '}
+                    {formatAvaliacaoMetric(latestAvaliacao?.percentual_gordura, '%')}
+                  </p>
+                </div>
+
+                <div className="rounded-[26px] border border-zinc-800 bg-black/30 p-5">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                    Base comparativa
+                  </p>
+                  <p className="mt-3 text-3xl font-bold text-white">
+                    {latestEvaluationSummary ? 'Disponivel' : 'Aguardando'}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-zinc-500">
+                    {latestEvaluationSummary
+                      ? `Periodo analisado: ${latestEvaluationSummary.periodLabel}.`
+                      : 'A evolucao em PDF e exibida a partir da segunda avaliacao registrada.'}
+                  </p>
+                </div>
+              </div>
+
+              {latestEvaluationSummary ? (
+                <div className="rounded-[28px] border border-sky-500/15 bg-[linear-gradient(135deg,rgba(14,165,233,0.12),rgba(2,6,23,0.45))] p-5">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-sky-300/80">
+                        Evolucao recente
+                      </p>
+                      <h3 className="mt-2 text-2xl font-bold text-white">
+                        Comparacao entre os dois ultimos registros
+                      </h3>
+                      <p className="mt-2 text-sm leading-6 text-zinc-300">
+                        {latestEvaluationSummary.periodLabel}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => latestAvaliacao && latestEvolutionBase && void exportAvaliacaoEvolutionPdf(latestEvolutionBase, latestAvaliacao)}
+                      className="inline-flex items-center gap-2 rounded-2xl border border-sky-400/20 bg-sky-400/10 px-4 py-3 text-sm font-bold text-sky-200 transition-all hover:bg-sky-400 hover:text-black"
+                    >
+                      <Download size={16} />
+                      Exportar evolucao
+                    </button>
+                  </div>
+
+                  <div className="mt-5 grid gap-3 md:grid-cols-4">
+                    <div className="rounded-2xl border border-white/8 bg-black/20 p-4">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Peso</p>
+                      <p className="mt-2 text-xl font-bold text-white">{latestEvaluationSummary.peso}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/8 bg-black/20 p-4">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">BF</p>
+                      <p className="mt-2 text-xl font-bold text-white">{latestEvaluationSummary.gordura}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/8 bg-black/20 p-4">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Massa magra</p>
+                      <p className="mt-2 text-xl font-bold text-white">{latestEvaluationSummary.massaMagra}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/8 bg-black/20 p-4">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Cintura</p>
+                      <p className="mt-2 text-xl font-bold text-white">{latestEvaluationSummary.cintura}</p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                {avaliacoes.map((avaliacao, index) => {
+                  const comparisonBase = avaliacoes[index + 1] ?? null;
+
+                  return (
+                    <div
+                      key={avaliacao.id}
+                      className="rounded-[26px] border border-zinc-800 bg-black/30 p-5"
+                    >
+                      <div className="mb-5 flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-lg font-bold text-white">
+                            {avaliacao.data
+                              ? formatDatePtBr(avaliacao.data)
+                              : 'Sem data'}
+                          </p>
+                          <p className="mt-1 text-xs uppercase tracking-[0.22em] text-zinc-500">
+                            Registro de composicao corporal
+                          </p>
+                        </div>
+
+                        <div className="flex flex-col items-end gap-2">
+                          <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-zinc-400">
+                            {avaliacao.protocolo || 'faulkner'}
+                          </div>
+                          <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] ${
+                            comparisonBase
+                              ? 'border border-sky-500/20 bg-sky-500/10 text-sky-300'
+                              : 'border border-zinc-800 bg-zinc-900/70 text-zinc-500'
+                          }`}>
+                            {comparisonBase ? 'Com evolucao' : 'Primeiro registro'}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                            Peso
+                          </p>
+                          <p className="mt-2 text-xl font-bold text-white">
+                            {formatAvaliacaoMetric(avaliacao.peso, ' kg')}
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                            IMC
+                          </p>
+                          <p className="mt-2 text-xl font-bold text-white">
+                            {formatAvaliacaoMetric(avaliacao.imc, '', 1)}
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                            Altura
+                          </p>
+                          <p className="mt-2 text-xl font-bold text-white">
+                            {formatAvaliacaoMetric(avaliacao.altura, ' m', 2)}
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                            BF
+                          </p>
+                          <p className="mt-2 text-xl font-bold text-white">
+                            {formatAvaliacaoMetric(avaliacao.percentual_gordura, '%')}
+                          </p>
+                        </div>
+                      </div>
+
+                      {comparisonBase ? (
+                        <div className="mt-4 grid gap-3 md:grid-cols-3">
+                          <div className="rounded-2xl border border-sky-500/12 bg-sky-500/5 p-4">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                              Peso x anterior
+                            </p>
+                            <p className="mt-2 text-base font-bold text-white">
+                              {formatAvaliacaoDelta(avaliacao.peso, comparisonBase.peso, ' kg')}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-sky-500/12 bg-sky-500/5 p-4">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                              BF x anterior
+                            </p>
+                            <p className="mt-2 text-base font-bold text-white">
+                              {formatAvaliacaoDelta(
+                                avaliacao.percentual_gordura,
+                                comparisonBase.percentual_gordura,
+                                '%',
+                              )}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-sky-500/12 bg-sky-500/5 p-4">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                              Cintura x anterior
+                            </p>
+                            <p className="mt-2 text-base font-bold text-white">
+                              {formatAvaliacaoDelta(avaliacao.cintura, comparisonBase.cintura, ' cm')}
+                            </p>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {avaliacao.observacoes && (
+                        <div className="mt-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4">
+                          <p className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">
+                            Observacoes
+                          </p>
+                          <p className="mt-2 text-sm leading-6 text-zinc-400">
+                            {avaliacao.observacoes}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="mt-4 flex flex-wrap gap-3">
+                        <button
+                          type="button"
+                          onClick={() => void exportAvaliacaoPdf(avaliacao)}
+                          className="inline-flex items-center gap-2 rounded-2xl border border-purple-500/20 bg-purple-500/10 px-4 py-3 text-sm font-bold text-purple-300 transition-all hover:bg-purple-500 hover:text-white"
+                        >
+                          <FileText size={16} />
+                          PDF avaliacao
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => comparisonBase && void exportAvaliacaoEvolutionPdf(comparisonBase, avaliacao)}
+                          disabled={!comparisonBase}
+                          className={`inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold transition-all ${
+                            comparisonBase
+                              ? 'border border-sky-500/20 bg-sky-500/10 text-sky-300 hover:bg-sky-500 hover:text-black'
+                              : 'cursor-not-allowed border border-zinc-800 bg-zinc-900 text-zinc-500'
+                          }`}
+                          title={
+                            comparisonBase
+                              ? `Comparar com ${formatDatePtBr(comparisonBase.data)}`
+                              : 'A evolucao em PDF e liberada a partir do segundo registro.'
+                          }
+                        >
+                          <Download size={16} />
+                          PDF evolucao
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </section>
