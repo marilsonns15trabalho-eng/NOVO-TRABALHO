@@ -1003,14 +1003,51 @@ export async function syncStudentsToTrainingPlan(
 
   assertNoTreinoError('Treinos.deactivatePlanStudents', deactivateError);
 
-  for (const studentId of uniqueStudentIds) {
-    const { error: clearCurrentError } = await supabase
-      .from(TABLES.STUDENT_TRAINING_PLANS)
-      .update({ active: false, end_date: todayKey })
-      .eq('student_id', studentId)
-      .eq('active', true);
+  if (uniqueStudentIds.length === 0) {
+    return;
+  }
 
-    assertNoTreinoError('Treinos.clearCurrentStudentPlan', clearCurrentError);
+  const { error: clearCurrentError } = await supabase
+    .from(TABLES.STUDENT_TRAINING_PLANS)
+    .update({ active: false, end_date: todayKey })
+    .in('student_id', uniqueStudentIds)
+    .eq('active', true);
+
+  assertNoTreinoError('Treinos.clearCurrentStudentPlans', clearCurrentError);
+
+  const { data: existingRows, error: existingRowsError } = await supabase
+    .from(TABLES.STUDENT_TRAINING_PLANS)
+    .select('id, student_id, training_plan_id, start_date, end_date, active')
+    .eq('training_plan_id', trainingPlanId)
+    .in('student_id', uniqueStudentIds)
+    .order('created_at', { ascending: false });
+
+  assertNoTreinoError('Treinos.loadExistingPlanStudents', existingRowsError);
+
+  const existingByStudentId = new Map<string, any>();
+  (existingRows || []).forEach((row: any) => {
+    if (!existingByStudentId.has(row.student_id)) {
+      existingByStudentId.set(row.student_id, row);
+    }
+  });
+
+  for (const studentId of uniqueStudentIds) {
+    const existingRow = existingByStudentId.get(studentId);
+
+    if (existingRow?.id) {
+      const { error: reactivateError } = await supabase
+        .from(TABLES.STUDENT_TRAINING_PLANS)
+        .update({
+          active: true,
+          start_date: todayKey,
+          end_date: null,
+          created_by_auth_user_id: user.id,
+        })
+        .eq('id', existingRow.id);
+
+      assertNoTreinoError('Treinos.reactivateStudentPlan', reactivateError);
+      continue;
+    }
 
     const { error: insertError } = await supabase
       .from(TABLES.STUDENT_TRAINING_PLANS)

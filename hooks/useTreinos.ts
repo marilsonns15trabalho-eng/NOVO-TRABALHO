@@ -74,6 +74,7 @@ export function useTreinos() {
 
   const [showTrainingPlanModal, setShowTrainingPlanModal] = useState(false);
   const [newTrainingPlan, setNewTrainingPlan] = useState(createDefaultTrainingPlanForm);
+  const [editingTrainingPlan, setEditingTrainingPlan] = useState<TrainingPlan | null>(null);
   const [selectedPlanForStudents, setSelectedPlanForStudents] = useState<TrainingPlan | null>(null);
   const [showPlanStudentsModal, setShowPlanStudentsModal] = useState(false);
   const [selectedPlanStudentIds, setSelectedPlanStudentIds] = useState<string[]>([]);
@@ -259,16 +260,52 @@ export function useTreinos() {
         throw new Error('Acao nao permitida para aluno.');
       }
 
-      await treinosService.createTrainingPlan(newTrainingPlan);
-      showNotification('Plano de treino salvo com sucesso!', 'success');
+      if (editingTrainingPlan?.id) {
+        await treinosService.updateTrainingPlan(editingTrainingPlan.id, newTrainingPlan);
+      } else {
+        await treinosService.createTrainingPlan(newTrainingPlan);
+      }
+
+      showNotification(
+        editingTrainingPlan ? 'Plano de treino atualizado com sucesso!' : 'Plano de treino salvo com sucesso!',
+        'success',
+      );
       setShowTrainingPlanModal(false);
       setNewTrainingPlan(createDefaultTrainingPlanForm());
+      setEditingTrainingPlan(null);
       await loadData();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Erro ao salvar plano de treino.';
       showNotification(message, 'error');
     }
-  }, [isAluno, loadData, newTrainingPlan, showNotification]);
+  }, [editingTrainingPlan, isAluno, loadData, newTrainingPlan, showNotification]);
+
+  const openNewTrainingPlanModal = useCallback(() => {
+    setEditingTrainingPlan(null);
+    setNewTrainingPlan(createDefaultTrainingPlanForm());
+    setShowTrainingPlanModal(true);
+  }, []);
+
+  const closeTrainingPlanModal = useCallback(() => {
+    setShowTrainingPlanModal(false);
+    setEditingTrainingPlan(null);
+    setNewTrainingPlan(createDefaultTrainingPlanForm());
+  }, []);
+
+  const startTrainingPlanEdit = useCallback((plan: TrainingPlan) => {
+    setEditingTrainingPlan(plan);
+    setNewTrainingPlan({
+      name: plan.name || '',
+      weekly_frequency: plan.weekly_frequency || 3,
+      description: plan.description || '',
+      active: plan.active !== false,
+      objective: plan.active_version?.objective || '',
+      level: plan.active_version?.level || 'iniciante',
+      duration_weeks: plan.active_version?.duration_weeks || 4,
+      coach_notes: plan.active_version?.coach_notes || '',
+    });
+    setShowTrainingPlanModal(true);
+  }, []);
 
   const openPlanStudentsModal = useCallback(async (trainingPlan: TrainingPlan) => {
     setSelectedPlanForStudents(trainingPlan);
@@ -392,9 +429,13 @@ export function useTreinos() {
     openNewTreinoModal,
     showTrainingPlanModal,
     setShowTrainingPlanModal,
+    editingTrainingPlan,
     newTrainingPlan,
     setNewTrainingPlan,
     handleSaveTrainingPlan,
+    openNewTrainingPlanModal,
+    closeTrainingPlanModal,
+    startTrainingPlanEdit,
     showPlanStudentsModal,
     setShowPlanStudentsModal,
     selectedPlanForStudents,

@@ -1,12 +1,14 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Calendar,
   CheckCircle2,
   Dumbbell,
+  Eye,
   Layers3,
   Loader2,
+  PencilLine,
   Plus,
   Search,
   Sparkles,
@@ -111,66 +113,65 @@ function HeroButton({
 
 function TrainingPlanCard({
   plan,
+  onOpen,
+  onEdit,
   onAssignStudents,
 }: {
   plan: TrainingPlan;
+  onOpen: (plan: TrainingPlan) => void;
+  onEdit: (plan: TrainingPlan) => void;
   onAssignStudents: (plan: TrainingPlan) => void;
 }) {
   return (
-    <div className="rounded-[28px] border border-zinc-800 bg-zinc-950/85 p-5 shadow-[0_28px_80px_-54px_rgba(0,0,0,0.9)]">
-      <div className="flex items-start justify-between gap-4">
+    <div className="rounded-[22px] border border-zinc-800 bg-zinc-950/85 p-4 shadow-[0_20px_60px_-46px_rgba(0,0,0,0.9)]">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-zinc-500">Plano de treino</p>
-          <h4 className="mt-3 text-2xl font-bold text-white">{plan.name}</h4>
-          <p className="mt-2 text-sm leading-6 text-zinc-500">
-            {plan.description || 'Plano por frequencia semanal, sem geracao automatica.'}
-          </p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-500">Plano</p>
+          <h4 className="mt-2 text-lg font-bold text-white">{plan.name}</h4>
         </div>
-        <div className="rounded-2xl border border-sky-500/20 bg-sky-500/10 px-4 py-2 text-sm font-bold text-sky-300">
+        <div className="rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-1.5 text-xs font-bold text-sky-300">
           {plan.weekly_frequency}x / semana
         </div>
       </div>
-      {plan.active_version && (
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-4 py-4">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Versao</p>
-            <p className="mt-2 text-xl font-bold text-white">v{plan.active_version.version_number}</p>
-          </div>
-          <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-4 py-4">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Nivel</p>
-            <p className="mt-2 text-xl font-bold text-white">{plan.active_version.level || '-'}</p>
-          </div>
-          <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-4 py-4">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Duracao</p>
-            <p className="mt-2 text-xl font-bold text-white">
-              {plan.active_version.duration_weeks ? `${plan.active_version.duration_weeks} sem` : '-'}
-            </p>
-          </div>
+      <div className="mt-4 grid grid-cols-3 gap-3">
+        <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-3 py-3">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Versao</p>
+          <p className="mt-2 text-base font-bold text-white">
+            {plan.active_version?.version_number ? `v${plan.active_version.version_number}` : '-'}
+          </p>
         </div>
-      )}
-      {(plan.active_version?.objective || plan.active_version?.coach_notes) && (
-        <div className="mt-4 rounded-2xl border border-white/6 bg-white/[0.03] px-4 py-4 text-sm leading-6 text-zinc-400">
-          <p className="font-bold text-white">{plan.active_version?.objective || 'Plano ativo'}</p>
-          {plan.active_version?.coach_notes && <p className="mt-2">{plan.active_version.coach_notes}</p>}
-        </div>
-      )}
-      <div className="mt-5 grid gap-3 sm:grid-cols-2">
-        <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-4 py-4">
+        <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-3 py-3">
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Alunos</p>
-          <p className="mt-2 text-xl font-bold text-white">{plan.students_count || 0}</p>
+          <p className="mt-2 text-base font-bold text-white">{plan.students_count || 0}</p>
         </div>
-        <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-4 py-4">
+        <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-3 py-3">
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Treinos</p>
-          <p className="mt-2 text-xl font-bold text-white">{plan.treinos_count || 0}</p>
+          <p className="mt-2 text-base font-bold text-white">{plan.treinos_count || 0}</p>
         </div>
       </div>
-      <button
-        onClick={() => onAssignStudents(plan)}
-        className="mt-5 inline-flex items-center gap-2 rounded-2xl border border-sky-500/20 bg-sky-500/10 px-4 py-3 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500 hover:text-black"
-      >
-        <Users size={16} />
-        Vincular alunos
-      </button>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          onClick={() => onOpen(plan)}
+          className="inline-flex items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-sm font-bold text-white transition-all hover:border-zinc-700"
+        >
+          <Eye size={15} />
+          Abrir
+        </button>
+        <button
+          onClick={() => onEdit(plan)}
+          className="inline-flex items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-sm font-bold text-white transition-all hover:border-zinc-700"
+        >
+          <PencilLine size={15} />
+          Editar
+        </button>
+        <button
+          onClick={() => onAssignStudents(plan)}
+          className="inline-flex items-center gap-2 rounded-2xl border border-sky-500/20 bg-sky-500/10 px-3 py-2.5 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500 hover:text-black"
+        >
+          <Users size={15} />
+          Vincular
+        </button>
+      </div>
     </div>
   );
 }
@@ -261,6 +262,7 @@ function TreinoCard({
 export default function TreinosModule() {
   const { isAdmin, isProfessor } = useUserRole();
   const canManageRecords = isAdmin || isProfessor;
+  const [selectedTrainingPlanView, setSelectedTrainingPlanView] = useState<TrainingPlan | null>(null);
   const state = useTreinos();
   const {
     treinos,
@@ -285,10 +287,13 @@ export default function TreinosModule() {
     startTreinoEdit,
     openNewTreinoModal,
     showTrainingPlanModal,
-    setShowTrainingPlanModal,
+    editingTrainingPlan,
     newTrainingPlan,
     setNewTrainingPlan,
     handleSaveTrainingPlan,
+    openNewTrainingPlanModal,
+    closeTrainingPlanModal,
+    startTrainingPlanEdit,
     showPlanStudentsModal,
     setShowPlanStudentsModal,
     selectedPlanForStudents,
@@ -325,7 +330,7 @@ export default function TreinosModule() {
           </div>
           {canManageRecords && (
             <div className="grid gap-3 sm:grid-cols-2 xl:w-[430px]">
-              <HeroButton filled onClick={() => setShowTrainingPlanModal(true)} title="Novo plano de treino" description="Organize frequencia semanal e alunos vinculados." icon={<Layers3 size={18} />} />
+              <HeroButton filled onClick={openNewTrainingPlanModal} title="Novo plano de treino" description="Organize frequencia semanal e alunos vinculados." icon={<Layers3 size={18} />} />
               <HeroButton onClick={openNewTreinoModal} title="Novo treino" description="Crie e distribua por plano ou por alunos diretos." icon={<Plus size={18} />} />
             </div>
           )}
@@ -352,9 +357,15 @@ export default function TreinosModule() {
               Nenhum plano de treino criado ainda.
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
               {trainingPlans.map((plan) => (
-                <TrainingPlanCard key={plan.id} plan={plan} onAssignStudents={openPlanStudentsModal} />
+                <TrainingPlanCard
+                  key={plan.id}
+                  plan={plan}
+                  onOpen={setSelectedTrainingPlanView}
+                  onEdit={startTrainingPlanEdit}
+                  onAssignStudents={openPlanStudentsModal}
+                />
               ))}
             </div>
           )}
@@ -378,9 +389,9 @@ export default function TreinosModule() {
       <AnimatePresence>
         {showTrainingPlanModal && canManageRecords && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowTrainingPlanModal(false)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeTrainingPlanModal} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
             <motion.div initial={{ scale: 0.96, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0, y: 20 }} className="relative w-full max-w-2xl rounded-[30px] border border-zinc-800 bg-zinc-950 p-8 shadow-2xl">
-              <SectionTitle eyebrow="Novo plano" title="Plano de treino" description="Defina nome, frequencia semanal e proposta do plano." />
+              <SectionTitle eyebrow={editingTrainingPlan ? 'Editar plano' : 'Novo plano'} title={editingTrainingPlan ? editingTrainingPlan.name : 'Plano de treino'} description="Defina nome, frequencia semanal e proposta do plano." />
               <form onSubmit={(e) => { e.preventDefault(); void handleSaveTrainingPlan(); }} className="mt-6 space-y-5">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <input value={newTrainingPlan.name} onChange={(e) => setNewTrainingPlan((c) => ({ ...c, name: e.target.value }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Nome do plano" />
@@ -396,10 +407,55 @@ export default function TreinosModule() {
                 <textarea rows={4} value={newTrainingPlan.description} onChange={(e) => setNewTrainingPlan((c) => ({ ...c, description: e.target.value }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Descricao do plano" />
                 <textarea rows={3} value={newTrainingPlan.coach_notes} onChange={(e) => setNewTrainingPlan((c) => ({ ...c, coach_notes: e.target.value }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Orientacoes do treinador" />
                 <div className="flex gap-3">
-                  <button type="button" onClick={() => setShowTrainingPlanModal(false)} className="flex-1 rounded-2xl bg-zinc-800 px-4 py-4 font-bold text-white transition-all hover:bg-zinc-700">Cancelar</button>
-                  <button type="submit" className="flex-1 rounded-2xl bg-sky-500 px-4 py-4 font-bold text-black transition-all hover:bg-sky-400">Salvar plano</button>
+                  <button type="button" onClick={closeTrainingPlanModal} className="flex-1 rounded-2xl bg-zinc-800 px-4 py-4 font-bold text-white transition-all hover:bg-zinc-700">Cancelar</button>
+                  <button type="submit" className="flex-1 rounded-2xl bg-sky-500 px-4 py-4 font-bold text-black transition-all hover:bg-sky-400">{editingTrainingPlan ? 'Salvar alteracoes' : 'Salvar plano'}</button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+
+        {selectedTrainingPlanView && canManageRecords && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedTrainingPlanView(null)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.96, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0, y: 20 }} className="relative w-full max-w-3xl rounded-[30px] border border-zinc-800 bg-zinc-950 p-8 shadow-2xl">
+              <SectionTitle
+                eyebrow="Detalhes do plano"
+                title={selectedTrainingPlanView.name}
+                description={selectedTrainingPlanView.description || 'Plano por frequencia semanal sem geracao automatica de treino.'}
+              />
+
+              <div className="mt-6 grid gap-4 md:grid-cols-4">
+                <div className="rounded-2xl border border-zinc-800 bg-black/25 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Frequencia</p><p className="mt-2 text-lg font-bold text-white">{selectedTrainingPlanView.weekly_frequency}x/semana</p></div>
+                <div className="rounded-2xl border border-zinc-800 bg-black/25 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Versao</p><p className="mt-2 text-lg font-bold text-white">{selectedTrainingPlanView.active_version?.version_number ? `v${selectedTrainingPlanView.active_version.version_number}` : '-'}</p></div>
+                <div className="rounded-2xl border border-zinc-800 bg-black/25 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Alunos</p><p className="mt-2 text-lg font-bold text-white">{selectedTrainingPlanView.students_count || 0}</p></div>
+                <div className="rounded-2xl border border-zinc-800 bg-black/25 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Treinos</p><p className="mt-2 text-lg font-bold text-white">{selectedTrainingPlanView.treinos_count || 0}</p></div>
+              </div>
+
+              <div className="mt-4 grid gap-4 md:grid-cols-3">
+                <div className="rounded-2xl border border-zinc-800 bg-black/25 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Objetivo</p><p className="mt-2 text-sm leading-6 text-white">{selectedTrainingPlanView.active_version?.objective || '-'}</p></div>
+                <div className="rounded-2xl border border-zinc-800 bg-black/25 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Nivel</p><p className="mt-2 text-sm leading-6 text-white">{selectedTrainingPlanView.active_version?.level || '-'}</p></div>
+                <div className="rounded-2xl border border-zinc-800 bg-black/25 p-4"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Duracao</p><p className="mt-2 text-sm leading-6 text-white">{selectedTrainingPlanView.active_version?.duration_weeks ? `${selectedTrainingPlanView.active_version.duration_weeks} semanas` : '-'}</p></div>
+              </div>
+
+              {selectedTrainingPlanView.active_version?.coach_notes ? (
+                <div className="mt-4 rounded-[24px] border border-zinc-800 bg-black/25 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Orientacoes</p>
+                  <p className="mt-2 text-sm leading-6 text-zinc-400">{selectedTrainingPlanView.active_version.coach_notes}</p>
+                </div>
+              ) : null}
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <button onClick={() => { setSelectedTrainingPlanView(null); startTrainingPlanEdit(selectedTrainingPlanView); }} className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition-all hover:border-zinc-700">
+                  Editar plano
+                </button>
+                <button onClick={() => { setSelectedTrainingPlanView(null); openPlanStudentsModal(selectedTrainingPlanView); }} className="rounded-2xl border border-sky-500/20 bg-sky-500/10 px-4 py-3 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500 hover:text-black">
+                  Vincular alunos
+                </button>
+                <button onClick={() => setSelectedTrainingPlanView(null)} className="rounded-2xl bg-zinc-800 px-4 py-3 text-sm font-bold text-white transition-all hover:bg-zinc-700">
+                  Fechar
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
