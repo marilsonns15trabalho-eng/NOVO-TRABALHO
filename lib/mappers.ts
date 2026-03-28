@@ -104,10 +104,16 @@ export function normalizeStudentRelation<T extends Record<string, any> | null | 
 
 export function mapStudentToListItem(row: Record<string, any>): { id: string; name: string } {
   const student = normalizeStudentRelation(row);
+  const fallbackName =
+    student?.name ||
+    row.name ||
+    row.email ||
+    row.phone ||
+    'Aluno sem identificacao';
 
   return {
     id: student?.id || row.id,
-    name: student?.name || '',
+    name: fallbackName,
   };
 }
 

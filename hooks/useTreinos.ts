@@ -77,6 +77,7 @@ export function useTreinos() {
   const [selectedPlanForStudents, setSelectedPlanForStudents] = useState<TrainingPlan | null>(null);
   const [showPlanStudentsModal, setShowPlanStudentsModal] = useState(false);
   const [selectedPlanStudentIds, setSelectedPlanStudentIds] = useState<string[]>([]);
+  const [planLinkedStudentsPreview, setPlanLinkedStudentsPreview] = useState<StudentListItem[]>([]);
 
   const loadData = useCallback(async () => {
     if (!isReady || !user) {
@@ -92,21 +93,37 @@ export function useTreinos() {
     }
 
     try {
-      const [treinosData, alunosData, trainingPlansData] = await Promise.all([
+      const [treinosResult, alunosResult, trainingPlansResult] = await Promise.allSettled([
         treinosService.fetchTreinos(restrictLinkedAuthUserId),
         treinosService.fetchAlunosParaTreino(restrictLinkedAuthUserId),
         isAluno ? Promise.resolve([]) : treinosService.fetchTrainingPlans(),
       ]);
 
-      setTreinos(treinosData);
-      setSelectedTreino((current) =>
-        current ? treinosData.find((item) => item.id === current.id) || null : null,
-      );
-      setAlunos(alunosData);
-      setTrainingPlans(trainingPlansData as TrainingPlan[]);
-      saveTreinosCache(user.id, treinosData);
+      if (treinosResult.status === 'fulfilled') {
+        setTreinos(treinosResult.value);
+        setSelectedTreino((current) =>
+          current ? treinosResult.value.find((item) => item.id === current.id) || null : null,
+        );
+        saveTreinosCache(user.id, treinosResult.value);
+      } else {
+        console.error('Erro ao carregar treinos:', treinosResult.reason);
+      }
+
+      if (alunosResult.status === 'fulfilled') {
+        setAlunos(alunosResult.value);
+      } else {
+        console.error('Erro ao carregar alunos para treino:', alunosResult.reason);
+        setAlunos([]);
+      }
+
+      if (trainingPlansResult.status === 'fulfilled') {
+        setTrainingPlans(trainingPlansResult.value as TrainingPlan[]);
+      } else {
+        console.error('Erro ao carregar planos de treino:', trainingPlansResult.reason);
+        setTrainingPlans([]);
+      }
     } catch (error) {
-      console.error('Erro ao carregar treinos:', error);
+      console.error('Erro ao carregar dados do modulo de treinos:', error);
     } finally {
       setLoading(false);
     }
@@ -127,6 +144,40 @@ export function useTreinos() {
 
     void loadData();
   }, [isReady, loadData, user]);
+
+  useEffect(() => {
+    if (isAluno || !showAddModal) {
+      return;
+    }
+
+    const trainingPlanId = newTreino.training_plan_id?.trim();
+    if (!trainingPlanId) {
+      setPlanLinkedStudentsPreview([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    const run = async () => {
+      try {
+        const students = await treinosService.fetchStudentsForTrainingPlan(trainingPlanId);
+        if (!cancelled) {
+          setPlanLinkedStudentsPreview(students);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setPlanLinkedStudentsPreview([]);
+        }
+        console.error('Erro ao carregar alunos do plano selecionado:', error);
+      }
+    };
+
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAluno, newTreino.training_plan_id, showAddModal]);
 
   const filteredTreinos = useMemo(() => {
     const needle = searchTerm.trim().toLowerCase();
@@ -294,6 +345,7 @@ export function useTreinos() {
   const openNewTreinoModal = useCallback(() => {
     setSelectedTreino(null);
     setNewTreino(createDefaultTreinoForm());
+    setPlanLinkedStudentsPreview([]);
     setShowAddModal(true);
   }, []);
 
@@ -351,6 +403,7 @@ export function useTreinos() {
     togglePlanStudent,
     handleSavePlanStudents,
     handleCompletionToggle,
+    planLinkedStudentsPreview,
     notification,
     clearNotification,
   };

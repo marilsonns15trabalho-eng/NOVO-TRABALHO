@@ -746,7 +746,7 @@ export async function fetchTreinos(linkedAuthUserId?: string): Promise<Treino[]>
 export async function fetchAlunosParaTreino(linkedAuthUserId?: string): Promise<StudentListItem[]> {
   let query = supabase
     .from(TABLES.STUDENTS)
-    .select('id, name, linked_auth_user_id')
+    .select('id, name, email, phone, linked_auth_user_id, status')
     .order('name', { ascending: true });
 
   if (linkedAuthUserId) {
@@ -757,6 +757,27 @@ export async function fetchAlunosParaTreino(linkedAuthUserId?: string): Promise<
   assertNoTreinoError('Treinos.alunosParaTreino', error);
 
   return (data || []).map(mapStudentToListItem);
+}
+
+export async function fetchStudentsForTrainingPlan(trainingPlanId: string): Promise<StudentListItem[]> {
+  if (!trainingPlanId?.trim()) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from(TABLES.STUDENT_TRAINING_PLANS)
+    .select('student:students(id, name, email, phone, linked_auth_user_id)')
+    .eq('training_plan_id', trainingPlanId)
+    .eq('active', true);
+
+  assertNoTreinoError('Treinos.trainingPlanStudentsPreview', error);
+
+  return (data || [])
+    .map((row: any) => {
+      const student = Array.isArray(row.student) ? row.student[0] : row.student;
+      return student ? mapStudentToListItem(student) : null;
+    })
+    .filter(Boolean) as StudentListItem[];
 }
 
 export async function fetchTrainingPlans(): Promise<TrainingPlan[]> {

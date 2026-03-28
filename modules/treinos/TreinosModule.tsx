@@ -293,6 +293,7 @@ export default function TreinosModule() {
     setShowPlanStudentsModal,
     selectedPlanForStudents,
     selectedPlanStudentIds,
+    planLinkedStudentsPreview,
     openPlanStudentsModal,
     togglePlanStudent,
     handleSavePlanStudents,
@@ -507,6 +508,65 @@ export default function TreinosModule() {
                         </button>
                       );
                     })}
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-[24px] border border-zinc-800 bg-black/20 p-4">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                      Alunos pelo plano
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-zinc-500">
+                      {newTreino.training_plan_id
+                        ? 'Esses alunos receberao o treino automaticamente por estarem no plano selecionado.'
+                        : 'Selecione um plano de treino para enxergar os alunos vinculados automaticamente.'}
+                    </p>
+
+                    {newTreino.training_plan_id ? (
+                      planLinkedStudentsPreview.length > 0 ? (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {planLinkedStudentsPreview.map((student) => (
+                            <span
+                              key={`plan-preview-${student.id}`}
+                              className="inline-flex items-center gap-2 rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-300"
+                            >
+                              <UserCheck size={12} />
+                              {student.name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="mt-4 rounded-2xl border border-dashed border-zinc-800 bg-black/20 px-4 py-4 text-sm text-zinc-500">
+                          Nenhum aluno ativo encontrado neste plano.
+                        </div>
+                      )
+                    ) : null}
+                  </div>
+
+                  <div className="rounded-[24px] border border-zinc-800 bg-black/20 p-4">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                      Distribuicao final
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-zinc-500">
+                      O treino pode ser entregue por plano, por vinculacao direta ou pelos dois caminhos.
+                    </p>
+
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-4 py-4">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                          Pelo plano
+                        </p>
+                        <p className="mt-2 text-xl font-bold text-white">{planLinkedStudentsPreview.length}</p>
+                      </div>
+                      <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-4 py-4">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                          Direto
+                        </p>
+                        <p className="mt-2 text-xl font-bold text-white">
+                          {(newTreino.assigned_student_ids || []).length}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
