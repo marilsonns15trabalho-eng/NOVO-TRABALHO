@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
 import {
@@ -65,12 +65,82 @@ const roleCards = [
 export default function LandingPage() {
   const { user, role, isReady } = useAuth();
   const router = useRouter();
+  const [isNativeApp, setIsNativeApp] = useState(false);
+
+  useEffect(() => {
+    setIsNativeApp(Boolean((window as any).Capacitor?.isNativePlatform?.()));
+  }, []);
 
   useEffect(() => {
     if (isReady && user && role) {
       router.replace(getDefaultRouteForRole(role));
     }
   }, [isReady, role, router, user]);
+
+  if (isNativeApp) {
+    return (
+      <div className="min-h-screen overflow-hidden bg-black px-4 py-6 text-white md:px-6">
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute left-1/2 top-0 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-orange-500/10 blur-[120px]" />
+          <div className="absolute bottom-0 right-0 h-[280px] w-[280px] rounded-full bg-sky-500/10 blur-[120px]" />
+        </div>
+
+        <div className="relative mx-auto flex min-h-[calc(100vh-3rem)] max-w-xl flex-col justify-between rounded-[34px] border border-zinc-800 bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.14),_transparent_34%),linear-gradient(135deg,rgba(20,20,24,0.96),rgba(8,8,8,0.98))] p-6 shadow-[0_36px_120px_-64px_rgba(249,115,22,0.45)] md:p-8">
+          <div>
+            <div className="flex h-16 w-16 items-center justify-center rounded-[24px] bg-orange-500 text-3xl font-black text-black">
+              L
+            </div>
+
+            <div className="mt-6">
+              <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-orange-300">
+                App do estudio
+              </p>
+              <h1 className="mt-3 text-4xl font-bold leading-tight text-white">
+                Lioness Prime
+              </h1>
+              <p className="mt-4 text-sm leading-7 text-zinc-300">
+                Acesso rapido para administracao, professor e aluno com treino, avaliacoes,
+                financeiro e acompanhamento do estudio no mesmo app.
+              </p>
+            </div>
+
+            <div className="mt-8 grid gap-3">
+              {featureCards.map((item) => (
+                <div
+                  key={item.title}
+                  className="flex items-start gap-4 rounded-[24px] border border-zinc-800 bg-black/25 px-4 py-4"
+                >
+                  <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${item.bg}`}>
+                    <item.icon size={20} className={item.accent} />
+                  </div>
+                  <div>
+                    <p className="font-bold text-white">{item.title}</p>
+                    <p className="mt-1 text-sm leading-6 text-zinc-500">{item.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-8 space-y-3">
+            <button
+              onClick={() => router.push('/auth')}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 px-6 py-4 text-sm font-bold text-black transition-all hover:bg-orange-400"
+            >
+              Entrar no app
+              <ArrowRight size={18} />
+            </button>
+            <button
+              onClick={() => router.push('/auth?mode=recover')}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-950/80 px-6 py-4 text-sm font-bold text-zinc-200 transition-all hover:border-zinc-700 hover:bg-zinc-900"
+            >
+              Recuperar acesso
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen overflow-hidden bg-black text-white">

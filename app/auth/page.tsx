@@ -65,6 +65,11 @@ function AuthContent() {
   const [recoveryPassword, setRecoveryPassword] = useState('');
   const [recoveryPasswordConfirm, setRecoveryPasswordConfirm] = useState('');
   const [recoveryStep, setRecoveryStep] = useState<'lookup' | 'reset'>('lookup');
+  const [isNativeApp, setIsNativeApp] = useState(false);
+
+  useEffect(() => {
+    setIsNativeApp(Boolean((window as any).Capacitor?.isNativePlatform?.()));
+  }, []);
 
   useEffect(() => {
     if (isReady && user && role) {
@@ -232,13 +237,19 @@ function AuthContent() {
           className="flex flex-col justify-between rounded-[30px] border border-zinc-800 bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.14),_transparent_34%),linear-gradient(135deg,rgba(20,20,24,0.96),rgba(8,8,8,0.98))] p-5 shadow-[0_40px_120px_-70px_rgba(249,115,22,0.45)] md:p-8"
         >
           <div>
-            <button
-              onClick={() => router.push('/')}
-              className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-950/70 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-zinc-300 transition-all hover:border-zinc-700 hover:text-white"
-            >
-              <ArrowLeft size={14} />
-              Voltar
-            </button>
+            {!isNativeApp ? (
+              <button
+                onClick={() => router.push('/')}
+                className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-950/70 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-zinc-300 transition-all hover:border-zinc-700 hover:text-white"
+              >
+                <ArrowLeft size={14} />
+                Voltar
+              </button>
+            ) : (
+              <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/10 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.22em] text-orange-300">
+                App do estudio
+              </div>
+            )}
 
             <div className="mt-8 flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-500 text-2xl font-black text-black">
@@ -252,7 +263,7 @@ function AuthContent() {
 
             <div className="mt-8 max-w-xl">
               <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-orange-300">
-                Acesso ao sistema
+                {isNativeApp ? 'Acesso no app' : 'Acesso ao sistema'}
               </p>
               <h2 className="mt-3 text-3xl font-bold leading-tight text-white md:text-5xl">
                 Painel de trabalho para administracao, professor e aluno.

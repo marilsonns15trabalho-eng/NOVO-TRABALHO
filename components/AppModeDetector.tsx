@@ -41,6 +41,19 @@ export default function AppModeDetector() {
     }
 
     body.classList.add('app-mode');
+    void (async () => {
+      try {
+        const [{ StatusBar, Style }, { SplashScreen }] = await Promise.all([
+          import('@capacitor/status-bar'),
+          import('@capacitor/splash-screen'),
+        ]);
+
+        await StatusBar.setOverlaysWebView({ overlay: false });
+        await StatusBar.setStyle({ style: Style.Dark });
+        await StatusBar.setBackgroundColor({ color: '#000000' });
+        await SplashScreen.hide();
+      } catch {}
+    })();
 
     const handleBackButton = () => {
       if (window.location.pathname === '/dashboard' || window.location.pathname === '/') {
