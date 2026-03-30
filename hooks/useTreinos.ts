@@ -266,16 +266,16 @@ export function useTreinos() {
         await treinosService.createTrainingPlan(newTrainingPlan);
       }
 
-      showNotification(
-        editingTrainingPlan ? 'Plano de treino atualizado com sucesso!' : 'Plano de treino salvo com sucesso!',
-        'success',
-      );
+        showNotification(
+          editingTrainingPlan ? 'Rotina semanal atualizada com sucesso!' : 'Rotina semanal salva com sucesso!',
+          'success',
+        );
       setShowTrainingPlanModal(false);
       setNewTrainingPlan(createDefaultTrainingPlanForm());
       setEditingTrainingPlan(null);
       await loadData();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Erro ao salvar plano de treino.';
+      const message = error instanceof Error ? error.message : 'Erro ao salvar rotina semanal.';
       showNotification(message, 'error');
     }
   }, [editingTrainingPlan, isAluno, loadData, newTrainingPlan, showNotification]);
@@ -317,7 +317,7 @@ export function useTreinos() {
     } catch (error) {
       setSelectedPlanStudentIds([]);
       const message =
-        error instanceof Error ? error.message : 'Erro ao carregar alunos do plano.';
+        error instanceof Error ? error.message : 'Erro ao carregar alunas da rotina.';
       showNotification(message, 'error');
     }
   }, [showNotification]);
@@ -340,14 +340,14 @@ export function useTreinos() {
         selectedPlanForStudents.id,
         selectedPlanStudentIds,
       );
-      showNotification('Alunos vinculados ao plano com sucesso!', 'success');
+      showNotification('Alunas vinculadas a rotina com sucesso!', 'success');
       setShowPlanStudentsModal(false);
       setSelectedPlanForStudents(null);
       setSelectedPlanStudentIds([]);
       await loadData();
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : 'Erro ao salvar alunos do plano.';
+        error instanceof Error ? error.message : 'Erro ao salvar alunas da rotina.';
       showNotification(message, 'error');
     }
   }, [loadData, selectedPlanForStudents, selectedPlanStudentIds, showNotification]);
@@ -445,6 +445,8 @@ export function useTreinos() {
     handleSavePlanStudents,
     handleCompletionToggle,
     planLinkedStudentsPreview,
+    reloadData: loadData,
+    showNotification,
     notification,
     clearNotification,
   };

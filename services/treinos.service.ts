@@ -766,7 +766,7 @@ export async function fetchStudentsForTrainingPlan(trainingPlanId: string): Prom
 
   const { data, error } = await supabase
     .from(TABLES.STUDENT_TRAINING_PLANS)
-    .select('student:students(id, name, email, phone, linked_auth_user_id)')
+    .select('student:students(id, name, email, phone, linked_auth_user_id, status, plan_id, plan_name, plan)')
     .eq('training_plan_id', trainingPlanId)
     .eq('active', true);
 
