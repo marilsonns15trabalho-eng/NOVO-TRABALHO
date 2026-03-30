@@ -128,11 +128,24 @@ export function mapStudentToListItem(row: Record<string, any>): {
   };
 }
 
-export function mapStudentToAlunoListItem(row: Record<string, any>): { id: string; nome: string } {
+export function mapStudentToAlunoListItem(row: Record<string, any>): {
+  id: string;
+  nome: string;
+  email?: string | null;
+  plan_name?: string | null;
+  birth_date?: string | null;
+  gender?: string | null;
+  status?: string | null;
+} {
   const student = normalizeStudentRelation(row);
 
   return {
     id: student?.id || row.id,
     nome: student?.nome || '',
+    email: row.email || null,
+    plan_name: row.plan_name || row.plan || null,
+    birth_date: student?.birth_date || null,
+    gender: student?.gender || null,
+    status: row.status || null,
   };
 }

@@ -19,6 +19,11 @@ export interface StudentListItem {
 export interface AlunoListItem {
   id: string;
   nome: string;
+  email?: string | null;
+  plan_name?: string | null;
+  birth_date?: string | null;
+  gender?: string | null;
+  status?: string | null;
 }
 
 /** Representação mínima de plano usada em selects/dropdowns */

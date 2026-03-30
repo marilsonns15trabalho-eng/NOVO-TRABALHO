@@ -55,7 +55,27 @@ export interface Anamnese {
   preferencia_dietas?: string;
   expectativas?: string;
   created_at: string;
-  students?: { id: string; linked_auth_user_id?: string | null; nome: string };
+  students?: {
+    id: string;
+    linked_auth_user_id?: string | null;
+    nome: string;
+    email?: string | null;
+    birth_date?: string | null;
+    gender?: string | null;
+    plan_name?: string | null;
+  };
 }
 
 export type AnamneseFormData = Partial<Anamnese>;
+
+export interface AnamneseStudentContext {
+  student_id: string;
+  student_name: string;
+  email?: string | null;
+  birth_date?: string | null;
+  gender?: string | null;
+  plan_name?: string | null;
+  latest_avaliacao_date?: string | null;
+  latest_peso?: number | null;
+  latest_altura?: number | null;
+}
