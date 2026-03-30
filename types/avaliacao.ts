@@ -1,6 +1,30 @@
 // Tipos do domínio de Avaliação Física
 
 export type ProtocoloAvaliacao = 'faulkner' | 'pollock7' | 'pollock3';
+export type AvaliacaoPhotoPosition = 'front' | 'back' | 'left' | 'right';
+
+export interface AvaliacaoPhoto {
+  id: string;
+  avaliacao_id: string;
+  student_id: string;
+  position: AvaliacaoPhotoPosition;
+  storage_path: string;
+  file_name?: string | null;
+  content_type?: string | null;
+  size_bytes?: number | null;
+  signed_url?: string | null;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface AvaliacaoPhotoDraft {
+  existing?: AvaliacaoPhoto | null;
+  file?: File | null;
+  preview_url?: string | null;
+  remove?: boolean;
+}
+
+export type AvaliacaoPhotoDraftMap = Record<AvaliacaoPhotoPosition, AvaliacaoPhotoDraft>;
 
 export interface Avaliacao {
   id: string;
@@ -39,6 +63,7 @@ export interface Avaliacao {
   massa_magra?: number;
   soma_dobras?: number;
   protocolo?: ProtocoloAvaliacao;
+  photos?: AvaliacaoPhoto[];
 
   created_at: string;
   students?: {

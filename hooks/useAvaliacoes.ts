@@ -5,7 +5,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNotification } from '@/hooks/useNotification';
 import * as avaliacoesService from '@/services/avaliacoes.service';
 import { getLocalDateInputValue } from '@/lib/date';
-import type { Avaliacao, AvaliacaoAlunoItem, AvaliacaoFormData } from '@/types/avaliacao';
+import type {
+  Avaliacao,
+  AvaliacaoAlunoItem,
+  AvaliacaoFormData,
+} from '@/types/avaliacao';
 
 function createDefaultAvaliacaoForm(): AvaliacaoFormData {
   return {
@@ -31,12 +35,15 @@ export function useAvaliacoes() {
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedAvaliacao, setSelectedAvaliacao] = useState<Avaliacao | null>(null);
   const [historico, setHistorico] = useState<Avaliacao[]>([]);
-  const [newAvaliacao, setNewAvaliacao] = useState<AvaliacaoFormData>(createDefaultAvaliacaoForm);
+  const [newAvaliacao, setNewAvaliacao] = useState<AvaliacaoFormData>(
+    createDefaultAvaliacaoForm,
+  );
 
   const loadData = useCallback(async () => {
     if (!isReady) return;
 
     setLoading(true);
+
     try {
       if (isAluno && !restrictLinkedAuthUserId) {
         setAvaliacoes([]);
@@ -45,7 +52,7 @@ export function useAvaliacoes() {
       }
 
       const [avaliacoesData, alunosData] = await Promise.all([
-        avaliacoesService.fetchAvaliacoes(restrictLinkedAuthUserId),
+        avaliacoesService.fetchAvaliacoes(restrictLinkedAuthUserId, isAluno),
         avaliacoesService.fetchAlunosParaAvaliacao(restrictLinkedAuthUserId),
       ]);
 
@@ -60,6 +67,7 @@ export function useAvaliacoes() {
 
   useEffect(() => {
     if (!isReady) return;
+
     if (!user) {
       setAvaliacoes([]);
       setAlunos([]);
@@ -75,65 +83,89 @@ export function useAvaliacoes() {
     return nome.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
-  const startEdit = useCallback((avaliacao: Avaliacao) => {
-    try {
-      if (isAluno) {
-        throw new Error('Ação não permitida para aluno');
+  const startEdit = useCallback(
+    async (avaliacao: Avaliacao) => {
+      try {
+        if (isAluno) {
+          throw new Error('Acao nao permitida para aluno');
+        }
+
+        const historicoCompleto = await avaliacoesService.fetchHistoricoAluno(
+          avaliacao.student_id,
+          restrictLinkedAuthUserId,
+        );
+        const avaliacaoCompleta =
+          historicoCompleto.find((item) => item.id === avaliacao.id) ?? avaliacao;
+
+        setEditingAvaliacao(avaliacaoCompleta);
+        setNewAvaliacao({ ...avaliacaoCompleta });
+        setShowAddModal(true);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Erro ao abrir avaliacao.';
+        showNotification(message, 'error');
       }
+    },
+    [isAluno, restrictLinkedAuthUserId, showNotification],
+  );
 
-      setEditingAvaliacao(avaliacao);
-      setNewAvaliacao({ ...avaliacao });
-      setShowAddModal(true);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Erro ao abrir avaliacao.';
-      showNotification(message, 'error');
-    }
-  }, [isAluno, showNotification]);
-
-  const viewAvaliacao = useCallback(async (avaliacao: Avaliacao) => {
-    setSelectedAvaliacao(avaliacao);
-    setShowViewModal(true);
-
-    try {
-      const hist = await avaliacoesService.fetchHistoricoAluno(
-        avaliacao.student_id,
-        restrictLinkedAuthUserId
-      );
-      setHistorico(hist);
-    } catch (error) {
-      console.error('Erro ao buscar historico:', error);
-    }
-  }, [restrictLinkedAuthUserId]);
-
-  const handleSave = useCallback(async () => {
-    try {
-      if (isAluno) {
-        throw new Error('Ação não permitida para aluno');
+  const viewAvaliacao = useCallback(
+    async (avaliacao: Avaliacao) => {
+      try {
+        const hist = await avaliacoesService.fetchHistoricoAluno(
+          avaliacao.student_id,
+          restrictLinkedAuthUserId,
+        );
+        const avaliacaoCompleta = hist.find((item) => item.id === avaliacao.id) ?? avaliacao;
+        setSelectedAvaliacao(avaliacaoCompleta);
+        setHistorico(hist);
+        setShowViewModal(true);
+      } catch (error) {
+        console.error('Erro ao buscar historico:', error);
       }
+    },
+    [restrictLinkedAuthUserId],
+  );
 
-      await avaliacoesService.salvarAvaliacao(
-        newAvaliacao,
-        editingAvaliacao?.id ?? newAvaliacao.id
-      );
+  const handleSave = useCallback(
+    async (afterPersist?: (saved: Avaliacao) => Promise<void> | void) => {
+      try {
+        if (isAluno) {
+          throw new Error('Acao nao permitida para aluno');
+        }
 
-      showNotification(editingAvaliacao ? 'Avaliacao atualizada!' : 'Avaliacao salva!', 'success');
-      setShowAddModal(false);
-      setEditingAvaliacao(null);
-      setNewAvaliacao(createDefaultAvaliacaoForm());
-      await loadData();
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Erro ao salvar a avaliacao.';
-      showNotification(message, 'error');
-    }
-  }, [editingAvaliacao, isAluno, loadData, newAvaliacao, showNotification]);
+        const savedAvaliacao = await avaliacoesService.salvarAvaliacao(
+          newAvaliacao,
+          editingAvaliacao?.id ?? newAvaliacao.id,
+        );
+
+        if (afterPersist) {
+          await afterPersist(savedAvaliacao);
+        }
+
+        showNotification(
+          editingAvaliacao ? 'Avaliacao atualizada!' : 'Avaliacao salva!',
+          'success',
+        );
+        setShowAddModal(false);
+        setEditingAvaliacao(null);
+        setNewAvaliacao(createDefaultAvaliacaoForm());
+        await loadData();
+
+        return savedAvaliacao;
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Erro ao salvar a avaliacao.';
+        showNotification(message, 'error');
+        return null;
+      }
+    },
+    [editingAvaliacao, isAluno, loadData, newAvaliacao, showNotification],
+  );
 
   const openAddModal = useCallback(() => {
     try {
       if (isAluno) {
-        throw new Error('Ação não permitida para aluno');
+        throw new Error('Acao nao permitida para aluno');
       }
 
       setEditingAvaliacao(null);

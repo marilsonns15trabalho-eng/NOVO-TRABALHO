@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import AssessmentPhotoGallery from '@/components/avaliacao/AssessmentPhotoGallery';
 import { formatDatePtBr } from '@/lib/date';
 import { exportAvaliacaoEvolutionPdf } from '@/lib/pdf/exportAvaliacaoEvolutionPdf';
 import { exportAvaliacaoPdf } from '@/lib/pdf/exportAvaliacaoPdf';
@@ -263,7 +264,7 @@ export default function AlunoDashboard() {
 
         const [treinosData, avaliacoesData, workoutPlanData, trainingProgressData] = await Promise.all([
           treinosService.fetchTreinos(user.id),
-          avaliacoesService.fetchAvaliacoes(user.id),
+          avaliacoesService.fetchAvaliacoes(user.id, true),
           treinosService.fetchActiveTrainingPlanForStudent(user.id),
           treinosService.fetchStudentMonthlyProgress(user.id),
         ]);
@@ -1230,6 +1231,23 @@ export default function AlunoDashboard() {
                       <p className="mt-2 text-xl font-bold text-white">{latestEvaluationSummary.cintura}</p>
                     </div>
                   </div>
+
+                  {(latestEvolutionBase?.photos?.length || latestAvaliacao?.photos?.length) ? (
+                    <div className="mt-5 grid gap-4 xl:grid-cols-2">
+                      <AssessmentPhotoGallery
+                        title="Fotos base"
+                        subtitle={latestEvolutionBase ? formatDatePtBr(latestEvolutionBase.data) : undefined}
+                        photos={latestEvolutionBase?.photos}
+                        compact
+                      />
+                      <AssessmentPhotoGallery
+                        title="Fotos de atualizacao"
+                        subtitle={latestAvaliacao ? formatDatePtBr(latestAvaliacao.data) : undefined}
+                        photos={latestAvaliacao?.photos}
+                        compact
+                      />
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
 
@@ -1336,6 +1354,29 @@ export default function AlunoDashboard() {
                               {formatAvaliacaoDelta(avaliacao.cintura, comparisonBase.cintura, ' cm')}
                             </p>
                           </div>
+                        </div>
+                      ) : null}
+
+                      {(avaliacao.photos?.length || comparisonBase?.photos?.length) ? (
+                        <div className={`mt-4 grid gap-4 ${comparisonBase ? 'xl:grid-cols-2' : ''}`}>
+                          {comparisonBase ? (
+                            <AssessmentPhotoGallery
+                              title="Fotos base"
+                              subtitle={formatDatePtBr(comparisonBase.data)}
+                              photos={comparisonBase.photos}
+                              compact
+                            />
+                          ) : null}
+                          <AssessmentPhotoGallery
+                            title={comparisonBase ? 'Fotos de atualizacao' : 'Fotos desta avaliacao'}
+                            subtitle={
+                              comparisonBase
+                                ? formatDatePtBr(avaliacao.data)
+                                : 'Clique em uma foto para ampliar.'
+                            }
+                            photos={avaliacao.photos}
+                            compact
+                          />
                         </div>
                       ) : null}
 

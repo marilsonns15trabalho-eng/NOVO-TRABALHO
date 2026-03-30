@@ -48,6 +48,7 @@ export const TABLES = {
   TREINO_EXECUTION_SESSIONS: 'treino_execution_sessions',
   TREINO_EXECUTION_ITEMS: 'treino_execution_items',
   AVALIACOES: 'avaliacoes',
+  AVALIACAO_PHOTOS: 'avaliacao_photos',
   ANAMNESES: 'anamneses',
   FINANCEIRO: 'financeiro',
   BILLS: 'bills',
@@ -55,6 +56,11 @@ export const TABLES = {
   CONFIGURACOES: 'configuracoes',
   USER_PROFILES: 'user_profiles',
   USER_NOTIFICATION_READS: 'user_notification_reads',
+} as const;
+
+/** Buckets de storage do Supabase */
+export const STORAGE_BUCKETS = {
+  AVALIACAO_PHOTOS: 'avaliacao-photos',
 } as const;
 
 /** Super admin — protegido contra alterações */

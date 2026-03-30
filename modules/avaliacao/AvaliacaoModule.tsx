@@ -23,6 +23,8 @@ import {
   CartesianGrid,
   Tooltip,
 } from 'recharts';
+import AssessmentPhotoGallery from '@/components/avaliacao/AssessmentPhotoGallery';
+import AssessmentPhotoUploader from '@/components/avaliacao/AssessmentPhotoUploader';
 import { Toast } from '@/components/ui';
 import {
   ModuleHero,
@@ -31,11 +33,13 @@ import {
   ModuleStatCard,
 } from '@/components/dashboard/ModulePrimitives';
 
+import { createPhotoDraftMap, revokePhotoDraftUrls } from '@/lib/assessmentPhotos';
 import { calcularBiometria } from '@/lib/biometrics';
 import { compareDateOnly, extractDateOnly, formatDateDayMonthPtBr, formatDatePtBr, isSameMonthDate } from '@/lib/date';
 import { exportAvaliacaoPdf } from '@/lib/pdf/exportAvaliacaoPdf';
 import { exportAvaliacaoEvolutionPdf } from '@/lib/pdf/exportAvaliacaoEvolutionPdf';
-import type { Avaliacao } from '@/types/avaliacao';
+import { syncAvaliacaoPhotos } from '@/services/avaliacoes.service';
+import type { Avaliacao, AvaliacaoPhotoDraftMap, AvaliacaoPhotoPosition } from '@/types/avaliacao';
 
 export default function AvaliacaoModule() {
   const { isAdmin, isProfessor } = useUserRole();
@@ -70,6 +74,7 @@ export default function AvaliacaoModule() {
   // Busca de aluno no formulário
   const [alunoSearch, setAlunoSearch] = useState('');
   const [showAlunoDropdown, setShowAlunoDropdown] = useState(false);
+  const [photoDrafts, setPhotoDrafts] = useState<AvaliacaoPhotoDraftMap>(() => createPhotoDraftMap());
 
   const comparisonBase = useMemo(() => {
     if (!selectedReport) {
@@ -95,22 +100,82 @@ export default function AvaliacaoModule() {
     openAddModal();
     setAlunoSearch('');
     setShowAlunoDropdown(false);
+    setPhotoDrafts((prev) => {
+      revokePhotoDraftUrls(prev);
+      return createPhotoDraftMap();
+    });
   };
 
   const handleCloseAvaliacaoModal = () => {
+    setPhotoDrafts((prev) => {
+      revokePhotoDraftUrls(prev);
+      return createPhotoDraftMap();
+    });
     closeAddModal();
     setAlunoSearch('');
     setShowAlunoDropdown(false);
+  };
+
+  const handlePhotoPick = (position: AvaliacaoPhotoPosition, file: File | null) => {
+    setPhotoDrafts((prev) => {
+      const current = prev[position];
+      if (current.preview_url?.startsWith('blob:')) {
+        URL.revokeObjectURL(current.preview_url);
+      }
+
+      return {
+        ...prev,
+        [position]: {
+          ...current,
+          file,
+          preview_url: file ? URL.createObjectURL(file) : current.existing?.signed_url ?? null,
+          remove: false,
+        },
+      };
+    });
+  };
+
+  const handlePhotoRemove = (position: AvaliacaoPhotoPosition) => {
+    setPhotoDrafts((prev) => {
+      const current = prev[position];
+      if (current.preview_url?.startsWith('blob:')) {
+        URL.revokeObjectURL(current.preview_url);
+      }
+
+      return {
+        ...prev,
+        [position]: {
+          ...current,
+          file: null,
+          preview_url: null,
+          remove: Boolean(current.existing),
+        },
+      };
+    });
   };
 
   useEffect(() => {
     if (!showAddModal) return;
     if (editingAvaliacao) {
       setAlunoSearch(editingAvaliacao.students?.nome || '');
+      setPhotoDrafts((prev) => {
+        revokePhotoDraftUrls(prev);
+        return createPhotoDraftMap(editingAvaliacao.photos);
+      });
     } else {
       setAlunoSearch('');
+      setPhotoDrafts((prev) => {
+        revokePhotoDraftUrls(prev);
+        return createPhotoDraftMap();
+      });
     }
   }, [showAddModal, editingAvaliacao]);
+
+  useEffect(() => {
+    return () => {
+      revokePhotoDraftUrls(photoDrafts);
+    };
+  }, [photoDrafts]);
 
   // PDF export (UI-level, no DB)
   const exportToPDF = async (avaliacao: any) => {
@@ -478,6 +543,28 @@ export default function AvaliacaoModule() {
               </div>
 
               {/* Dashboard de Evolução */}
+              {(selectedReport.photos?.length || comparisonBase?.photos?.length) ? (
+                <div className="mb-10 grid gap-6 lg:grid-cols-2">
+                  {comparisonBase ? (
+                    <AssessmentPhotoGallery
+                      title="Fotos base"
+                      subtitle={`Registro anterior de ${formatDatePtBr(comparisonBase.data)}`}
+                      photos={comparisonBase.photos}
+                    />
+                  ) : null}
+
+                  <AssessmentPhotoGallery
+                    title={comparisonBase ? 'Fotos de atualizacao' : 'Fotos da avaliacao'}
+                    subtitle={
+                      comparisonBase
+                        ? `Registro atual de ${formatDatePtBr(selectedReport.data)}`
+                        : 'Clique em uma foto para ampliar e conferir os angulos.'
+                    }
+                    photos={selectedReport.photos}
+                  />
+                </div>
+              ) : null}
+
               <div className="mb-12 space-y-6">
                 <div className="flex items-center gap-2 mb-4">
                   <TrendingUp className="text-purple-500" />
@@ -578,7 +665,19 @@ export default function AvaliacaoModule() {
               className="relative bg-zinc-900 border border-zinc-800 rounded-3xl p-8 w-full max-w-4xl shadow-2xl max-h-[90vh] overflow-y-auto"
             >
               <h3 className="text-2xl font-bold mb-6">Nova Avaliação</h3>
-              <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-6">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void handleSave(async (savedAvaliacao) => {
+                    await syncAvaliacaoPhotos({
+                      avaliacaoId: savedAvaliacao.id,
+                      studentId: savedAvaliacao.student_id,
+                      drafts: photoDrafts,
+                    });
+                  });
+                }}
+                className="space-y-6"
+              >
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-1.5 relative">
                     <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Aluno *</label>
@@ -713,6 +812,12 @@ export default function AvaliacaoModule() {
                     </div>
                   </div>
                 </div>
+
+                <AssessmentPhotoUploader
+                  drafts={photoDrafts}
+                  onPickFile={handlePhotoPick}
+                  onRemove={handlePhotoRemove}
+                />
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Observações</label>

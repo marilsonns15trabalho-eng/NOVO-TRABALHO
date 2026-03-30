@@ -1,40 +1,79 @@
-import { supabase, getAuthenticatedUser } from '@/lib/supabase';
-import { TABLES } from '@/lib/constants';
+import { optimizeAssessmentPhotoFile } from '@/lib/assessmentPhotos';
 import { calcularBiometria } from '@/lib/biometrics';
+import { STORAGE_BUCKETS, TABLES } from '@/lib/constants';
 import { normalizeStudentRelation } from '@/lib/mappers';
-import { findStudentIdByLinkedAuthUserId, resolveStudentIdForWrite } from '@/lib/student-access';
-import type { Avaliacao, AvaliacaoFormData, AvaliacaoAlunoItem } from '@/types/avaliacao';
+import { getAuthenticatedUser, supabase } from '@/lib/supabase';
 import { assertCanManageStudentDataForUserId } from '@/lib/authz';
+import {
+  findStudentIdByLinkedAuthUserId,
+  resolveStudentIdForWrite,
+} from '@/lib/student-access';
+import type {
+  Avaliacao,
+  AvaliacaoAlunoItem,
+  AvaliacaoFormData,
+  AvaliacaoPhoto,
+  AvaliacaoPhotoDraftMap,
+} from '@/types/avaliacao';
 
-/** Numérico opcional para o banco (preserva 0; evita "" e undefined virarem bug) */
-function n(v: unknown): number | null {
-  if (v === undefined || v === null || v === '') return null;
-  const x = Number(v);
-  return Number.isFinite(x) ? x : null;
+function n(value: unknown): number | null {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function logSupabaseError(context: string, error: unknown) {
-  const e = error as { message?: string; code?: string; details?: string; hint?: string };
+  const currentError = error as {
+    message?: string;
+    code?: string;
+    details?: string;
+    hint?: string;
+  };
+
   console.error(context, {
-    message: e?.message,
-    code: e?.code,
-    details: e?.details,
-    hint: e?.hint,
+    message: currentError?.message,
+    code: currentError?.code,
+    details: currentError?.details,
+    hint: currentError?.hint,
     raw: String(error),
   });
 }
 
-/**
- * Mapeia uma row do banco para o formato flat da UI.
- * Fonte primária: colunas flat. Fallback: JSONB.
- */
+function buildAvaliacaoSelect(includePhotos = false) {
+  const baseSelect =
+    '*, student:students(id, linked_auth_user_id, name, gender, birth_date)';
+
+  if (!includePhotos) {
+    return baseSelect;
+  }
+
+  return `${baseSelect}, photos:${TABLES.AVALIACAO_PHOTOS}(id, avaliacao_id, student_id, position, storage_path, file_name, content_type, size_bytes, created_at, updated_at)`;
+}
+
+function mapPhotoRow(item: any): AvaliacaoPhoto {
+  return {
+    id: item.id,
+    avaliacao_id: item.avaliacao_id,
+    student_id: item.student_id,
+    position: item.position,
+    storage_path: item.storage_path,
+    file_name: item.file_name ?? null,
+    content_type: item.content_type ?? null,
+    size_bytes: item.size_bytes ?? null,
+    signed_url: item.signed_url ?? null,
+    created_at: item.created_at,
+    updated_at: item.updated_at,
+  };
+}
+
 function mapAvaliacaoRow(item: any): Avaliacao {
   const student = normalizeStudentRelation(item.student ?? item.students);
+  const photos = Array.isArray(item.photos) ? item.photos.map(mapPhotoRow) : [];
 
   return {
     ...item,
     students: student,
-    // Perímetros: flat primeiro, JSONB como fallback
+    photos,
     ombro: item.ombro ?? item.medidas?.ombro,
     torax: item.torax ?? item.medidas?.torax,
     cintura: item.cintura ?? item.medidas?.cintura,
@@ -44,17 +83,16 @@ function mapAvaliacaoRow(item: any): Avaliacao {
     braco_esquerdo: item.braco_esquerdo ?? item.medidas?.braco_esquerdo,
     coxa_direita: item.coxa_direita ?? item.medidas?.coxa_direita,
     coxa_esquerda: item.coxa_esquerda ?? item.medidas?.coxa_esquerda,
-    panturrilha_direita: item.panturrilha_direita ?? item.medidas?.panturrilha_direita,
-    panturrilha_esquerda: item.panturrilha_esquerda ?? item.medidas?.panturrilha_esquerda,
-    // Dobras: flat primeiro, JSONB como fallback
+    panturrilha_direita:
+      item.panturrilha_direita ?? item.medidas?.panturrilha_direita,
+    panturrilha_esquerda:
+      item.panturrilha_esquerda ?? item.medidas?.panturrilha_esquerda,
     tricipital: item.tricipital ?? item.dobras?.tricipital,
     subescapular: item.subescapular ?? item.dobras?.subescapular,
     supra_iliaca: item.supra_iliaca ?? item.dobras?.supra_iliaca,
     abdominal: item.abdominal ?? item.dobras?.abdominal,
     soma_dobras: item.soma_dobras ?? item.dobras?.soma_dobras,
-    // Campo unificado: gordura_corporal (DB) = percentual_gordura (UI)
     percentual_gordura: item.percentual_gordura ?? item.gordura_corporal,
-    // massa_gorda: usar valor salvo, ou calcular
     massa_gorda:
       item.massa_gorda ??
       (item.peso && item.massa_magra
@@ -63,33 +101,81 @@ function mapAvaliacaoRow(item: any): Avaliacao {
   };
 }
 
-/** Busca todas as avaliações com join do aluno */
-export async function fetchAvaliacoes(linkedAuthUserId?: string): Promise<Avaliacao[]> {
+async function attachSignedPhotoUrls(avaliacoes: Avaliacao[]): Promise<Avaliacao[]> {
+  const uniquePaths = Array.from(
+    new Set(
+      avaliacoes.flatMap((avaliacao) =>
+        (avaliacao.photos ?? [])
+          .map((photo) => photo.storage_path)
+          .filter(Boolean),
+      ),
+    ),
+  );
+
+  if (!uniquePaths.length) {
+    return avaliacoes;
+  }
+
+  const { data, error } = await supabase.storage
+    .from(STORAGE_BUCKETS.AVALIACAO_PHOTOS)
+    .createSignedUrls(uniquePaths, 60 * 60);
+
+  if (error) {
+    logSupabaseError('Erro ao assinar fotos de avaliacao:', error);
+    return avaliacoes;
+  }
+
+  const signedUrlMap = new Map<string, string | null>();
+  (data || []).forEach((item) => {
+    if (item.path) {
+      signedUrlMap.set(item.path, item.signedUrl ?? null);
+    }
+  });
+
+  return avaliacoes.map((avaliacao) => ({
+    ...avaliacao,
+    photos: (avaliacao.photos ?? []).map((photo) => ({
+      ...photo,
+      signed_url: signedUrlMap.get(photo.storage_path) ?? null,
+    })),
+  }));
+}
+
+export async function fetchAvaliacoes(
+  linkedAuthUserId?: string,
+  includePhotos = false,
+): Promise<Avaliacao[]> {
   let query = supabase
     .from(TABLES.AVALIACOES)
-    .select(`*, student:students(id, linked_auth_user_id, name, gender, birth_date)`)
+    .select(buildAvaliacaoSelect(includePhotos))
     .order('data', { ascending: false });
 
-  if (linkedAuthUserId) query = query.eq('student.linked_auth_user_id', linkedAuthUserId);
+  if (linkedAuthUserId) {
+    query = query.eq('student.linked_auth_user_id', linkedAuthUserId);
+  }
 
   const { data, error } = await query;
 
   if (error) {
-    console.error('Erro ao buscar avaliações:', error.message);
+    console.error('Erro ao buscar avaliacoes:', error.message);
     return [];
   }
 
-  return (data || []).map(mapAvaliacaoRow);
+  const avaliacoes = (data || []).map(mapAvaliacaoRow);
+  return includePhotos ? attachSignedPhotoUrls(avaliacoes) : avaliacoes;
 }
 
-/** Busca lista de alunos para o seletor de avaliação */
-export async function fetchAlunosParaAvaliacao(linkedAuthUserId?: string): Promise<AvaliacaoAlunoItem[]> {
+export async function fetchAlunosParaAvaliacao(
+  linkedAuthUserId?: string,
+): Promise<AvaliacaoAlunoItem[]> {
   let query = supabase
     .from(TABLES.STUDENTS)
     .select('id, name, gender, birth_date, linked_auth_user_id')
     .order('name', { ascending: true });
 
-  if (linkedAuthUserId) query = query.eq('linked_auth_user_id', linkedAuthUserId);
+  if (linkedAuthUserId) {
+    query = query.eq('linked_auth_user_id', linkedAuthUserId);
+  }
 
   const { data, error } = await query;
 
@@ -112,29 +198,34 @@ export async function fetchAlunosParaAvaliacao(linkedAuthUserId?: string): Promi
   });
 }
 
-/** Busca histórico de avaliações de um aluno */
-export async function fetchHistoricoAluno(studentId: string, linkedAuthUserId?: string): Promise<Avaliacao[]> {
+export async function fetchHistoricoAluno(
+  studentId: string,
+  linkedAuthUserId?: string,
+): Promise<Avaliacao[]> {
   if (linkedAuthUserId) {
     const allowedStudentId = await findStudentIdByLinkedAuthUserId(linkedAuthUserId);
-    if (!allowedStudentId || allowedStudentId !== studentId) return [];
+    if (!allowedStudentId || allowedStudentId !== studentId) {
+      return [];
+    }
   }
 
   const { data, error } = await supabase
     .from(TABLES.AVALIACOES)
-    .select(`*, student:students(id, linked_auth_user_id, name, gender, birth_date)`)
+    .select(buildAvaliacaoSelect(true))
     .eq('student_id', studentId)
     .order('data', { ascending: true });
 
-  if (error) throw error;
+  if (error) {
+    throw error;
+  }
 
-  return (data || []).map(mapAvaliacaoRow);
+  return attachSignedPhotoUrls((data || []).map(mapAvaliacaoRow));
 }
 
-/** Cria ou atualiza uma avaliação física */
 export async function salvarAvaliacao(
   avaliacaoData: AvaliacaoFormData,
-  editingId?: string
-): Promise<void> {
+  editingId?: string,
+): Promise<Avaliacao> {
   const user = await getAuthenticatedUser();
   await assertCanManageStudentDataForUserId(user.id);
 
@@ -142,29 +233,29 @@ export async function salvarAvaliacao(
   const data = { ...avaliacaoData, ...dadosCalculados };
   const studentId = await resolveStudentIdForWrite(
     typeof data.student_id === 'string' ? data.student_id : undefined,
-    user.id
+    user.id,
   );
 
-  const rawData = data.data != null && String(data.data).trim() !== '' ? String(data.data).trim() : '';
-  const dataAvaliacao = rawData.includes('T') ? rawData.split('T')[0] : rawData;
+  const rawDate =
+    data.data != null && String(data.data).trim() !== ''
+      ? String(data.data).trim()
+      : '';
+  const dataAvaliacao = rawDate.includes('T') ? rawDate.split('T')[0] : rawDate;
+
   if (!dataAvaliacao) {
-    throw new Error('Informe a data da avaliação.');
+    throw new Error('Informe a data da avaliacao.');
   }
 
   const rowId =
     editingId ??
-    (typeof (avaliacaoData as AvaliacaoFormData).id === 'string'
-      ? (avaliacaoData as AvaliacaoFormData).id
-      : undefined);
+    (typeof avaliacaoData.id === 'string' ? avaliacaoData.id : undefined);
 
-  // Payload unificado: colunas flat como fonte primária (valores biométricos sempre recalculados)
   const payload: Record<string, any> = {
     student_id: studentId,
     data: dataAvaliacao,
     peso: n(data.peso) ?? 0,
     altura: n(data.altura) ?? 0,
     imc: n(data.imc) ?? 0,
-    // Campo unificado: salva em ambos para compatibilidade
     percentual_gordura: n(data.percentual_gordura) ?? 0,
     gordura_corporal: n(data.percentual_gordura) ?? 0,
     massa_magra: n(data.massa_magra) ?? 0,
@@ -172,7 +263,6 @@ export async function salvarAvaliacao(
     soma_dobras: n(data.soma_dobras) ?? 0,
     protocolo: data.protocolo || 'faulkner',
     observacoes: data.observacoes || null,
-    // Colunas flat de perímetros
     ombro: n(data.ombro),
     torax: n(data.torax),
     cintura: n(data.cintura),
@@ -184,12 +274,10 @@ export async function salvarAvaliacao(
     coxa_esquerda: n(data.coxa_esquerda),
     panturrilha_direita: n(data.panturrilha_direita),
     panturrilha_esquerda: n(data.panturrilha_esquerda),
-    // Colunas flat de dobras
     tricipital: n(data.tricipital),
     subescapular: n(data.subescapular),
     supra_iliaca: n(data.supra_iliaca),
     abdominal: n(data.abdominal),
-    // JSONB como backup (gerado dos mesmos dados)
     medidas: {
       ombro: n(data.ombro),
       torax: n(data.torax),
@@ -213,21 +301,116 @@ export async function salvarAvaliacao(
   };
 
   if (rowId) {
-    const { error } = await supabase
+    const { data: updatedRow, error } = await supabase
       .from(TABLES.AVALIACOES)
       .update(payload)
-      .eq('id', rowId);
+      .eq('id', rowId)
+      .select(buildAvaliacaoSelect())
+      .single();
+
     if (error) {
-      logSupabaseError('Erro ao atualizar avaliação:', error);
-      throw new Error(error.message || 'Não foi possível atualizar a avaliação.');
+      logSupabaseError('Erro ao atualizar avaliacao:', error);
+      throw new Error(error.message || 'Nao foi possivel atualizar a avaliacao.');
     }
-  } else {
-    const { error } = await supabase
-      .from(TABLES.AVALIACOES)
-      .insert([payload]);
-    if (error) {
-      logSupabaseError('Erro ao inserir avaliação:', error);
-      throw new Error(error.message || 'Não foi possível salvar a avaliação.');
+
+    return mapAvaliacaoRow(updatedRow);
+  }
+
+  const { data: insertedRow, error } = await supabase
+    .from(TABLES.AVALIACOES)
+    .insert([payload])
+    .select(buildAvaliacaoSelect())
+    .single();
+
+  if (error) {
+    logSupabaseError('Erro ao inserir avaliacao:', error);
+    throw new Error(error.message || 'Nao foi possivel salvar a avaliacao.');
+  }
+
+  return mapAvaliacaoRow(insertedRow);
+}
+
+export async function syncAvaliacaoPhotos(params: {
+  avaliacaoId: string;
+  studentId: string;
+  drafts: AvaliacaoPhotoDraftMap;
+}) {
+  const { avaliacaoId, studentId, drafts } = params;
+  const user = await getAuthenticatedUser();
+  await assertCanManageStudentDataForUserId(user.id);
+
+  const bucket = supabase.storage.from(STORAGE_BUCKETS.AVALIACAO_PHOTOS);
+
+  for (const [position, draft] of Object.entries(drafts) as Array<
+    [keyof AvaliacaoPhotoDraftMap, AvaliacaoPhotoDraftMap[keyof AvaliacaoPhotoDraftMap]]
+  >) {
+    const existing = draft.existing ?? null;
+
+    if (draft.remove && existing?.storage_path) {
+      const { error: storageDeleteError } = await bucket.remove([existing.storage_path]);
+      if (storageDeleteError) {
+        logSupabaseError('Erro ao remover foto antiga de avaliacao:', storageDeleteError);
+      }
+
+      const { error: rowDeleteError } = await supabase
+        .from(TABLES.AVALIACAO_PHOTOS)
+        .delete()
+        .eq('avaliacao_id', avaliacaoId)
+        .eq('position', position);
+
+      if (rowDeleteError) {
+        logSupabaseError('Erro ao remover metadado da foto de avaliacao:', rowDeleteError);
+        throw new Error('Nao foi possivel remover uma das fotos da avaliacao.');
+      }
+
+      continue;
+    }
+
+    if (!draft.file) {
+      continue;
+    }
+
+    const optimizedFile = await optimizeAssessmentPhotoFile(draft.file);
+    const storagePath = `${studentId}/${avaliacaoId}/${position}.jpg`;
+
+    const { error: uploadError } = await bucket.upload(storagePath, optimizedFile, {
+      contentType: 'image/jpeg',
+      upsert: true,
+    });
+
+    if (uploadError) {
+      logSupabaseError('Erro ao enviar foto da avaliacao:', uploadError);
+      throw new Error('Nao foi possivel enviar uma das fotos da avaliacao.');
+    }
+
+    const { error: upsertError } = await supabase
+      .from(TABLES.AVALIACAO_PHOTOS)
+      .upsert(
+        [
+          {
+            avaliacao_id: avaliacaoId,
+            student_id: studentId,
+            position,
+            storage_path: storagePath,
+            file_name: optimizedFile.name,
+            content_type: optimizedFile.type,
+            size_bytes: optimizedFile.size,
+            created_by_auth_user_id: user.id,
+          },
+        ],
+        { onConflict: 'avaliacao_id,position' },
+      );
+
+    if (upsertError) {
+      logSupabaseError('Erro ao salvar metadado da foto de avaliacao:', upsertError);
+      throw new Error('Nao foi possivel salvar uma das fotos da avaliacao.');
+    }
+
+    if (existing?.storage_path && existing.storage_path !== storagePath) {
+      const { error: staleDeleteError } = await bucket.remove([existing.storage_path]);
+      if (staleDeleteError) {
+        logSupabaseError('Erro ao limpar foto antiga de avaliacao:', staleDeleteError);
+      }
     }
   }
 }
