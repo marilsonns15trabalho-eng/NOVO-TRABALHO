@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Building2,
   FileText,
   Image as ImageIcon,
+  Database,
   Loader2,
   Mail,
   MapPin,
@@ -23,6 +24,7 @@ import {
   ModuleSurface,
   ModuleSectionHeading,
 } from '@/components/dashboard/ModulePrimitives';
+import { importLegacyLpeStudents } from '@/services/legacyImport.service';
 
 export default function ConfiguracoesModule() {
   const {
@@ -35,6 +37,36 @@ export default function ConfiguracoesModule() {
     handleSave,
   } = useConfiguracoes();
   const visualSectionRef = useRef<HTMLDivElement | null>(null);
+  const [importingLegacy, setImportingLegacy] = useState(false);
+  const [legacyImportFeedback, setLegacyImportFeedback] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
+
+  const handleLegacyImport = async (dryRun: boolean) => {
+    setImportingLegacy(true);
+    setLegacyImportFeedback(null);
+
+    try {
+      const result = await importLegacyLpeStudents(dryRun);
+      setLegacyImportFeedback({
+        type: 'success',
+        message: dryRun
+          ? `Simulacao concluida: ${result.imported.length} alunos validos prontos para importacao.`
+          : `Importacao concluida: ${result.imported.length} alunos processados. Senha inicial: ${result.default_password}.`,
+      });
+    } catch (error) {
+      setLegacyImportFeedback({
+        type: 'error',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Nao foi possivel executar a importacao do legado.',
+      });
+    } finally {
+      setImportingLegacy(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -280,6 +312,48 @@ export default function ConfiguracoesModule() {
                     placeholder="1. O contratante concorda em..."
                   />
                 </div>
+              </div>
+            </div>
+
+            <div className="space-y-6 border-t border-zinc-800 pt-8">
+              <ModuleSectionHeading
+                eyebrow="Migracao"
+                title="Importacao dos 47 alunos do legado"
+                description="Importa somente os alunos com e-mail valido e cria o acesso com senha 123456."
+              />
+
+              {legacyImportFeedback ? (
+                <div
+                  className={`rounded-2xl border p-4 text-sm font-bold ${
+                    legacyImportFeedback.type === 'success'
+                      ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
+                      : 'border-rose-500/20 bg-rose-500/10 text-rose-300'
+                  }`}
+                >
+                  {legacyImportFeedback.message}
+                </div>
+              ) : null}
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <button
+                  type="button"
+                  disabled={importingLegacy}
+                  onClick={() => handleLegacyImport(true)}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-6 py-4 font-bold text-white transition-all hover:border-sky-500/30 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {importingLegacy ? <Loader2 className="animate-spin" size={18} /> : <Database size={18} />}
+                  Simular importacao
+                </button>
+
+                <button
+                  type="button"
+                  disabled={importingLegacy}
+                  onClick={() => handleLegacyImport(false)}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-6 py-4 font-bold text-black transition-all hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {importingLegacy ? <Loader2 className="animate-spin" size={18} /> : <Database size={18} />}
+                  Importar 47 alunos
+                </button>
               </div>
             </div>
 

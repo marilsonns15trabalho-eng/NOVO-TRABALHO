@@ -1,0 +1,346 @@
+{
+  "mode": "dry-run",
+  "default_password": "123456",
+  "legacy_students_total": 66,
+  "students_selected_for_import": 47,
+  "students_skipped_missing_or_invalid_email": [
+    {
+      "legacy_lpe_id": 14,
+      "name": "LILIANE DOS SANTOS ROCHA",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 15,
+      "name": "CLAUDIA CRISTINA DE LIMA E SILVA",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 16,
+      "name": "SUELEN SILVA CAMPOS",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 17,
+      "name": "LEIDE DAIANE MUNIZ DA SILVA SOUZA",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 18,
+      "name": "MARIA EDUARDA DE JESUS COUTO",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 19,
+      "name": "BIANCA JANAINA DE FIQUEIREDO E SILVA",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 20,
+      "name": "JACIRA MENEZES DA CONCEIÇÃO",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 21,
+      "name": "MISLANE ALMEIDA GOMES",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 22,
+      "name": "BRUNA EDUARDA MAIA DE SOUZA CABRAL",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 23,
+      "name": "VALESCA CARVALHO DOS SANTOS TRINDADE",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 24,
+      "name": "JOSEMAR COSTA SILVA JESUS",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 25,
+      "name": "ESTEFFANY DE LIMA",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 26,
+      "name": "ROBERTA SANTOS LEITE",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 27,
+      "name": "JOSEANE CAROLINE GOMES",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 28,
+      "name": "GELMA DINORÁ SANTOS DA LAPA OLIVEIRA",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 36,
+      "name": "MARIA DAURA",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 46,
+      "name": "AVANI BARRETO",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 61,
+      "name": "PATRICIA DA SILVA SANTANA",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 67,
+      "name": "JESSICA TAVARES",
+      "email": ""
+    }
+  ],
+  "students_skipped_duplicate_email_groups": [],
+  "students_ready": [
+    {
+      "legacy_lpe_id": 2,
+      "name": "SIMONE DO NASCIMENTO SANTOS",
+      "email": "simonenascimentojus@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 3,
+      "name": "PATRICIA MARIA AMORIM MUNIZ",
+      "email": "amorimmoniz@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 4,
+      "name": "CASSIA ROCHA JESSUS DA ENCARNAÇÃO",
+      "email": "rocha.kassia@hotmail.com"
+    },
+    {
+      "legacy_lpe_id": 5,
+      "name": "MARCIA RIBEIRO DE JESUS",
+      "email": "marcia1970r@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 6,
+      "name": "PATRICIA DO NASCIMENTO DE JESUS",
+      "email": "patricianascimento9542@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 7,
+      "name": "ESTEFANE SANTOS DE SANTANA",
+      "email": "ster151114@hotmail.com"
+    },
+    {
+      "legacy_lpe_id": 8,
+      "name": "DENISE DE JESUS SOUZA DA LUZ",
+      "email": "souza.denisesocial11@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 9,
+      "name": "BEATRIZ SANTOS DA SILVA",
+      "email": "beatrizsqntos04@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 10,
+      "name": "ZAINÁ SOARES DORIA",
+      "email": "zainadoria97@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 11,
+      "name": "ALANA OLIVEIRA",
+      "email": "alanajuliao55@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 12,
+      "name": "ELENA GOMES SIQUEIRA",
+      "email": "gomes13elena@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 13,
+      "name": "ROSANGELA  SANTOS SILVA",
+      "email": "rosa.smed@yahoo.com.br"
+    },
+    {
+      "legacy_lpe_id": 29,
+      "name": "JOSILENE TELES SANTANA DE FREITAS",
+      "email": "jteles115@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 30,
+      "name": "VANESSALIMA DE FREITAS",
+      "email": "vl88631730@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 31,
+      "name": "CRISTINA RIBEIRO SILVA",
+      "email": "ribeirocristinas@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 32,
+      "name": "CÁTIA DA SILVA SEIXAS LEITE",
+      "email": "dracatiaseixas@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 33,
+      "name": "RAIANE FONSECA DOS SANTOS",
+      "email": "fonsecaraiane10@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 34,
+      "name": "ANA CAROLINA SOUZA DE FREITAS",
+      "email": "caroleemily@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 35,
+      "name": "KLESIA PALHETA MELO",
+      "email": "klesiamelo.enf31@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 37,
+      "name": "ELIZABETY OLIVEIRA JULIÃO",
+      "email": "betyjulio@yahoo.com.br"
+    },
+    {
+      "legacy_lpe_id": 38,
+      "name": "SIMONE DE JESUS BONFIM",
+      "email": "simonebonfim29@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 39,
+      "name": "ANA CLESSIA DOS SANTOS CORREIA",
+      "email": "calebeamor16052011@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 40,
+      "name": "ELIANE DA ANUCIAÇÃO DOS SANTOS",
+      "email": "elianebailty_15@hotmail.com"
+    },
+    {
+      "legacy_lpe_id": 41,
+      "name": "INARAISA ARAUJO DA SILVA",
+      "email": "inaraisaaraujo7@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 42,
+      "name": "JOSEANE DOS SANTOS SILVA",
+      "email": "joseanesantos2524@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 43,
+      "name": "VILMA ANUCIAÇÃO DE OLIVEIRA",
+      "email": "vilmailiveira2312@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 44,
+      "name": "ANA PAULA DE FRAGA FARIAS",
+      "email": "edyanna-77@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 45,
+      "name": "IRACI DA CONCEIÇÃO SANTOS",
+      "email": "iraci19886@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 47,
+      "name": "NATIANA SANTANA SILVA",
+      "email": "natianasantanasil@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 48,
+      "name": "ERICA SUELI ROSARIA MAEQUES",
+      "email": "ericasueli@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 49,
+      "name": "ROSALIA SANTOS SANTANA SOUZA",
+      "email": "rosasansantos@hotmail.com"
+    },
+    {
+      "legacy_lpe_id": 50,
+      "name": "ISABEL FRANÇA SALUSTINO",
+      "email": "isabelsalustino71@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 51,
+      "name": "LAIS FRANÇA",
+      "email": "laissaymon2010@hotmail.com"
+    },
+    {
+      "legacy_lpe_id": 52,
+      "name": "ROBERTA SANTANA EVANGELISTA",
+      "email": "robertasantanaevangelista@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 53,
+      "name": "ANTONIA CONCEIÇÃO",
+      "email": "antonia09conceicao@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 54,
+      "name": "CRISTIANE SILVA DOS SANTOS",
+      "email": "cris88846045@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 55,
+      "name": "LORRENA DOS SANTOS RIBEIRO DE JESUS",
+      "email": "lorrenarib76@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 56,
+      "name": "LORRANA XAIANE LIMA DE JESUS",
+      "email": "lorrana195@icloud.com"
+    },
+    {
+      "legacy_lpe_id": 57,
+      "name": "MARIA ROQUE DOS SANTOS JESUS",
+      "email": "lorenarib76@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 58,
+      "name": "DEODETEDOS SANTOS MOTA",
+      "email": "ritamt2021@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 59,
+      "name": "TALITA DE JESUS MOTA",
+      "email": "tmota.jesus@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 60,
+      "name": "GEISIANE DA SILVA PEREIRA",
+      "email": "neya68792@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 62,
+      "name": "JENIFER DE JESUS SANTANA",
+      "email": "jeniferdejesussantana@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 63,
+      "name": "VALDINEIA DA CRUZ SILVA BARBOSA",
+      "email": "valdineiacsb@hotmail.com"
+    },
+    {
+      "legacy_lpe_id": 64,
+      "name": "JAQUELINE SANTOS DE OLIVEIRA",
+      "email": "jaqueline091522@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 65,
+      "name": "DANIELA DOS SANTOS GONÇALVES VIANA",
+      "email": "goncalvesdaniela76@gmail.com"
+    },
+    {
+      "legacy_lpe_id": 66,
+      "name": "ARIANE DE JESUS BARRETO",
+      "email": "barretotkd14@gmail.com"
+    }
+  ],
+  "result_counts": {
+    "students_imported": 47,
+    "students_skipped_missing_or_invalid_email": 19,
+    "duplicate_email_groups_skipped": 0
+  }
+}
