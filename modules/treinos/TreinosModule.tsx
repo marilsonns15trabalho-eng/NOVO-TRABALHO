@@ -47,7 +47,7 @@ function getSplitDisplayLabel(splitLabel?: string | null) {
 }
 
 function hasExerciseOfficialPreview(item: ExerciseLibraryItem) {
-  return Boolean(item.stream_path || item.preview_image_url || item.gallery_image_urls.length > 0);
+  return Boolean(item.stream_path);
 }
 
 function SectionTitle({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
@@ -546,7 +546,11 @@ export default function TreinosModule() {
     setSelectedExercisePreview(item);
   };
 
-  const openExercisePreviewByName = async (exerciseName: string) => {
+  const openExercisePreviewByName = async (
+    exerciseName: string,
+    preferredReference?: string | null,
+    loadingKey?: string,
+  ) => {
     const normalizedName = exerciseName.trim();
     if (!normalizedName) {
       showNotification('Este exercicio nao possui nome suficiente para buscar a demonstracao.', 'error');
@@ -554,11 +558,10 @@ export default function TreinosModule() {
     }
 
     try {
-      setExercisePreviewLoadingName(normalizedName);
-      const response = await exerciseLibraryService.searchOfficialExerciseLibrary(normalizedName);
-      const bestMatch = exerciseLibraryService.pickBestOfficialExerciseMatch(
-        response.results || [],
+      setExercisePreviewLoadingName(loadingKey || normalizedName);
+      const bestMatch = await exerciseLibraryService.resolveOfficialExercisePreview(
         normalizedName,
+        preferredReference,
       );
 
       if (!bestMatch) {
@@ -610,6 +613,10 @@ export default function TreinosModule() {
         carga: '',
         descanso: '60s',
         observacoes: '',
+        biblioteca_origem: 'wger' as const,
+        biblioteca_referencia: item.original_name || item.display_name,
+        biblioteca_titulo: item.display_name,
+        biblioteca_tem_demonstracao: hasExerciseOfficialPreview(item),
       };
 
       const blankIndex = currentExercises.findIndex(
@@ -1301,8 +1308,7 @@ export default function TreinosModule() {
 
               <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                 <span className="rounded-full border border-zinc-800 px-3 py-1">Powered by wger</span>
-                <span className="rounded-full border border-zinc-800 px-3 py-1">Imagem e video oficiais quando disponiveis</span>
-                <span className="rounded-full border border-zinc-800 px-3 py-1">Licenca por exercicio exibida no detalhe</span>
+                <span className="rounded-full border border-zinc-800 px-3 py-1">Busca com nome + video oficial</span>
               </div>
 
               {exerciseLibraryError ? (
@@ -1321,58 +1327,32 @@ export default function TreinosModule() {
                 ) : (
                   exerciseLibraryResults.map((item) => (
                     <div key={item.id} className="rounded-[24px] border border-zinc-800 bg-black/20 p-4">
-                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <p className="text-lg font-bold text-white">{item.display_name}</p>
-                            {item.has_official_video ? (
-                              <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-bold text-emerald-300">
-                                Video disponivel
-                              </span>
-                            ) : null}
-                          </div>
-                          <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">
-                            {item.primary_muscle_label ? (
-                              <span className="rounded-full border border-orange-500/20 px-2.5 py-1 text-orange-300">
-                                {item.primary_muscle_label}
-                              </span>
-                            ) : null}
-                            {item.category_label ? (
-                              <span className="rounded-full border border-zinc-800 px-2.5 py-1">
-                                {item.category_label}
-                              </span>
-                            ) : null}
-                            {item.preview_image_url ? (
-                              <span className="rounded-full border border-zinc-800 px-2.5 py-1">
-                                Imagem oficial
-                              </span>
-                            ) : null}
-                            {item.difficulty ? (
-                              <span className="rounded-full border border-zinc-800 px-2.5 py-1">
-                                {item.difficulty}
-                              </span>
-                            ) : null}
-                          </div>
+                      <div className="space-y-4">
+                        <p className="text-lg font-bold text-white">{item.display_name}</p>
 
-                          {item.instructions.length > 0 ? (
-                            <div className="mt-4 space-y-2">
-                              {item.instructions.slice(0, 2).map((instruction, index) => (
-                                <p key={`${item.id}-${index}`} className="text-sm leading-6 text-zinc-400">
-                                  {instruction}
-                                </p>
-                              ))}
-                            </div>
-                          ) : null}
-                        </div>
+                        {item.stream_path ? (
+                          <div className="overflow-hidden rounded-[22px] border border-zinc-800 bg-black">
+                            <video
+                              controls
+                              muted
+                              playsInline
+                              preload="metadata"
+                              className="aspect-video w-full bg-black object-contain"
+                            >
+                              <source src={item.stream_path} />
+                              Seu navegador nao conseguiu abrir o video oficial deste exercicio.
+                            </video>
+                          </div>
+                        ) : null}
 
-                        <div className="flex shrink-0 flex-wrap gap-2 lg:justify-end">
-                          {hasExerciseOfficialPreview(item) ? (
+                        <div className="flex flex-wrap gap-2">
+                          {item.stream_path ? (
                             <button
                               type="button"
                               onClick={() => openExercisePreviewModal(item)}
                               className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition-all hover:border-zinc-700"
                             >
-                              Ver demonstracao
+                              Ver video
                             </button>
                           ) : null}
                           <button
@@ -1482,7 +1462,14 @@ export default function TreinosModule() {
                     <div key={`${selectedTreino.id}-${index}`} className="rounded-[24px] border border-zinc-800 bg-black/25 p-4">
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                         <div>
-                          <p className="text-lg font-bold text-white">{exercicio.nome}</p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-lg font-bold text-white">{exercicio.nome}</p>
+                            {exercicio.biblioteca_tem_demonstracao ? (
+                              <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-300">
+                                Guia visual
+                              </span>
+                            ) : null}
+                          </div>
                           <p className="mt-2 text-sm text-zinc-500">{exercicio.observacoes || 'Sem observacoes adicionais.'}</p>
                         </div>
                         <div className="grid gap-3 sm:grid-cols-4">
@@ -1495,11 +1482,17 @@ export default function TreinosModule() {
                       <div className="mt-4 flex justify-end">
                         <button
                           type="button"
-                          onClick={() => void openExercisePreviewByName(exercicio.nome)}
-                          disabled={exercisePreviewLoadingName === exercicio.nome}
+                          onClick={() =>
+                            void openExercisePreviewByName(
+                              exercicio.nome,
+                              exercicio.biblioteca_referencia || exercicio.biblioteca_titulo || null,
+                              `${selectedTreino.id}-${index}`,
+                            )
+                          }
+                          disabled={exercisePreviewLoadingName === `${selectedTreino.id}-${index}`}
                           className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition-all hover:border-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          {exercisePreviewLoadingName === exercicio.nome ? 'Buscando...' : 'Como executar'}
+                          {exercisePreviewLoadingName === `${selectedTreino.id}-${index}` ? 'Buscando...' : 'Como executar'}
                         </button>
                       </div>
                     </div>
@@ -1653,7 +1646,14 @@ export default function TreinosModule() {
                     <div key={`${operationalSession.id}-${item.exercise_index}`} className="rounded-[24px] border border-zinc-800 bg-black/25 p-4">
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div className="min-w-0">
-                          <p className="text-lg font-bold text-white">{item.exercise_name}</p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-lg font-bold text-white">{item.exercise_name}</p>
+                            {operationalTreino.exercicios?.[index]?.biblioteca_tem_demonstracao ? (
+                              <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-300">
+                                Guia visual
+                              </span>
+                            ) : null}
+                          </div>
                           <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">
                             {item.planned_sets ? <span className="rounded-full border border-zinc-800 px-2.5 py-1">{item.planned_sets} series</span> : null}
                             {item.planned_reps ? <span className="rounded-full border border-zinc-800 px-2.5 py-1">{item.planned_reps}</span> : null}
@@ -1674,11 +1674,19 @@ export default function TreinosModule() {
                       <div className="mt-4 flex justify-end">
                         <button
                           type="button"
-                          onClick={() => void openExercisePreviewByName(item.exercise_name)}
-                          disabled={exercisePreviewLoadingName === item.exercise_name}
+                          onClick={() =>
+                            void openExercisePreviewByName(
+                              item.exercise_name,
+                              operationalTreino.exercicios?.[index]?.biblioteca_referencia ||
+                                operationalTreino.exercicios?.[index]?.biblioteca_titulo ||
+                                null,
+                              `${operationalSession.id}-${item.exercise_index}`,
+                            )
+                          }
+                          disabled={exercisePreviewLoadingName === `${operationalSession.id}-${item.exercise_index}`}
                           className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition-all hover:border-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          {exercisePreviewLoadingName === item.exercise_name ? 'Buscando...' : 'Como executar'}
+                          {exercisePreviewLoadingName === `${operationalSession.id}-${item.exercise_index}` ? 'Buscando...' : 'Como executar'}
                         </button>
                       </div>
 

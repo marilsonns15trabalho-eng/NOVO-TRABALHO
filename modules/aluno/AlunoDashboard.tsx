@@ -503,7 +503,11 @@ export default function AlunoDashboard() {
     setSelectedExercisePreview(null);
   };
 
-  const openExercisePreviewByName = async (exerciseName: string, loadingKey: string) => {
+  const openExercisePreviewByName = async (
+    exerciseName: string,
+    loadingKey: string,
+    preferredReference?: string | null,
+  ) => {
     const normalizedName = exerciseName.trim();
     if (!normalizedName) {
       setExercisePreviewError('Este exercicio nao possui nome suficiente para buscar a demonstracao.');
@@ -513,10 +517,9 @@ export default function AlunoDashboard() {
     try {
       setExercisePreviewLoadingKey(loadingKey);
       setExercisePreviewError(null);
-      const response = await exerciseLibraryService.searchOfficialExerciseLibrary(normalizedName);
-      const bestMatch = exerciseLibraryService.pickBestOfficialExerciseMatch(
-        response.results || [],
+      const bestMatch = await exerciseLibraryService.resolveOfficialExercisePreview(
         normalizedName,
+        preferredReference,
       );
 
       if (!bestMatch) {
@@ -1537,7 +1540,14 @@ export default function AlunoDashboard() {
                 <div key={`${executionSession.id}-${item.exercise_index}`} className="rounded-[24px] border border-zinc-800 bg-black/25 p-4">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="max-w-3xl">
-                      <p className="text-lg font-bold text-white">{item.exercise_name}</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-lg font-bold text-white">{item.exercise_name}</p>
+                        {executionTreino.exercicios?.[index]?.biblioteca_tem_demonstracao ? (
+                          <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-300">
+                            Guia visual
+                          </span>
+                        ) : null}
+                      </div>
                       <p className="mt-2 text-xs uppercase tracking-[0.18em] text-zinc-500">
                         Planejado: {item.planned_sets || '-'} series • {item.planned_reps || '-'} reps • carga {item.planned_load || '-'}
                       </p>
@@ -1561,6 +1571,9 @@ export default function AlunoDashboard() {
                         void openExercisePreviewByName(
                           item.exercise_name,
                           `${executionSession.id}-${item.exercise_index}`,
+                          executionTreino.exercicios?.[index]?.biblioteca_referencia ||
+                            executionTreino.exercicios?.[index]?.biblioteca_titulo ||
+                            null,
                         )
                       }
                       disabled={exercisePreviewLoadingKey === `${executionSession.id}-${item.exercise_index}`}

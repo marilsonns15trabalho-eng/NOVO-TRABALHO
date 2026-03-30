@@ -8,6 +8,10 @@ export interface Exercicio {
   carga?: string;
   descanso?: string;
   observacoes?: string;
+  biblioteca_origem?: 'wger' | null;
+  biblioteca_referencia?: string | null;
+  biblioteca_titulo?: string | null;
+  biblioteca_tem_demonstracao?: boolean;
 }
 
 export interface TrainingPlan {
