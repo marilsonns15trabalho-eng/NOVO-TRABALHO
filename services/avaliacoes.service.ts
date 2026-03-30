@@ -235,6 +235,8 @@ export async function salvarAvaliacao(
     typeof data.student_id === 'string' ? data.student_id : undefined,
     user.id,
   );
+  const peso = n(data.peso);
+  const altura = n(data.altura);
 
   const rawDate =
     data.data != null && String(data.data).trim() !== ''
@@ -246,6 +248,14 @@ export async function salvarAvaliacao(
     throw new Error('Informe a data da avaliacao.');
   }
 
+  if (peso === null || peso <= 0) {
+    throw new Error('Informe um peso valido para a avaliacao.');
+  }
+
+  if (altura === null || altura <= 0) {
+    throw new Error('Informe uma altura valida para a avaliacao.');
+  }
+
   const rowId =
     editingId ??
     (typeof avaliacaoData.id === 'string' ? avaliacaoData.id : undefined);
@@ -253,14 +263,14 @@ export async function salvarAvaliacao(
   const payload: Record<string, any> = {
     student_id: studentId,
     data: dataAvaliacao,
-    peso: n(data.peso) ?? 0,
-    altura: n(data.altura) ?? 0,
-    imc: n(data.imc) ?? 0,
-    percentual_gordura: n(data.percentual_gordura) ?? 0,
-    gordura_corporal: n(data.percentual_gordura) ?? 0,
-    massa_magra: n(data.massa_magra) ?? 0,
-    massa_gorda: n(data.massa_gorda) ?? 0,
-    soma_dobras: n(data.soma_dobras) ?? 0,
+    peso,
+    altura,
+    imc: n(data.imc),
+    percentual_gordura: n(data.percentual_gordura),
+    gordura_corporal: n(data.percentual_gordura),
+    massa_magra: n(data.massa_magra),
+    massa_gorda: n(data.massa_gorda),
+    soma_dobras: n(data.soma_dobras),
     protocolo: data.protocolo || 'faulkner',
     observacoes: data.observacoes || null,
     ombro: n(data.ombro),

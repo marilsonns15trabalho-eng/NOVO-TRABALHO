@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotification } from '@/hooks/useNotification';
 import * as avaliacoesService from '@/services/avaliacoes.service';
-import { getLocalDateInputValue } from '@/lib/date';
+import { formatDatePtBr, getLocalDateInputValue } from '@/lib/date';
 import type {
   Avaliacao,
   AvaliacaoAlunoItem,
@@ -14,8 +14,6 @@ import type {
 function createDefaultAvaliacaoForm(): AvaliacaoFormData {
   return {
     data: getLocalDateInputValue(),
-    peso: 0,
-    altura: 0,
     protocolo: 'faulkner',
   };
 }
@@ -79,8 +77,20 @@ export function useAvaliacoes() {
   }, [isReady, loadData, user]);
 
   const filteredAvaliacoes = avaliacoes.filter((avaliacao) => {
-    const nome = avaliacao.students?.nome || '';
-    return nome.toLowerCase().includes(searchTerm.toLowerCase());
+    const needle = searchTerm.trim().toLowerCase();
+
+    if (!needle) {
+      return true;
+    }
+
+    const values = [
+      avaliacao.students?.nome || '',
+      avaliacao.protocolo || '',
+      avaliacao.data || '',
+      formatDatePtBr(avaliacao.data),
+    ];
+
+    return values.some((value) => value.toLowerCase().includes(needle));
   });
 
   const startEdit = useCallback(
@@ -131,6 +141,22 @@ export function useAvaliacoes() {
       try {
         if (isAluno) {
           throw new Error('Acao nao permitida para aluno');
+        }
+
+        if (!newAvaliacao.student_id) {
+          throw new Error('Selecione o aluno antes de salvar a avaliacao.');
+        }
+
+        if (!newAvaliacao.data) {
+          throw new Error('Informe a data da avaliacao.');
+        }
+
+        if (newAvaliacao.peso === null || newAvaliacao.peso === undefined || Number(newAvaliacao.peso) <= 0) {
+          throw new Error('Informe um peso valido para a avaliacao.');
+        }
+
+        if (newAvaliacao.altura === null || newAvaliacao.altura === undefined || Number(newAvaliacao.altura) <= 0) {
+          throw new Error('Informe uma altura valida para a avaliacao.');
         }
 
         const savedAvaliacao = await avaliacoesService.salvarAvaliacao(

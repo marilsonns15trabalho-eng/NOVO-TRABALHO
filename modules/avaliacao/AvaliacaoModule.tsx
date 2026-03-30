@@ -1,7 +1,9 @@
 'use client';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
+  ArrowDown,
+  ArrowUp,
   Plus,
   Loader2,
   Search,
@@ -27,10 +29,13 @@ import AssessmentPhotoGallery from '@/components/avaliacao/AssessmentPhotoGaller
 import AssessmentPhotoUploader from '@/components/avaliacao/AssessmentPhotoUploader';
 import { Toast } from '@/components/ui';
 import {
+  ModuleEmptyState,
   ModuleHero,
   ModuleHeroAction,
+  ModuleSectionHeading,
   ModuleShell,
   ModuleStatCard,
+  ModuleSurface,
 } from '@/components/dashboard/ModulePrimitives';
 
 import { createPhotoDraftMap, revokePhotoDraftUrls } from '@/lib/assessmentPhotos';
@@ -40,6 +45,15 @@ import { exportAvaliacaoPdf } from '@/lib/pdf/exportAvaliacaoPdf';
 import { exportAvaliacaoEvolutionPdf } from '@/lib/pdf/exportAvaliacaoEvolutionPdf';
 import { syncAvaliacaoPhotos } from '@/services/avaliacoes.service';
 import type { Avaliacao, AvaliacaoPhotoDraftMap, AvaliacaoPhotoPosition } from '@/types/avaliacao';
+
+function parseOptionalDecimal(value: string) {
+  if (!value.trim()) {
+    return undefined;
+  }
+
+  const parsed = Number(value.replace(',', '.'));
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
 
 export default function AvaliacaoModule() {
   const { isAdmin, isProfessor } = useUserRole();
@@ -75,6 +89,7 @@ export default function AvaliacaoModule() {
   const [alunoSearch, setAlunoSearch] = useState('');
   const [showAlunoDropdown, setShowAlunoDropdown] = useState(false);
   const [photoDrafts, setPhotoDrafts] = useState<AvaliacaoPhotoDraftMap>(() => createPhotoDraftMap());
+  const alunoPickerRef = useRef<HTMLDivElement | null>(null);
 
   const comparisonBase = useMemo(() => {
     if (!selectedReport) {
@@ -243,6 +258,23 @@ export default function AvaliacaoModule() {
     doc.save(`Avaliacao_${avaliacao.students?.nome}_${avaliacao.data}.pdf`);
   };
 
+  useEffect(() => {
+    if (!showAddModal || !showAlunoDropdown) {
+      return undefined;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (alunoPickerRef.current && !alunoPickerRef.current.contains(event.target as Node)) {
+        setShowAlunoDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+    };
+  }, [showAddModal, showAlunoDropdown]);
+
   // Filtro local por data
   const filteredAvaliacoes = avaliacoes.filter((a: any) => {
     const avaliacaoDate = extractDateOnly(a.data);
@@ -262,6 +294,11 @@ export default function AvaliacaoModule() {
   const avaliacoesNoMes = filteredAvaliacoes.filter((avaliacao: any) => {
     return isSameMonthDate(avaliacao.data);
   }).length;
+  const canSaveAvaliacao =
+    Boolean(newAvaliacao.student_id) &&
+    Boolean(newAvaliacao.data) &&
+    Number(newAvaliacao.peso) > 0 &&
+    Number(newAvaliacao.altura) > 0;
 
   return (
     <ModuleShell>
@@ -316,13 +353,19 @@ export default function AvaliacaoModule() {
         />
       </div>
 
-      <div className="space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+      <ModuleSurface className="space-y-6">
+      <ModuleSectionHeading
+        eyebrow="Controle de registros"
+        title="Historico de avaliacoes"
+        description="Pesquise por aluna, protocolo ou data e abra o relatorio quando precisar."
+        actionLabel={canManageRecords ? 'Nova avaliacao' : undefined}
+        onActionClick={canManageRecords ? handleOpenNovaAvaliacao : undefined}
+      />
+        <div className="hidden">
           <h2 className="text-3xl font-bold tracking-tight">Avaliação Física</h2>
           <p className="text-zinc-500">Acompanhe a evolução corporal e os resultados dos seus alunos.</p>
         </div>
-        {canManageRecords && (
+        {false && canManageRecords && (
           <button
             type="button"
             onClick={handleOpenNovaAvaliacao}
@@ -332,47 +375,46 @@ export default function AvaliacaoModule() {
             Nova Avaliação
           </button>
         )}
-      </div>
 
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col gap-4 lg:flex-row">
         <div className="relative flex-1 group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-hover:text-purple-500 transition-colors" size={20} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-hover:text-rose-400 transition-colors" size={20} />
           <input
             type="text"
-            placeholder="Buscar por nome do aluno..."
+            placeholder="Buscar por nome, data ou protocolo..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl py-3 pl-12 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all"
+            className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl py-3 pl-12 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-rose-500/40 focus:border-rose-500 transition-all"
           />
         </div>
-        <div className="flex gap-2">
-          <input type="date" value={filterDataInicio} onChange={(e) => setFilterDataInicio(e.target.value)} className="bg-zinc-900 border border-zinc-800 rounded-2xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all [color-scheme:dark]" />
-          <input type="date" value={filterDataFim} onChange={(e) => setFilterDataFim(e.target.value)} className="bg-zinc-900 border border-zinc-800 rounded-2xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all [color-scheme:dark]" />
+        <div className="grid gap-2 sm:grid-cols-2 lg:w-[320px]">
+          <input type="date" value={filterDataInicio} onChange={(e) => setFilterDataInicio(e.target.value)} className="bg-zinc-900 border border-zinc-800 rounded-2xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-rose-500/40 focus:border-rose-500 transition-all [color-scheme:dark]" />
+          <input type="date" value={filterDataFim} onChange={(e) => setFilterDataFim(e.target.value)} className="bg-zinc-900 border border-zinc-800 rounded-2xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-rose-500/40 focus:border-rose-500 transition-all [color-scheme:dark]" />
         </div>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-xl">
+      <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/70 shadow-xl">
         {loading ? (
-          <div className="p-20 flex flex-col items-center justify-center space-y-4">
+          <div className="flex flex-col items-center justify-center space-y-4 p-16">
             <Loader2 className="text-purple-500 animate-spin" size={40} />
-            <p className="text-zinc-500 font-medium">Carregando avaliações...</p>
+            <p className="text-zinc-500 font-medium">Carregando avaliacoes...</p>
           </div>
         ) : filteredAvaliacoes.length > 0 ? (
-          <div className="overflow-x-auto">
+          <div className="-mx-4 overflow-x-auto md:mx-0">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-zinc-800 bg-zinc-900/50">
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-zinc-500">Aluno</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-zinc-500">Data</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-zinc-500">Peso / Altura</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-zinc-500">BF (%)</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-zinc-500 text-right">Ações</th>
+                <tr className="border-b border-zinc-800 bg-zinc-900/60">
+                  <th className="px-4 py-4 text-xs font-bold uppercase tracking-widest text-zinc-500 md:px-6">Aluno</th>
+                  <th className="px-4 py-4 text-xs font-bold uppercase tracking-widest text-zinc-500 md:px-6">Data</th>
+                  <th className="px-4 py-4 text-xs font-bold uppercase tracking-widest text-zinc-500 md:px-6">Peso / Altura</th>
+                  <th className="px-4 py-4 text-xs font-bold uppercase tracking-widest text-zinc-500 md:px-6">BF (%)</th>
+                  <th className="px-4 py-4 text-xs font-bold uppercase tracking-widest text-zinc-500 text-right md:px-6">Acoes</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/50">
                 {filteredAvaliacoes.map((avaliacao: any) => (
                   <tr key={avaliacao.id} className="hover:bg-zinc-800/30 transition-colors group">
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-4 md:px-6">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-500 border border-purple-500/20 group-hover:bg-purple-500 group-hover:text-white transition-colors">
                           <User size={18} />
@@ -382,13 +424,13 @@ export default function AvaliacaoModule() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-4 md:px-6">
                       <div className="flex items-center gap-2 text-sm text-zinc-300">
                         <Calendar size={14} className="text-zinc-500" />
                         {formatDatePtBr(avaliacao.data)}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-4 md:px-6">
                       <div className="flex flex-col gap-1 text-sm text-zinc-300">
                         <div className="flex items-center gap-2">
                           <Scale size={14} className="text-zinc-500" />
@@ -400,18 +442,18 @@ export default function AvaliacaoModule() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-4 md:px-6">
                       <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-purple-500/10 text-purple-500 border border-purple-500/20">
                         <Activity size={12} />
                         {avaliacao.percentual_gordura ? `${avaliacao.percentual_gordura}%` : 'N/A'}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-4 py-4 text-right md:px-6">
                       <button
                         onClick={() => handleViewReport(avaliacao)}
                         className="px-4 py-2 bg-purple-500/10 text-purple-500 hover:bg-purple-500 hover:text-white rounded-xl text-xs font-bold transition-all mr-2"
                       >
-                        Ver Relatório
+                        Ver relatorio
                       </button>
                       {canManageRecords && (
                         <button
@@ -428,13 +470,11 @@ export default function AvaliacaoModule() {
             </table>
           </div>
         ) : (
-          <div className="p-20 text-center space-y-4">
-            <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto">
-              <Activity className="text-zinc-600" size={32} />
-            </div>
-            <h3 className="text-xl font-bold">Nenhuma avaliação cadastrada</h3>
-            <p className="text-zinc-500">Registre a primeira avaliação física para acompanhar a evolução.</p>
-          </div>
+          <ModuleEmptyState
+            icon={Activity}
+            title="Nenhuma avaliacao encontrada"
+            description="Ajuste os filtros ou registre a primeira avaliacao fisica para acompanhar a evolucao."
+          />
         )}
       </div>
 
@@ -497,7 +537,7 @@ export default function AvaliacaoModule() {
                       const diff = selectedReport.percentual_gordura! - prevEval.percentual_gordura!;
                       return (
                         <div className={`absolute top-4 right-4 text-xs font-bold flex items-center gap-1 ${diff < 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                          {diff < 0 ? '↓' : '↑'}
+                          {diff < 0 ? <ArrowDown size={12} /> : <ArrowUp size={12} />}
                           {Math.abs(diff).toFixed(1)}%
                         </div>
                       );
@@ -515,7 +555,7 @@ export default function AvaliacaoModule() {
                       const diff = selectedReport.massa_magra! - prevEval.massa_magra!;
                       return (
                         <div className={`absolute top-4 right-4 text-xs font-bold flex items-center gap-1 ${diff > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                          {diff > 0 ? '↑' : '↓'}
+                          {diff > 0 ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
                           {Math.abs(diff).toFixed(1)}kg
                         </div>
                       );
@@ -533,7 +573,7 @@ export default function AvaliacaoModule() {
                       const diff = selectedReport.massa_gorda! - prevEval.massa_gorda!;
                       return (
                         <div className={`absolute top-4 right-4 text-xs font-bold flex items-center gap-1 ${diff < 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                          {diff < 0 ? '↓' : '↑'}
+                          {diff < 0 ? <ArrowDown size={12} /> : <ArrowUp size={12} />}
                           {Math.abs(diff).toFixed(1)}kg
                         </div>
                       );
@@ -664,7 +704,7 @@ export default function AvaliacaoModule() {
               initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }}
               className="relative bg-zinc-900 border border-zinc-800 rounded-3xl p-8 w-full max-w-4xl shadow-2xl max-h-[90vh] overflow-y-auto"
             >
-              <h3 className="text-2xl font-bold mb-6">Nova Avaliação</h3>
+              <h3 className="text-2xl font-bold mb-6">{editingAvaliacao ? 'Editar avaliacao' : 'Nova avaliacao'}</h3>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -679,7 +719,7 @@ export default function AvaliacaoModule() {
                 className="space-y-6"
               >
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-1.5 relative">
+                  <div ref={alunoPickerRef} className="space-y-1.5 relative">
                     <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Aluno *</label>
                     <input
                       required
@@ -687,6 +727,7 @@ export default function AvaliacaoModule() {
                       value={alunoSearch}
                       onChange={(e) => { setAlunoSearch(e.target.value); setShowAlunoDropdown(true); }}
                       onFocus={() => setShowAlunoDropdown(true)}
+                      aria-expanded={showAlunoDropdown}
                       className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 outline-none transition-all"
                       placeholder="Digite ou selecione o aluno..."
                     />
@@ -731,11 +772,11 @@ export default function AvaliacaoModule() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Peso (kg) *</label>
-                    <input required type="number" step="0.1" value={newAvaliacao.peso ?? ''} onChange={(e) => handleAvaliacaoFieldChange('peso', parseFloat(e.target.value) || 0)} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 outline-none transition-all" placeholder="75.5" />
+                    <input required type="number" step="0.1" value={newAvaliacao.peso ?? ''} onChange={(e) => handleAvaliacaoFieldChange('peso', parseOptionalDecimal(e.target.value))} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 outline-none transition-all" placeholder="75.5" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Altura (m ou cm) *</label>
-                    <input required type="number" step="0.01" value={newAvaliacao.altura ?? ''} onChange={(e) => handleAvaliacaoFieldChange('altura', parseFloat(e.target.value) || 0)} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 outline-none transition-all" placeholder="1.75 m ou 175 cm" />
+                    <input required type="number" step="0.01" value={newAvaliacao.altura ?? ''} onChange={(e) => handleAvaliacaoFieldChange('altura', parseOptionalDecimal(e.target.value))} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 outline-none transition-all" placeholder="1.75 m ou 175 cm" />
                   </div>
                 </div>
 
@@ -792,11 +833,11 @@ export default function AvaliacaoModule() {
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Soma Dobras</label>
-                      <input type="number" readOnly value={newAvaliacao.soma_dobras || ''} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-zinc-400 cursor-not-allowed outline-none" placeholder="0.0" />
+                      <input type="number" readOnly value={newAvaliacao.soma_dobras ?? ''} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-zinc-400 cursor-not-allowed outline-none" placeholder="0.0" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">IMC</label>
-                      <input type="number" readOnly value={newAvaliacao.imc || ''} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-zinc-400 cursor-not-allowed outline-none" placeholder="Calculado auto." />
+                      <input type="number" readOnly value={newAvaliacao.imc ?? ''} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-zinc-400 cursor-not-allowed outline-none" placeholder="Calculado auto." />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">% Gordura (BF)</label>
@@ -804,11 +845,11 @@ export default function AvaliacaoModule() {
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Massa Gorda (kg)</label>
-                      <input type="number" readOnly value={newAvaliacao.massa_gorda || ''} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-zinc-400 cursor-not-allowed outline-none" placeholder="Calculado auto." />
+                      <input type="number" readOnly value={newAvaliacao.massa_gorda ?? ''} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-zinc-400 cursor-not-allowed outline-none" placeholder="Calculado auto." />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Massa Magra (kg)</label>
-                      <input type="number" readOnly value={newAvaliacao.massa_magra || ''} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-zinc-400 cursor-not-allowed outline-none" placeholder="Calculado auto." />
+                      <input type="number" readOnly value={newAvaliacao.massa_magra ?? ''} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-zinc-400 cursor-not-allowed outline-none" placeholder="Calculado auto." />
                     </div>
                   </div>
                 </div>
@@ -824,9 +865,25 @@ export default function AvaliacaoModule() {
                   <textarea value={newAvaliacao.observacoes || ''} onChange={(e) => handleAvaliacaoFieldChange('observacoes', e.target.value)} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 outline-none transition-all min-h-[100px]" placeholder="Observações gerais..."></textarea>
                 </div>
 
+                {!canSaveAvaliacao ? (
+                  <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                    Preencha aluna, data, peso e altura para liberar o salvamento.
+                  </div>
+                ) : null}
+
                 <div className="flex gap-3 pt-4">
                   <button type="button" onClick={handleCloseAvaliacaoModal} className="flex-1 py-4 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-2xl transition-all">Cancelar</button>
-                  <button type="submit" className="flex-1 py-4 bg-purple-500 hover:bg-purple-600 text-white font-bold rounded-2xl transition-all shadow-lg shadow-purple-500/20">Salvar Avaliação</button>
+                  <button
+                    type="submit"
+                    disabled={!canSaveAvaliacao}
+                    className={`flex-1 rounded-2xl py-4 font-bold transition-all shadow-lg ${
+                      canSaveAvaliacao
+                        ? 'bg-purple-500 text-white shadow-purple-500/20 hover:bg-purple-600'
+                        : 'cursor-not-allowed bg-zinc-800 text-zinc-500 shadow-transparent'
+                    }`}
+                  >
+                    Salvar avaliacao
+                  </button>
                 </div>
               </form>
             </motion.div>
@@ -835,7 +892,7 @@ export default function AvaliacaoModule() {
       </AnimatePresence>
 
       <Toast notification={notification} onClose={clearNotification} />
-      </div>
+      </ModuleSurface>
     </ModuleShell>
   );
 }
