@@ -290,6 +290,7 @@ async function exportAnamnesePdf(anamnese: Anamnese) {
         { label: 'Acompanhamento psicologico', value: anamnese.acompanhamento_psicologico },
         { label: 'Disturbios alimentares', value: anamnese.disturbios_alimentares },
         { label: 'Gravida ou amamentando', value: anamnese.gravida_amamentando },
+        { label: 'Acompanhamento previo', value: anamnese.acompanhamento_previo },
       ]),
     },
     {
@@ -337,6 +338,7 @@ async function exportAnamnesePdf(anamnese: Anamnese) {
         { label: 'Controle de peso anterior', value: anamnese.estrategias_controle_peso },
         { label: 'Meta de peso e medidas', value: anamnese.meta_peso_medidas },
         { label: 'Disposicao para mudancas', value: anamnese.disposicao_mudancas },
+        { label: 'Dificuldade com dietas', value: anamnese.dificuldade_dietas },
         { label: 'Preferencia de dietas', value: anamnese.preferencia_dietas },
         { label: 'Expectativas', value: anamnese.expectativas },
         { label: 'Observacoes', value: anamnese.observacoes },
@@ -545,6 +547,7 @@ export default function AnamneseModule() {
     () => alunos.find((aluno) => aluno.id === newAnamnese.student_id),
     [alunos, newAnamnese.student_id],
   );
+  const canSaveAnamnese = Boolean(newAnamnese.student_id && newAnamnese.data);
 
   const handleFieldChange = <K extends keyof AnamneseFormData>(field: K, value: AnamneseFormData[K]) => {
     setNewAnamnese((current) => ({
@@ -1158,7 +1161,12 @@ export default function AnamneseModule() {
                 <button
                   type="button"
                   onClick={() => void handleSave()}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-bold text-black transition-all hover:bg-orange-400"
+                  disabled={!canSaveAnamnese}
+                  className={`inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold transition-all ${
+                    canSaveAnamnese
+                      ? 'bg-orange-500 text-black hover:bg-orange-400'
+                      : 'cursor-not-allowed bg-zinc-800 text-zinc-500'
+                  }`}
                 >
                   <Save size={16} />
                   {editingAnamnese ? 'Salvar ajustes' : 'Salvar anamnese'}
@@ -1281,6 +1289,11 @@ export default function AnamneseModule() {
                     {newAnamnese.peso ? `${formatNumber(newAnamnese.peso)} kg` : '-'} / {newAnamnese.altura ? `${formatNumber(newAnamnese.altura, 2)} m` : '-'}
                   </span></p>
                 </div>
+                {!canSaveAnamnese ? (
+                  <p className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-3 py-3 text-xs leading-5 text-amber-200">
+                    Para concluir, selecione a aluna e confirme a data da anamnese.
+                  </p>
+                ) : null}
               </div>
             </div>
           </div>

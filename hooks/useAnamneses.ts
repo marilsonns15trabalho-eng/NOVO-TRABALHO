@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotification } from '@/hooks/useNotification';
 import * as anamnesesService from '@/services/anamneses.service';
-import { getLocalDateInputValue } from '@/lib/date';
+import { formatDatePtBr, getLocalDateInputValue } from '@/lib/date';
 import type { AlunoListItem } from '@/types/common';
 import type { Anamnese, AnamneseFormData, AnamneseStudentContext } from '@/types/anamnese';
 
@@ -88,6 +88,7 @@ export function useAnamneses() {
         anamnese.students?.nome || '',
         anamnese.objetivo_nutricional || '',
         anamnese.data || '',
+        formatDatePtBr(anamnese.data),
       ];
 
       return values.some((value) => value.toLowerCase().includes(needle));
@@ -171,6 +172,14 @@ export function useAnamneses() {
     try {
       if (isAluno) {
         throw new Error('Acao nao permitida para aluno.');
+      }
+
+      if (!newAnamnese.student_id) {
+        throw new Error('Selecione a aluna antes de salvar a anamnese.');
+      }
+
+      if (!newAnamnese.data) {
+        throw new Error('Informe a data da anamnese antes de salvar.');
       }
 
       if (editingAnamnese?.id) {
