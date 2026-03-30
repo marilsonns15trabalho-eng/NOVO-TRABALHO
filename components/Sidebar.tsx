@@ -125,9 +125,6 @@ export default function Sidebar({ activeTab, setActiveTab, userRole }: SidebarPr
 
                 <div>
                   <p className="font-semibold">{item.label}</p>
-                  <p className="text-[11px] uppercase tracking-[0.24em] text-zinc-600">
-                    Area
-                  </p>
                 </div>
               </div>
 
