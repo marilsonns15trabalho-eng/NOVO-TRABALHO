@@ -24,8 +24,10 @@ import { useUserRole } from '@/hooks/useUserRole';
 import { Toast } from '@/components/ui';
 import { formatDatePtBr } from '@/lib/date';
 import { formatTrainingDay } from '@/lib/training';
+import * as exerciseLibraryService from '@/services/exerciseLibrary.service';
 import * as treinosService from '@/services/treinos.service';
 import type { StudentListItem } from '@/types/common';
+import type { ExerciseLibraryItem } from '@/types/exercise-library';
 import type { TrainingPlan, Treino, TreinoExecutionItem, TreinoExecutionSession } from '@/types/treino';
 
 const SPLIT_PRESETS = [
@@ -41,6 +43,10 @@ function getSplitDisplayLabel(splitLabel?: string | null) {
 
   const preset = SPLIT_PRESETS.find((item) => item.value === splitLabel.trim().toUpperCase());
   return preset?.label || splitLabel;
+}
+
+function hasExerciseOfficialPreview(item: ExerciseLibraryItem) {
+  return Boolean(item.stream_path || item.preview_image_url || item.gallery_image_urls.length > 0);
 }
 
 function SectionTitle({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
@@ -291,6 +297,13 @@ export default function TreinosModule() {
   const [operationalTreino, setOperationalTreino] = useState<Treino | null>(null);
   const [operationalStudent, setOperationalStudent] = useState<StudentListItem | null>(null);
   const [operationalSaving, setOperationalSaving] = useState(false);
+  const [showExerciseLibraryModal, setShowExerciseLibraryModal] = useState(false);
+  const [exerciseLibraryQuery, setExerciseLibraryQuery] = useState('');
+  const [exerciseLibraryLoading, setExerciseLibraryLoading] = useState(false);
+  const [exerciseLibraryResults, setExerciseLibraryResults] = useState<ExerciseLibraryItem[]>([]);
+  const [exerciseLibraryError, setExerciseLibraryError] = useState<string | null>(null);
+  const [selectedExercisePreview, setSelectedExercisePreview] = useState<ExerciseLibraryItem | null>(null);
+  const [selectedExercisePreviewImage, setSelectedExercisePreviewImage] = useState<string | null>(null);
   const state = useTreinos();
   const {
     treinos,
@@ -511,6 +524,91 @@ export default function TreinosModule() {
     setOperationalSession(null);
     setOperationalTreino(null);
     setOperationalStudent(null);
+  };
+
+  const openExerciseLibraryModal = () => {
+    setShowExerciseLibraryModal(true);
+    setExerciseLibraryError(null);
+  };
+
+  const closeExercisePreviewModal = () => {
+    setSelectedExercisePreview(null);
+    setSelectedExercisePreviewImage(null);
+  };
+
+  const closeExerciseLibraryModal = () => {
+    setShowExerciseLibraryModal(false);
+    setExerciseLibraryError(null);
+    closeExercisePreviewModal();
+  };
+
+  const openExercisePreviewModal = (item: ExerciseLibraryItem) => {
+    setSelectedExercisePreview(item);
+    setSelectedExercisePreviewImage(item.preview_image_url || item.gallery_image_urls[0] || null);
+  };
+
+  const handleSearchExerciseLibrary = async () => {
+    const query = exerciseLibraryQuery.trim();
+    if (query.length < 2) {
+      setExerciseLibraryError('Digite pelo menos 2 letras para buscar.');
+      setExerciseLibraryResults([]);
+      return;
+    }
+
+    try {
+      setExerciseLibraryLoading(true);
+      setExerciseLibraryError(null);
+      const response = await exerciseLibraryService.searchOfficialExerciseLibrary(query);
+      setExerciseLibraryResults(response.results || []);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Nao foi possivel consultar a biblioteca oficial.';
+      setExerciseLibraryError(message);
+      setExerciseLibraryResults([]);
+    } finally {
+      setExerciseLibraryLoading(false);
+    }
+  };
+
+  const addExerciseFromLibrary = (item: ExerciseLibraryItem) => {
+    setNewTreino((current) => {
+      const currentExercises = current.exercicios || [];
+      const preparedExercise = {
+        nome: item.display_name,
+        grupo_muscular: item.primary_muscle_label || '',
+        series: 3,
+        repeticoes: '12',
+        carga: '',
+        descanso: '60s',
+        observacoes: '',
+      };
+
+      const blankIndex = currentExercises.findIndex(
+        (exercise) =>
+          !exercise.nome?.trim() &&
+          !exercise.grupo_muscular?.trim() &&
+          !exercise.carga?.trim() &&
+          !exercise.descanso?.trim() &&
+          !exercise.observacoes?.trim(),
+      );
+
+      if (blankIndex >= 0) {
+        return {
+          ...current,
+          exercicios: currentExercises.map((exercise, index) =>
+            index === blankIndex ? preparedExercise : exercise,
+          ),
+        };
+      }
+
+      return {
+        ...current,
+        exercicios: [...currentExercises, preparedExercise],
+      };
+    });
+
+    showNotification(`${item.display_name} adicionado ao treino.`, 'success');
+    closeExerciseLibraryModal();
   };
 
   const saveOperationalExecution = async (markCompleted = false) => {
@@ -1105,9 +1203,15 @@ export default function TreinosModule() {
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">Exercicios</p>
-                      <p className="mt-1 text-sm text-zinc-500">Monte a estrutura manual do treino.</p>
+                      <p className="mt-1 text-sm text-zinc-500">Monte a estrutura manualmente ou busque nomes prontos na biblioteca oficial.</p>
                     </div>
-                    <button type="button" onClick={addExercicio} className="inline-flex items-center gap-2 rounded-2xl border border-sky-500/20 bg-sky-500/10 px-4 py-3 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500 hover:text-black"><Plus size={16} />Adicionar</button>
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" onClick={openExerciseLibraryModal} className="inline-flex items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition-all hover:border-zinc-700">
+                        <Search size={16} />
+                        Biblioteca oficial
+                      </button>
+                      <button type="button" onClick={addExercicio} className="inline-flex items-center gap-2 rounded-2xl border border-sky-500/20 bg-sky-500/10 px-4 py-3 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500 hover:text-black"><Plus size={16} />Adicionar</button>
+                    </div>
                   </div>
                   <div className="space-y-4">
                     {(newTreino.exercicios || []).map((exercicio, index) => (
@@ -1135,6 +1239,308 @@ export default function TreinosModule() {
             </motion.div>
           </div>
         )}
+
+        {showExerciseLibraryModal && canManageRecords && (
+          <div className="fixed inset-0 z-[55] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeExerciseLibraryModal} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.96, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0, y: 20 }} className="relative w-full max-w-5xl rounded-[30px] border border-zinc-800 bg-zinc-950 p-5 shadow-2xl max-h-[94vh] overflow-y-auto md:p-8">
+              <div className="flex items-start justify-between gap-4">
+                <SectionTitle eyebrow="Biblioteca oficial" title="Buscar exercicios prontos" description="A busca aceita nomes em portugues, consulta a biblioteca gratuita do wger e retorna nomes mais amigaveis para a equipe." />
+                <CloseModalButton onClick={closeExerciseLibraryModal} />
+              </div>
+
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void handleSearchExerciseLibrary();
+                }}
+                className="mt-6 grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]"
+              >
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
+                  <input
+                    value={exerciseLibraryQuery}
+                    onChange={(event) => setExerciseLibraryQuery(event.target.value)}
+                    className="w-full rounded-2xl border border-zinc-800 bg-black px-11 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30"
+                    placeholder="Ex.: rosca, agachamento, remada, supino"
+                  />
+                </div>
+                <button type="submit" disabled={exerciseLibraryLoading} className="rounded-2xl bg-sky-500 px-4 py-3 font-bold text-black transition-all hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60">
+                  {exerciseLibraryLoading ? 'Buscando...' : 'Buscar'}
+                </button>
+              </form>
+
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                <span className="rounded-full border border-zinc-800 px-3 py-1">Powered by wger</span>
+                <span className="rounded-full border border-zinc-800 px-3 py-1">Imagem e video oficiais quando disponiveis</span>
+                <span className="rounded-full border border-zinc-800 px-3 py-1">Licenca por exercicio exibida no detalhe</span>
+              </div>
+
+              {exerciseLibraryError ? (
+                <div className="mt-4 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-4 text-sm text-rose-200">
+                  {exerciseLibraryError}
+                </div>
+              ) : null}
+
+              <div className="mt-6 space-y-3">
+                {exerciseLibraryResults.length === 0 ? (
+                  <div className="rounded-[24px] border border-dashed border-zinc-800 bg-black/20 px-5 py-6 text-sm text-zinc-500">
+                    {exerciseLibraryLoading
+                      ? 'Consultando a biblioteca oficial...'
+                      : 'Busque um exercicio para carregar sugestoes prontas da biblioteca oficial.'}
+                  </div>
+                ) : (
+                  exerciseLibraryResults.map((item) => (
+                    <div key={item.id} className="rounded-[24px] border border-zinc-800 bg-black/20 p-4">
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-lg font-bold text-white">{item.display_name}</p>
+                            {item.has_official_video ? (
+                              <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-bold text-emerald-300">
+                                Video disponivel
+                              </span>
+                            ) : null}
+                          </div>
+                          {item.original_name !== item.display_name ? (
+                            <p className="mt-1 text-sm text-zinc-500">Nome original: {item.original_name}</p>
+                          ) : null}
+                          <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+                            {item.primary_muscle_label ? (
+                              <span className="rounded-full border border-orange-500/20 px-2.5 py-1 text-orange-300">
+                                {item.primary_muscle_label}
+                              </span>
+                            ) : null}
+                            {item.category_label ? (
+                              <span className="rounded-full border border-zinc-800 px-2.5 py-1">
+                                {item.category_label}
+                              </span>
+                            ) : null}
+                            {item.preview_image_url ? (
+                              <span className="rounded-full border border-zinc-800 px-2.5 py-1">
+                                Imagem oficial
+                              </span>
+                            ) : null}
+                            {item.difficulty ? (
+                              <span className="rounded-full border border-zinc-800 px-2.5 py-1">
+                                {item.difficulty}
+                              </span>
+                            ) : null}
+                          </div>
+
+                          {item.instructions.length > 0 ? (
+                            <div className="mt-4 space-y-2">
+                              {item.instructions.slice(0, 2).map((instruction, index) => (
+                                <p key={`${item.id}-${index}`} className="text-sm leading-6 text-zinc-400">
+                                  {instruction}
+                                </p>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <div className="flex shrink-0 flex-wrap gap-2 lg:justify-end">
+                          {hasExerciseOfficialPreview(item) ? (
+                            <button
+                              type="button"
+                              onClick={() => openExercisePreviewModal(item)}
+                              className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition-all hover:border-zinc-700"
+                            >
+                              Ver demonstracao
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => addExerciseFromLibrary(item)}
+                            className="rounded-2xl border border-sky-500/20 bg-sky-500/10 px-4 py-3 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500 hover:text-black"
+                          >
+                            Adicionar ao treino
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {selectedExercisePreview && canManageRecords && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={closeExercisePreviewModal}
+              className="absolute inset-0 bg-black/85 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.96, opacity: 0, y: 20 }}
+              className="relative w-full max-w-6xl overflow-y-auto rounded-[30px] border border-zinc-800 bg-zinc-950 p-5 shadow-2xl max-h-[94vh] md:p-8"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <SectionTitle
+                  eyebrow="Demonstracao oficial"
+                  title={selectedExercisePreview.display_name}
+                  description="Use a demonstracao para validar a execucao antes de adicionar o exercicio ao treino."
+                />
+                <CloseModalButton onClick={closeExercisePreviewModal} />
+              </div>
+
+              <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.85fr)]">
+                <div className="min-w-0 space-y-4">
+                  {selectedExercisePreview.stream_path ? (
+                    <div className="overflow-hidden rounded-[28px] border border-zinc-800 bg-black">
+                      <video
+                        key={selectedExercisePreview.stream_path}
+                        controls
+                        playsInline
+                        preload="metadata"
+                        poster={selectedExercisePreviewImage || undefined}
+                        className="aspect-[4/5] w-full bg-black object-contain sm:aspect-video"
+                      >
+                        <source src={selectedExercisePreview.stream_path} />
+                        Seu navegador nao conseguiu abrir o video oficial deste exercicio.
+                      </video>
+                    </div>
+                  ) : selectedExercisePreviewImage ? (
+                    <div className="overflow-hidden rounded-[28px] border border-zinc-800 bg-black">
+                      <img
+                        src={selectedExercisePreviewImage}
+                        alt={selectedExercisePreview.display_name}
+                        className="aspect-[4/5] w-full bg-black object-contain sm:aspect-video"
+                        loading="lazy"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex min-h-[320px] items-center justify-center rounded-[28px] border border-dashed border-zinc-800 bg-black/25 px-5 py-8 text-center text-sm leading-6 text-zinc-500">
+                      Nenhuma imagem ou video oficial disponivel para este exercicio na biblioteca no momento.
+                    </div>
+                  )}
+
+                  {selectedExercisePreview.gallery_image_urls.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      {selectedExercisePreview.gallery_image_urls.map((imageUrl, index) => {
+                        const isActive = selectedExercisePreviewImage === imageUrl;
+                        return (
+                          <button
+                            key={`${selectedExercisePreview.id}-gallery-${index}`}
+                            type="button"
+                            onClick={() => setSelectedExercisePreviewImage(imageUrl)}
+                            className={`overflow-hidden rounded-[22px] border transition-all ${
+                              isActive
+                                ? 'border-sky-500 bg-sky-500/10'
+                                : 'border-zinc-800 bg-black/30 hover:border-zinc-700'
+                            }`}
+                          >
+                            <img
+                              src={imageUrl}
+                              alt={`${selectedExercisePreview.display_name} ${index + 1}`}
+                              className="aspect-square w-full object-cover"
+                              loading="lazy"
+                            />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="space-y-4">
+                  {selectedExercisePreview.original_name !== selectedExercisePreview.display_name ? (
+                    <div className="rounded-[24px] border border-zinc-800 bg-black/25 p-4">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Nome original</p>
+                      <p className="mt-2 text-base font-bold text-white">{selectedExercisePreview.original_name}</p>
+                    </div>
+                  ) : null}
+
+                  <div className="rounded-[24px] border border-zinc-800 bg-black/25 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Resumo rapido</p>
+                    <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+                      {selectedExercisePreview.primary_muscle_label ? (
+                        <span className="rounded-full border border-orange-500/20 px-2.5 py-1 text-orange-300">
+                          {selectedExercisePreview.primary_muscle_label}
+                        </span>
+                      ) : null}
+                      {selectedExercisePreview.category_label ? (
+                        <span className="rounded-full border border-zinc-800 px-2.5 py-1">
+                          {selectedExercisePreview.category_label}
+                        </span>
+                      ) : null}
+                      {selectedExercisePreview.has_official_video ? (
+                        <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-emerald-300">
+                          Video oficial
+                        </span>
+                      ) : null}
+                      {selectedExercisePreview.preview_image_url ? (
+                        <span className="rounded-full border border-zinc-800 px-2.5 py-1">
+                          Foto oficial
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="rounded-[24px] border border-zinc-800 bg-black/25 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Como executar</p>
+                    {selectedExercisePreview.instructions.length > 0 ? (
+                      <div className="mt-3 space-y-3">
+                        {selectedExercisePreview.instructions.map((instruction, index) => (
+                          <p key={`${selectedExercisePreview.id}-instruction-${index}`} className="text-sm leading-6 text-zinc-300">
+                            {instruction}
+                          </p>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-sm leading-6 text-zinc-500">
+                        A biblioteca oficial nao enviou instrucoes detalhadas para este exercicio.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="rounded-[24px] border border-zinc-800 bg-black/25 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Fonte e licenca</p>
+                    <div className="mt-3 space-y-2 text-sm leading-6 text-zinc-300">
+                      <p>Fonte: wger</p>
+                      <p>Licenca: {selectedExercisePreview.license_name || 'Nao informada'}</p>
+                      <p>Autor: {selectedExercisePreview.license_author || 'Nao informado'}</p>
+                      {selectedExercisePreview.license_url ? (
+                        <a
+                          href={selectedExercisePreview.license_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex text-sky-300 transition-all hover:text-sky-200"
+                        >
+                          Abrir detalhes da licenca
+                        </a>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <button
+                      type="button"
+                      onClick={closeExercisePreviewModal}
+                      className="flex-1 rounded-2xl bg-zinc-800 px-4 py-4 font-bold text-white transition-all hover:bg-zinc-700"
+                    >
+                      Fechar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => addExerciseFromLibrary(selectedExercisePreview)}
+                      className="flex-1 rounded-2xl bg-sky-500 px-4 py-4 font-bold text-black transition-all hover:bg-sky-400"
+                    >
+                      Adicionar ao treino
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
         {showViewModal && selectedTreino && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowViewModal(false)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
