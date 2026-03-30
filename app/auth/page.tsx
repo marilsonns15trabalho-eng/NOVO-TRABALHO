@@ -3,7 +3,7 @@
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'motion/react';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { getDefaultRouteForRole } from '@/lib/navigation';
 import {
@@ -203,8 +203,16 @@ function AuthContent() {
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="flex w-full max-w-xl items-center"
+          className="flex w-full max-w-xl flex-col items-center gap-4"
         >
+          <button
+            onClick={() => router.push('/')}
+            className="inline-flex items-center gap-2 self-start rounded-full border border-zinc-800 bg-zinc-950/70 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-zinc-300 transition-all hover:border-zinc-700 hover:text-white"
+          >
+            <ArrowLeft size={14} />
+            Voltar
+          </button>
+
           <div className="w-full rounded-[30px] border border-zinc-800 bg-zinc-950/92 p-5 shadow-[0_36px_120px_-70px_rgba(0,0,0,0.95)] md:p-8">
             <div className="mb-8">
               <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-zinc-500">

@@ -267,7 +267,7 @@ export default function Dashboard({ setActiveTab }: DashboardProps) {
             <div data-lioness-hero-actions className="grid gap-3 sm:grid-cols-2 xl:w-[400px]">
               <ActionTile
                 label="Novo aluno"
-                subtitle="Cadastrar e liberar o acesso rapidamente."
+                subtitle="Cadastrar e liberar o acesso."
                 icon={UserPlus}
                 onClick={() => setActiveTab('alunos')}
                 filled

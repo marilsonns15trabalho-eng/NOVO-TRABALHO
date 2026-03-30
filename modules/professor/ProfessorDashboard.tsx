@@ -236,11 +236,11 @@ export default function ProfessorDashboard({ onNavigate }: ProfessorDashboardPro
         <div className="relative flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between">
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/20 bg-sky-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.25em] text-sky-300">
-              Area do professor
+              Professor
             </div>
 
             <h2 data-lioness-hero-title className="mt-4 text-2xl font-bold leading-tight text-white md:text-4xl xl:text-5xl">
-              Acompanhamento da carteira
+              Painel do professor
             </h2>
 
             <p data-lioness-hero-description className="mt-3 max-w-2xl text-sm leading-6 text-zinc-300 md:text-base md:leading-7">
@@ -328,7 +328,7 @@ export default function ProfessorDashboard({ onNavigate }: ProfessorDashboardPro
               <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">Avaliacoes</p>
               <h3 className="mt-2 text-3xl font-bold text-white">Ultimos registros fisicos</h3>
               <p className="mt-2 text-sm text-zinc-500">
-                Consulte rapidamente peso, percentual de gordura e data da ultima leitura.
+                Peso, percentual de gordura e data da ultima leitura.
               </p>
             </div>
 

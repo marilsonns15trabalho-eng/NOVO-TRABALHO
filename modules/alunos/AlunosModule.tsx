@@ -263,7 +263,7 @@ export default function AlunosModule() {
             {!isReadOnly ? (
               <ModuleHeroAction
                 label="Novo aluno"
-                subtitle="Criar cadastro e liberar acesso inicial rapidamente."
+                subtitle="Criar cadastro e liberar acesso inicial."
                 icon={UserPlus}
                 accent="orange"
                 filled
@@ -301,8 +301,8 @@ export default function AlunosModule() {
       <ModuleSurface className="space-y-5">
         <ModuleSectionHeading
           eyebrow="Busca"
-          title="Localize sua base rapidamente"
-          description="Pesquisa direta por nome ou e-mail, sem alterar o fluxo operacional que ja funciona."
+          title="Localize alunos"
+          description="Pesquisa por nome ou e-mail."
         />
 
         <div className="flex flex-col gap-4 sm:flex-row">
@@ -333,7 +333,7 @@ export default function AlunosModule() {
           <ModuleSectionHeading
             eyebrow="Operacao"
             title="Alunos cadastrados"
-            description="Contato, status e acoes administrativas reunidos em uma unica area."
+            description="Contato, status e acoes administrativas."
           />
         </div>
         {alunos.length > 0 ? (
@@ -457,7 +457,7 @@ export default function AlunosModule() {
             <ModuleEmptyState
               icon={Users}
               title="Nenhum aluno encontrado"
-              description="Crie o primeiro cadastro para iniciar os fluxos de acesso, treinos e acompanhamento."
+              description="Crie o primeiro cadastro para comecar."
             />
             {!isReadOnly && (
               <div className="mt-6 flex justify-center">

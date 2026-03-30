@@ -129,7 +129,7 @@ export default function AnamneseModule() {
       <ModuleHero
         badge="Historico nutricional"
         title="Historico nutricional dos alunos"
-        description="Registros de saude, rotina alimentar e observacoes em consulta rapida."
+        description="Registros de saude, rotina alimentar e observacoes."
         accent="orange"
         chips={[
           { label: 'Anamneses', value: String(totalAnamneses) },
@@ -155,7 +155,7 @@ export default function AnamneseModule() {
         <ModuleStatCard
           label="Historicos ativos"
           value={String(totalAnamneses)}
-          detail="Total de registros nutricionais encontrados na area."
+          detail="Total de registros nutricionais cadastrados."
           icon={ClipboardList}
           accent="orange"
         />

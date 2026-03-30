@@ -140,7 +140,7 @@ export default function PlanosModule() {
             />
             <ModuleHeroAction
               label="Catalogo ativo"
-              subtitle="Veja rapidamente quais pacotes estao prontos para venda."
+              subtitle="Abrir a lista de planos."
               icon={Sparkles}
               accent="indigo"
               onClick={() => catalogSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}

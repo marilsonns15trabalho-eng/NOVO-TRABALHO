@@ -579,7 +579,7 @@ export default function AlunoDashboard() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.3em] text-orange-500">
-              Area do Aluno
+              Aluno
             </p>
             <h1 className="text-2xl font-bold tracking-tight">Ola, {firstName}</h1>
           </div>
@@ -655,7 +655,7 @@ export default function AlunoDashboard() {
             <div className="max-w-3xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.25em] text-orange-300">
                 <Sparkles size={14} />
-                Area do aluno
+                Aluno
               </div>
 
               <h2 data-lioness-hero-title className="mt-4 text-2xl font-bold leading-tight text-white md:text-4xl xl:text-5xl">
@@ -719,7 +719,7 @@ export default function AlunoDashboard() {
               </p>
               <h2 className="mt-2 text-3xl font-bold text-white">Painel de progresso</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
-                Visao mensal com dias treinados, faltas estimadas, treinos concluidos e ritmo da semana.
+                Dias treinados, faltas estimadas, treinos concluidos e ritmo da semana.
               </p>
             </div>
 
@@ -731,7 +731,7 @@ export default function AlunoDashboard() {
           {!trainingProgress ? (
             <EmptyState
               title="Progresso ainda indisponivel"
-              description="Assim que houver plano ativo e treinos concluidos, o acompanhamento mensal aparecera aqui."
+              description="Quando houver plano ativo e treinos concluidos, os dados aparecem aqui."
               icon={<ShieldCheck size={18} />}
             />
           ) : (
