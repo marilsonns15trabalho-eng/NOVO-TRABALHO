@@ -15,6 +15,79 @@ import {
   ModuleSurface,
 } from '@/components/dashboard/ModulePrimitives';
 
+function PlanRow({
+  plano,
+  onEdit,
+  onDelete,
+}: {
+  plano: {
+    id: string;
+    name: string;
+    description?: string | null;
+    price: number | string;
+    duration_months: number | string;
+    active: boolean;
+  };
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="grid gap-4 px-4 py-4 lg:grid-cols-[minmax(0,2fr)_150px_120px_110px_auto] lg:items-center lg:px-5">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="truncate text-base font-bold text-white">{plano.name}</p>
+          <span
+            className={`rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] ${
+              plano.active
+                ? 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
+                : 'border border-rose-500/20 bg-rose-500/10 text-rose-300'
+            }`}
+          >
+            {plano.active ? 'Ativo' : 'Inativo'}
+          </span>
+        </div>
+        <p className="mt-1 truncate text-sm text-zinc-500">
+          {plano.description || 'Sem descricao cadastrada.'}
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-3 py-3 lg:text-center">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Valor</p>
+        <p className="mt-1 text-sm font-bold text-white">
+          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(plano.price || 0))}
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-3 py-3 lg:text-center">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Duracao</p>
+        <p className="mt-1 text-sm font-bold text-white">{plano.duration_months} meses</p>
+      </div>
+
+      <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-3 py-3 lg:text-center">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Status</p>
+        <p className={`mt-1 text-sm font-bold ${plano.active ? 'text-emerald-300' : 'text-rose-300'}`}>
+          {plano.active ? 'Disponivel' : 'Pausado'}
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-2 lg:justify-end">
+        <button
+          onClick={onEdit}
+          className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition-all hover:border-indigo-500/30 hover:bg-indigo-500/10"
+        >
+          Editar
+        </button>
+        <button
+          onClick={onDelete}
+          className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-zinc-300 transition-all hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-white"
+        >
+          Excluir
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function PlanosModule() {
   const {
     planos,
@@ -105,74 +178,37 @@ export default function PlanosModule() {
         <ModuleSectionHeading
           eyebrow="Catalogo"
           title="Planos cadastrados"
-          description="Status, valor e duracao dos planos ativos e inativos."
+          description="Status, valor e duracao dos planos ativos e inativos em uma leitura mais compacta."
           actionLabel="Novo plano"
           onActionClick={() => setShowAddModal(true)}
         />
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {loading ? (
-            <div className="col-span-full p-20 flex flex-col items-center justify-center space-y-4">
-              <Loader2 className="text-indigo-400 animate-spin" size={40} />
-              <p className="text-zinc-500 font-medium">Carregando planos...</p>
-            </div>
-          ) : planos.length > 0 ? (
-            planos.map((plano) => (
-              <div
-                key={plano.id}
-                className={`relative flex flex-col overflow-hidden rounded-[28px] border p-7 shadow-[0_26px_90px_-60px_rgba(0,0,0,0.95)] transition-all ${
-                  plano.active
-                    ? 'border-zinc-800 bg-zinc-950/85 hover:border-indigo-500/40'
-                    : 'border-rose-500/20 bg-zinc-950/60 opacity-80'
-                }`}
-              >
-                <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-indigo-500/12 via-indigo-500/0 to-transparent" />
-
-                {!plano.active && (
-                  <div className="absolute right-5 top-5 rounded-full border border-rose-500/20 bg-rose-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-rose-300">
-                    Inativo
-                  </div>
-                )}
-
-                <div className="flex-1">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-zinc-500">Plano</p>
-                  <h3 className="mt-3 pr-16 text-2xl font-bold text-white">{plano.name}</h3>
-                  <p className="mt-3 text-sm leading-6 text-zinc-500">{plano.description || 'Sem descricao cadastrada.'}</p>
-
-                  <div className="mt-8 flex items-end gap-2">
-                    <span className="text-4xl font-bold tracking-tight text-white">
-                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(plano.price || 0))}
-                    </span>
-                    <span className="pb-1 text-sm text-zinc-500">/ {plano.duration_months} meses</span>
-                  </div>
-                </div>
-
-                <div className="mt-8 grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => startEdit(plano)}
-                    className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition-all hover:border-indigo-500/30 hover:bg-indigo-500/10"
-                  >
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => setDeleteConfirmation(plano.id)}
-                    className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-zinc-300 transition-all hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-white"
-                  >
-                    Excluir
-                  </button>
-                </div>
+        {loading ? (
+          <div className="p-20 flex flex-col items-center justify-center space-y-4">
+            <Loader2 className="text-indigo-400 animate-spin" size={40} />
+            <p className="text-zinc-500 font-medium">Carregando planos...</p>
+          </div>
+        ) : planos.length > 0 ? (
+          <div className="overflow-hidden rounded-[26px] border border-zinc-800 bg-zinc-950/70 shadow-[0_28px_80px_-54px_rgba(0,0,0,0.9)]">
+            {planos.map((plano) => (
+              <div key={plano.id} className="border-b border-zinc-800 last:border-b-0">
+                <PlanRow
+                  plano={plano}
+                  onEdit={() => startEdit(plano)}
+                  onDelete={() => setDeleteConfirmation(plano.id)}
+                />
               </div>
-            ))
-          ) : (
-            <div className="col-span-full">
-              <ModuleEmptyState
-                icon={ClipboardList}
-                title="Nenhum plano cadastrado"
-                description="Crie o primeiro pacote comercial para estruturar matriculas e vinculacoes com mais clareza."
-              />
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div>
+            <ModuleEmptyState
+              icon={ClipboardList}
+              title="Nenhum plano cadastrado"
+              description="Crie o primeiro pacote comercial para estruturar matriculas e vinculacoes com mais clareza."
+            />
+          </div>
+        )}
       </ModuleSurface>
 
       <AnimatePresence>

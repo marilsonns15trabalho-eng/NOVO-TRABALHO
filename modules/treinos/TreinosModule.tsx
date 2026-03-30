@@ -123,33 +123,37 @@ function TrainingPlanCard({
   onAssignStudents: (plan: TrainingPlan) => void;
 }) {
   return (
-    <div className="rounded-[22px] border border-zinc-800 bg-zinc-950/85 p-4 shadow-[0_20px_60px_-46px_rgba(0,0,0,0.9)]">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-500">Plano</p>
-          <h4 className="mt-2 text-lg font-bold text-white">{plan.name}</h4>
+    <div className="grid gap-4 px-4 py-4 lg:grid-cols-[minmax(0,2fr)_120px_100px_100px_auto] lg:items-center lg:px-5">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-base font-bold text-white">{plan.name}</p>
+          <span className="rounded-full border border-sky-500/20 bg-sky-500/10 px-2.5 py-1 text-[11px] font-bold text-sky-300">
+            {plan.weekly_frequency}x / semana
+          </span>
         </div>
-        <div className="rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-1.5 text-xs font-bold text-sky-300">
-          {plan.weekly_frequency}x / semana
-        </div>
+        <p className="mt-1 truncate text-sm text-zinc-500">
+          {plan.active_version?.objective || plan.description || 'Plano de treino sem objetivo detalhado.'}
+        </p>
       </div>
-      <div className="mt-4 grid grid-cols-3 gap-3">
-        <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-3 py-3">
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Versao</p>
-          <p className="mt-2 text-base font-bold text-white">
-            {plan.active_version?.version_number ? `v${plan.active_version.version_number}` : '-'}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-3 py-3">
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Alunos</p>
-          <p className="mt-2 text-base font-bold text-white">{plan.students_count || 0}</p>
-        </div>
-        <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-3 py-3">
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Treinos</p>
-          <p className="mt-2 text-base font-bold text-white">{plan.treinos_count || 0}</p>
-        </div>
+
+      <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-3 py-3 lg:text-center">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Versao</p>
+        <p className="mt-1 text-sm font-bold text-white">
+          {plan.active_version?.version_number ? `v${plan.active_version.version_number}` : '-'}
+        </p>
       </div>
-      <div className="mt-4 flex flex-wrap gap-2">
+
+      <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-3 py-3 lg:text-center">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Alunos</p>
+        <p className="mt-1 text-sm font-bold text-white">{plan.students_count || 0}</p>
+      </div>
+
+      <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-3 py-3 lg:text-center">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Treinos</p>
+        <p className="mt-1 text-sm font-bold text-white">{plan.treinos_count || 0}</p>
+      </div>
+
+      <div className="flex flex-wrap gap-2 lg:justify-end">
         <button
           onClick={() => onOpen(plan)}
           className="inline-flex items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-sm font-bold text-white transition-all hover:border-zinc-700"
@@ -188,64 +192,56 @@ function TreinoCard({
   onEdit: (treino: Treino) => void;
 }) {
   return (
-    <div className="rounded-[28px] border border-zinc-800 bg-zinc-950/85 p-5 shadow-[0_28px_80px_-54px_rgba(0,0,0,0.9)]">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <div className="flex flex-wrap gap-2">
-            {treino.training_plan?.name ? (
-              <span className="rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-sky-300">
-                {treino.training_plan.name}
-              </span>
-            ) : (
-              <span className="rounded-full border border-zinc-800 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">
-                Vinculo direto
-              </span>
-            )}
-          </div>
-          <h4 className="mt-4 text-2xl font-bold text-white">{treino.nome}</h4>
-          <p className="mt-2 text-sm leading-6 text-zinc-500">
-            {treino.descricao || 'Sem descricao adicional para este treino.'}
-          </p>
+    <div className="grid gap-4 px-4 py-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.2fr)_auto] lg:items-center lg:px-5">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="truncate text-base font-bold text-white">{treino.nome}</p>
+          {treino.training_plan?.name ? (
+            <span className="rounded-full border border-sky-500/20 bg-sky-500/10 px-2.5 py-1 text-[11px] font-bold text-sky-300">
+              {treino.training_plan.name}
+            </span>
+          ) : (
+            <span className="rounded-full border border-zinc-800 px-2.5 py-1 text-[11px] font-bold text-zinc-500">
+              Direto
+            </span>
+          )}
         </div>
-        <div className="flex flex-wrap gap-2 text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">
+        <p className="mt-1 truncate text-sm text-zinc-500">
+          {treino.descricao || treino.objetivo || 'Treino sem descricao adicional.'}
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">
           {treino.split_label ? (
-            <span className="rounded-full border border-orange-500/20 px-3 py-1.5 text-orange-300">
+            <span className="rounded-full border border-orange-500/20 px-2.5 py-1 text-orange-300">
               {getSplitDisplayLabel(treino.split_label)}
             </span>
           ) : null}
           {treino.day_of_week != null ? (
-            <span className="rounded-full border border-zinc-800 px-3 py-1.5">
+            <span className="rounded-full border border-zinc-800 px-2.5 py-1">
               {formatTrainingDay(treino.day_of_week)}
             </span>
           ) : null}
-          <span className="rounded-full border border-zinc-800 px-3 py-1.5">{treino.exercicios?.length || 0} exercicios</span>
-          <span className="rounded-full border border-zinc-800 px-3 py-1.5">{treino.assigned_students?.length || 0} alunos</span>
-          <span className="rounded-full border border-zinc-800 px-3 py-1.5">{treino.completions_this_month || 0} concluidos</span>
-        </div>
-      </div>
-      <div className="mt-5 flex flex-wrap gap-3">
-        <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-2 text-xs font-semibold text-zinc-400">
-          <Calendar size={14} />
-          {treino.created_at ? formatDatePtBr(treino.created_at) : 'Sem data'}
-        </div>
-        <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-2 text-xs font-semibold text-zinc-400">
-          Objetivo: {treino.objetivo || 'Nao informado'}
-        </div>
-        {treino.training_plan_version?.version_number ? (
-          <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-2 text-xs font-semibold text-zinc-400">
-            Versao {treino.training_plan_version.version_number}
-          </div>
-        ) : null}
-      </div>
-      <div className="mt-5 flex flex-wrap gap-2">
-        {(treino.assigned_students || []).slice(0, 4).map((student) => (
-          <span key={`${treino.id}-${student.id}`} className="inline-flex items-center gap-2 rounded-full border border-white/6 bg-white/[0.03] px-3 py-2 text-xs font-semibold text-zinc-300">
-            <Users size={12} />
-            {student.name}
+          <span className="rounded-full border border-zinc-800 px-2.5 py-1">
+            {treino.created_at ? formatDatePtBr(treino.created_at) : 'Sem data'}
           </span>
-        ))}
+        </div>
       </div>
-      <div className="mt-6 flex flex-wrap gap-3">
+
+      <div className="grid grid-cols-3 gap-3">
+        <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-3 py-3 text-center">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Exercicios</p>
+          <p className="mt-1 text-sm font-bold text-white">{treino.exercicios?.length || 0}</p>
+        </div>
+        <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-3 py-3 text-center">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Alunos</p>
+          <p className="mt-1 text-sm font-bold text-white">{treino.assigned_students?.length || 0}</p>
+        </div>
+        <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-3 py-3 text-center">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Mes</p>
+          <p className="mt-1 text-sm font-bold text-white">{treino.completions_this_month || 0}</p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-3 lg:justify-end">
         <button onClick={() => onView(treino)} className="rounded-2xl border border-sky-500/20 bg-sky-500/10 px-4 py-3 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500 hover:text-black">
           Ver detalhes
         </button>
@@ -357,15 +353,16 @@ export default function TreinosModule() {
               Nenhum plano de treino criado ainda.
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+            <div className="overflow-hidden rounded-[26px] border border-zinc-800 bg-zinc-950/70 shadow-[0_28px_80px_-54px_rgba(0,0,0,0.9)]">
               {trainingPlans.map((plan) => (
-                <TrainingPlanCard
-                  key={plan.id}
-                  plan={plan}
-                  onOpen={setSelectedTrainingPlanView}
-                  onEdit={startTrainingPlanEdit}
-                  onAssignStudents={openPlanStudentsModal}
-                />
+                <div key={plan.id} className="border-b border-zinc-800 last:border-b-0">
+                  <TrainingPlanCard
+                    plan={plan}
+                    onOpen={setSelectedTrainingPlanView}
+                    onEdit={startTrainingPlanEdit}
+                    onAssignStudents={openPlanStudentsModal}
+                  />
+                </div>
               ))}
             </div>
           )}
@@ -379,9 +376,11 @@ export default function TreinosModule() {
             Nenhum treino cadastrado no momento.
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+          <div className="overflow-hidden rounded-[26px] border border-zinc-800 bg-zinc-950/70 shadow-[0_28px_80px_-54px_rgba(0,0,0,0.9)]">
             {treinos.map((treino) => (
-              <TreinoCard key={treino.id} treino={treino} canManageRecords={canManageRecords} onView={viewTreino} onEdit={startTreinoEdit} />
+              <div key={treino.id} className="border-b border-zinc-800 last:border-b-0">
+                <TreinoCard treino={treino} canManageRecords={canManageRecords} onView={viewTreino} onEdit={startTreinoEdit} />
+              </div>
             ))}
           </div>
         )}

@@ -996,112 +996,96 @@ export default function AlunoDashboard() {
               icon={studentId ? <Dumbbell size={18} /> : <AlertTriangle size={18} />}
             />
           ) : (
-            <div className="space-y-4">
+            <div className="overflow-hidden rounded-[26px] border border-zinc-800 bg-black/20">
               {treinos.map((treino) => (
                 <div
                   key={treino.id}
-                  className="rounded-[26px] border border-zinc-800 bg-black/30 p-5"
+                  className="border-b border-zinc-800 px-4 py-4 last:border-b-0 md:px-5"
                 >
-                  <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
-                    <div className="max-w-3xl">
-                      <h3 className="text-xl font-bold text-white">{treino.nome}</h3>
-                      <p className="mt-2 text-sm leading-6 text-zinc-400">
-                        {treino.descricao || 'Sem descricao adicional para este treino.'}
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.1fr)_auto] lg:items-center">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="truncate text-base font-bold text-white">{treino.nome}</h3>
+                        <span className="rounded-full border border-zinc-800 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+                          {treino.nivel || 'Sem nivel'}
+                        </span>
+                        <span className="rounded-full border border-zinc-800 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+                          {treino.duracao_minutos || 0} min
+                        </span>
+                        {treino.split_label ? (
+                          <span className="rounded-full border border-orange-500/20 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-orange-300">
+                            {treino.split_label}
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-2 truncate text-sm text-zinc-500">
+                        {treino.descricao || treino.objetivo || 'Treino sem descricao adicional.'}
                       </p>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">
-                      <span className="rounded-full border border-zinc-800 px-3 py-1.5">
-                        {treino.nivel || 'Sem nivel'}
-                      </span>
-                      <span className="rounded-full border border-zinc-800 px-3 py-1.5">
-                        {treino.duracao_minutos || 0} min
-                      </span>
-                      <span className="rounded-full border border-zinc-800 px-3 py-1.5">
-                        {treino.ativo === false ? 'Inativo' : 'Ativo'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 flex flex-wrap gap-3">
-                    <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-2 text-xs font-semibold text-zinc-400">
-                      <Calendar size={14} />
-                      {treino.created_at
-                        ? formatDatePtBr(treino.created_at)
-                        : 'Sem data'}
-                    </div>
-
-                    <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-2 text-xs font-semibold text-zinc-400">
-                      Objetivo: {treino.objetivo || 'Nao informado'}
-                    </div>
-
-                    {treino.split_label ? (
-                      <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-2 text-xs font-semibold text-zinc-400">
-                        Split {treino.split_label}
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {treino.day_of_week != null ? (
+                          <span className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-1.5 text-xs font-semibold text-zinc-400">
+                            {formatTrainingDay(treino.day_of_week)}
+                          </span>
+                        ) : null}
+                        <span className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-1.5 text-xs font-semibold text-zinc-400">
+                          Exercicios: {treino.exercicios?.length || 0}
+                        </span>
+                        {isTreinoRecentlyUpdated(treino) ? (
+                          <span className="inline-flex items-center gap-2 rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-1.5 text-xs font-semibold text-sky-300">
+                            Atualizado recentemente
+                          </span>
+                        ) : null}
                       </div>
-                    ) : null}
-
-                    {isTreinoRecentlyUpdated(treino) ? (
-                      <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-300">
-                        Atualizado recentemente
-                      </div>
-                    ) : null}
-
-                    {treino.day_of_week != null ? (
-                      <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-2 text-xs font-semibold text-zinc-400">
-                        {formatTrainingDay(treino.day_of_week)}
-                      </div>
-                    ) : null}
-
-                    <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-2 text-xs font-semibold text-zinc-400">
-                      Exercicios: {treino.exercicios?.length || 0}
                     </div>
-                  </div>
 
-                  <div className="mt-5 flex flex-wrap gap-3">
-                    <button
-                      onClick={() => void openExecutionForTreino(treino)}
-                      disabled={!studentId}
-                      className="inline-flex items-center gap-2 rounded-2xl border border-orange-500/20 bg-orange-500/10 px-4 py-3 text-sm font-bold text-orange-300 transition-all hover:bg-orange-500 hover:text-black disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      <PlayCircle size={16} />
-                      {treino.current_execution?.status === 'in_progress' ? 'Continuar execucao' : 'Abrir execucao'}
-                    </button>
-                    {treino.completed_today ? (
-                      <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">
-                        <ShieldCheck size={14} />
-                        Concluido hoje
-                      </span>
-                    ) : treino.current_execution?.status === 'in_progress' ? (
-                      <span className="inline-flex items-center gap-2 rounded-full border border-sky-500/20 bg-sky-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-sky-300">
-                        <PlayCircle size={14} />
-                        Em andamento
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">
-                        <Calendar size={14} />
-                        Ainda nao concluido hoje
-                      </span>
-                    )}
-
-                    <button
-                      onClick={() => void handleToggleTreinoCompletion(treino)}
-                      disabled={!studentId || completingTreinoId === treino.id}
-                      className={`inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
-                        treino.completed_today
-                          ? 'border border-rose-500/20 bg-rose-500/10 text-rose-300 hover:bg-rose-500 hover:text-black'
-                          : 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500 hover:text-black'
-                      }`}
-                    >
-                      {completingTreinoId === treino.id ? (
-                        <Loader2 size={16} className="animate-spin" />
-                      ) : treino.completed_today ? (
-                        <XCircle size={16} />
+                    <div className="flex flex-wrap gap-2 lg:justify-center">
+                      {treino.completed_today ? (
+                        <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">
+                          <ShieldCheck size={14} />
+                          Concluido hoje
+                        </span>
+                      ) : treino.current_execution?.status === 'in_progress' ? (
+                        <span className="inline-flex items-center gap-2 rounded-full border border-sky-500/20 bg-sky-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-sky-300">
+                          <PlayCircle size={14} />
+                          Em andamento
+                        </span>
                       ) : (
-                        <CheckCircle2 size={16} />
+                        <span className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">
+                          <Calendar size={14} />
+                          Pendente hoje
+                        </span>
                       )}
-                      {treino.completed_today ? 'Remover conclusao' : 'Marcar como concluido'}
-                    </button>
+                    </div>
+
+                    <div className="flex flex-wrap gap-3 lg:justify-end">
+                      <button
+                        onClick={() => void openExecutionForTreino(treino)}
+                        disabled={!studentId}
+                        className="inline-flex items-center gap-2 rounded-2xl border border-orange-500/20 bg-orange-500/10 px-4 py-3 text-sm font-bold text-orange-300 transition-all hover:bg-orange-500 hover:text-black disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <PlayCircle size={16} />
+                        {treino.current_execution?.status === 'in_progress' ? 'Continuar' : 'Abrir'}
+                      </button>
+
+                      <button
+                        onClick={() => void handleToggleTreinoCompletion(treino)}
+                        disabled={!studentId || completingTreinoId === treino.id}
+                        className={`inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
+                          treino.completed_today
+                            ? 'border border-rose-500/20 bg-rose-500/10 text-rose-300 hover:bg-rose-500 hover:text-black'
+                            : 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500 hover:text-black'
+                        }`}
+                      >
+                        {completingTreinoId === treino.id ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : treino.completed_today ? (
+                          <XCircle size={16} />
+                        ) : (
+                          <CheckCircle2 size={16} />
+                        )}
+                        {treino.completed_today ? 'Remover' : 'Concluir'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
