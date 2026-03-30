@@ -3,14 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
-import {
-  Activity,
-  ArrowRight,
-  CalendarDays,
-  Dumbbell,
-  ShieldCheck,
-  Sparkles,
-} from 'lucide-react';
+import { Activity, ArrowRight, Dumbbell, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { getDefaultRouteForRole } from '@/lib/navigation';
 
@@ -18,39 +11,6 @@ const WHATSAPP_URL =
   'https://wa.me/5571999856956?text=Ola%20gostaria%20de%20saber%20mais%20sobre%20o%20estudio';
 const INSTAGRAM_URL =
   'https://www.instagram.com/accounts/login/?next=%2Flionesspersonalestudio%2F&source=omni_redirect';
-
-const methodologySteps = [
-  {
-    title: 'Avaliacao inicial',
-    description:
-      'Leitura corporal, objetivos e ponto de partida para definir o direcionamento do treino.',
-    icon: Activity,
-  },
-  {
-    title: 'Treino orientado',
-    description:
-      'Prescricao organizada conforme frequencia semanal, nivel atual e resposta ao processo.',
-    icon: Dumbbell,
-  },
-  {
-    title: 'Acompanhamento',
-    description:
-      'Revisao da evolucao, ajustes de rotina e acompanhamento continuo da aluna.',
-    icon: ShieldCheck,
-  },
-];
-
-const studioHighlights = [
-  'Centro de treinamento feminino com atendimento estruturado.',
-  'Rotina com avaliacao fisica, treino e acompanhamento de evolucao.',
-  'Contato direto para aula experimental e informacoes sobre disponibilidade.',
-];
-
-const planNotes = [
-  'Frequencia semanal alinhada com a rotina da aluna.',
-  'Organizacao de treino e progresso acompanhados de forma individual.',
-  'Valores e formatos de atendimento apresentados diretamente no contato.',
-];
 
 const outlinedWordStyle: React.CSSProperties = {
   WebkitTextStroke: '1px #ff5a1f',
@@ -217,18 +177,6 @@ export default function LandingPage() {
             </p>
           </a>
 
-          <nav className="hidden items-center gap-10 text-sm font-medium text-zinc-400 lg:flex">
-            <a href="#estudio" className="transition-colors hover:text-white">
-              O Estudio
-            </a>
-            <a href="#metodologia" className="transition-colors hover:text-white">
-              Metodologia
-            </a>
-            <a href="#planos" className="transition-colors hover:text-white">
-              Planos
-            </a>
-          </nav>
-
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push('/auth')}
@@ -310,98 +258,6 @@ export default function LandingPage() {
           >
             <LandingVisualPanel />
           </motion.div>
-        </section>
-
-        <section id="estudio" className="mx-auto max-w-7xl px-4 py-16 md:px-6">
-          <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr]">
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.3em] text-[#ff5a1f]">
-                O estudio
-              </p>
-              <h2 className="mt-4 text-4xl font-black uppercase tracking-[-0.05em] text-white md:text-5xl">
-                Estrutura de atendimento com foco em treino feminino
-              </h2>
-            </div>
-
-            <div className="space-y-4">
-              {studioHighlights.map((item) => (
-                <div
-                  key={item}
-                  className="rounded-[24px] bg-[#131313] px-5 py-5 text-base leading-7 text-zinc-300"
-                >
-                  {item}
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section id="metodologia" className="mx-auto max-w-7xl px-4 py-16 md:px-6">
-          <div className="grid gap-6 lg:grid-cols-[0.78fr_1.22fr]">
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.3em] text-[#ff5a1f]">
-                Metodologia
-              </p>
-              <h2 className="mt-4 text-4xl font-black uppercase tracking-[-0.05em] text-white md:text-5xl">
-                Processo claro do inicio ao acompanhamento
-              </h2>
-            </div>
-
-            <div className="space-y-4">
-              {methodologySteps.map((step, index) => (
-                <div
-                  key={step.title}
-                  className="grid gap-4 rounded-[24px] bg-[#131313] px-5 py-5 md:grid-cols-[72px_minmax(0,1fr)] md:items-start"
-                >
-                  <div className="flex items-center gap-3 md:block">
-                    <p className="text-3xl font-black tracking-[-0.05em] text-[#ff5a1f]">
-                      0{index + 1}
-                    </p>
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#20201f] text-[#ff9157] md:mt-4">
-                      <step.icon size={18} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <p className="text-xl font-black uppercase tracking-[-0.03em] text-white">
-                      {step.title}
-                    </p>
-                    <p className="mt-2 text-base leading-7 text-zinc-400">{step.description}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section id="planos" className="mx-auto max-w-7xl px-4 py-16 md:px-6">
-          <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-            <div className="space-y-4">
-              <p className="text-[11px] font-black uppercase tracking-[0.3em] text-[#ff5a1f]">
-                Planos
-              </p>
-              <h2 className="text-4xl font-black uppercase tracking-[-0.05em] text-white md:text-5xl">
-                Formatos ajustados a frequencia e ao objetivo
-              </h2>
-              <p className="max-w-2xl text-base leading-7 text-zinc-400">
-                A definicao do plano considera rotina, frequencia semanal e momento atual da aluna.
-                As orientacoes sobre disponibilidade e formato de atendimento sao passadas direto no
-                contato.
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              {planNotes.map((item) => (
-                <div
-                  key={item}
-                  className="flex items-start gap-3 rounded-[22px] bg-[#131313] px-5 py-4"
-                >
-                  <Sparkles size={18} className="mt-1 shrink-0 text-[#ff9157]" />
-                  <p className="text-base leading-7 text-zinc-300">{item}</p>
-                </div>
-              ))}
-            </div>
-          </div>
         </section>
 
         <section className="mx-auto max-w-7xl px-4 pb-16 pt-6 md:px-6 md:pb-20">

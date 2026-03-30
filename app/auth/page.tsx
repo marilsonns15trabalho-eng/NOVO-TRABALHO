@@ -3,15 +3,7 @@
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'motion/react';
-import {
-  ArrowLeft,
-  Eye,
-  EyeOff,
-  KeyRound,
-  Loader2,
-  ShieldCheck,
-  UserRound,
-} from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { getDefaultRouteForRole } from '@/lib/navigation';
 import {
@@ -20,24 +12,6 @@ import {
 } from '@/services/account.service';
 
 const AUTH_FLASH_MESSAGE_KEY = 'lioness-auth-flash-message';
-
-const authNotes = [
-  {
-    title: 'Acesso criado pela administracao',
-    description: 'O login do aluno, professor ou admin e liberado dentro do painel.',
-    icon: UserRound,
-  },
-  {
-    title: 'Primeiro login protegido',
-    description: 'Novos acessos precisam trocar a senha antes de continuar.',
-    icon: ShieldCheck,
-  },
-  {
-    title: 'Recuperacao por pergunta secreta',
-    description: 'A redefinicao usa a pergunta configurada no primeiro acesso.',
-    icon: KeyRound,
-  },
-];
 
 function translateError(message: string): string {
   if (message.includes('Invalid login credentials')) return 'E-mail ou senha incorretos.';
@@ -65,11 +39,6 @@ function AuthContent() {
   const [recoveryPassword, setRecoveryPassword] = useState('');
   const [recoveryPasswordConfirm, setRecoveryPasswordConfirm] = useState('');
   const [recoveryStep, setRecoveryStep] = useState<'lookup' | 'reset'>('lookup');
-  const [isNativeApp, setIsNativeApp] = useState(false);
-
-  useEffect(() => {
-    setIsNativeApp(Boolean((window as any).Capacitor?.isNativePlatform?.()));
-  }, []);
 
   useEffect(() => {
     if (isReady && user && role) {
@@ -229,79 +198,12 @@ function AuthContent() {
         <div className="absolute left-0 top-1/3 h-[320px] w-[320px] rounded-full bg-sky-500/8 blur-[120px]" />
       </div>
 
-      <div className="relative mx-auto grid min-h-screen max-w-7xl gap-6 px-4 py-6 md:px-6 lg:grid-cols-[0.98fr_1.02fr] lg:px-8">
+      <div className="relative mx-auto flex min-h-screen max-w-7xl items-center justify-center px-4 py-8 md:px-6 lg:px-8">
         <motion.section
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="flex flex-col justify-between rounded-[30px] border border-zinc-800 bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.14),_transparent_34%),linear-gradient(135deg,rgba(20,20,24,0.96),rgba(8,8,8,0.98))] p-5 shadow-[0_40px_120px_-70px_rgba(249,115,22,0.45)] md:p-8"
-        >
-          <div>
-            {!isNativeApp ? (
-              <button
-                onClick={() => router.push('/')}
-                className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-950/70 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-zinc-300 transition-all hover:border-zinc-700 hover:text-white"
-              >
-                <ArrowLeft size={14} />
-                Voltar
-              </button>
-            ) : (
-              <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/10 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.22em] text-orange-300">
-                App do estudio
-              </div>
-            )}
-
-            <div className="mt-8 flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-500 text-2xl font-black text-black">
-                L
-              </div>
-              <div>
-                <h1 className="text-base font-bold tracking-[0.2em] text-white">LIONESS</h1>
-                <p className="text-[10px] font-bold uppercase tracking-[0.32em] text-orange-400">Prime</p>
-              </div>
-            </div>
-
-            <div className="mt-8 max-w-xl">
-              <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-orange-300">
-                {isNativeApp ? 'Acesso no app' : 'Acesso ao sistema'}
-              </p>
-              <h2 className="mt-3 text-3xl font-bold leading-tight text-white md:text-5xl">
-                Painel de trabalho para administracao, professor e aluno.
-              </h2>
-              <p className="mt-4 max-w-lg text-sm leading-7 text-zinc-300 md:text-base">
-                O acesso e controlado dentro da plataforma. Cada perfil enxerga apenas as areas
-                necessarias para sua rotina.
-              </p>
-            </div>
-
-            <div className="mt-8 grid gap-3">
-              {authNotes.map((note) => (
-                <div
-                  key={note.title}
-                  className="flex items-start gap-4 rounded-2xl border border-zinc-800 bg-black/25 px-4 py-4"
-                >
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-orange-500/10 text-orange-300">
-                    <note.icon size={18} />
-                  </div>
-                  <div>
-                    <p className="font-bold text-white">{note.title}</p>
-                    <p className="mt-1 text-sm leading-6 text-zinc-500">{note.description}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-8 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-4 text-sm leading-6 text-zinc-400">
-            Suporte de acesso e liberacao de contas pelo painel administrativo.
-          </div>
-        </motion.section>
-
-        <motion.section
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.08 }}
-          className="flex items-center"
+          className="flex w-full max-w-xl items-center"
         >
           <div className="w-full rounded-[30px] border border-zinc-800 bg-zinc-950/92 p-5 shadow-[0_36px_120px_-70px_rgba(0,0,0,0.95)] md:p-8">
             <div className="mb-8">
