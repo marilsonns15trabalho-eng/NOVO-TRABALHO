@@ -9,6 +9,10 @@ export interface Notification {
 export interface StudentListItem {
   id: string;
   name: string;
+  plan_id?: string | null;
+  plan_name?: string | null;
+  email?: string | null;
+  status?: string | null;
 }
 
 /** Representação mínima de aluno com nome em pt-BR (usada em Anamnese) */

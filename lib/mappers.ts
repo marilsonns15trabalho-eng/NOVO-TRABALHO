@@ -102,7 +102,14 @@ export function normalizeStudentRelation<T extends Record<string, any> | null | 
   };
 }
 
-export function mapStudentToListItem(row: Record<string, any>): { id: string; name: string } {
+export function mapStudentToListItem(row: Record<string, any>): {
+  id: string;
+  name: string;
+  plan_id?: string | null;
+  plan_name?: string | null;
+  email?: string | null;
+  status?: string | null;
+} {
   const student = normalizeStudentRelation(row);
   const fallbackName =
     student?.name ||
@@ -114,6 +121,10 @@ export function mapStudentToListItem(row: Record<string, any>): { id: string; na
   return {
     id: student?.id || row.id,
     name: fallbackName,
+    plan_id: row.plan_id || null,
+    plan_name: row.plan_name || row.plan || null,
+    email: row.email || null,
+    status: row.status || null,
   };
 }
 

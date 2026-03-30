@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Calendar,
   CheckCircle2,
@@ -259,6 +259,8 @@ export default function TreinosModule() {
   const { isAdmin, isProfessor } = useUserRole();
   const canManageRecords = isAdmin || isProfessor;
   const [selectedTrainingPlanView, setSelectedTrainingPlanView] = useState<TrainingPlan | null>(null);
+  const [studentSearchTerm, setStudentSearchTerm] = useState('');
+  const [studentPlanFilter, setStudentPlanFilter] = useState('');
   const state = useTreinos();
   const {
     treinos,
@@ -308,6 +310,54 @@ export default function TreinosModule() {
     const completions = treinos.reduce((acc, item) => acc + (item.completions_this_month || 0), 0);
     return { totalTreinos: treinos.length, totalPlans: trainingPlans.filter((item) => item.active).length, assignments, completions };
   }, [trainingPlans, treinos]);
+
+  useEffect(() => {
+    if (showAddModal) {
+      setStudentSearchTerm('');
+      setStudentPlanFilter('');
+    }
+  }, [showAddModal]);
+
+  const studentPlanOptions = useMemo(() => {
+    return Array.from(
+      new Set(
+        alunos
+          .map((aluno) => aluno.plan_name?.trim())
+          .filter((value): value is string => Boolean(value)),
+      ),
+    ).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [alunos]);
+
+  const filteredStudentsForAssignment = useMemo(() => {
+    const needle = studentSearchTerm.trim().toLowerCase();
+    const selectedIds = new Set(newTreino.assigned_student_ids || []);
+
+    return alunos
+      .filter((aluno) => {
+        const matchName =
+          !needle ||
+          aluno.name.toLowerCase().includes(needle) ||
+          (aluno.email || '').toLowerCase().includes(needle);
+
+        const matchPlan =
+          !studentPlanFilter ||
+          (studentPlanFilter === '__sem_plano__'
+            ? !aluno.plan_name
+            : aluno.plan_name === studentPlanFilter);
+
+        return matchName && matchPlan;
+      })
+      .sort((a, b) => {
+        const aSelected = selectedIds.has(a.id);
+        const bSelected = selectedIds.has(b.id);
+
+        if (aSelected !== bSelected) {
+          return aSelected ? -1 : 1;
+        }
+
+        return a.name.localeCompare(b.name, 'pt-BR');
+      });
+  }, [alunos, newTreino.assigned_student_ids, studentPlanFilter, studentSearchTerm]);
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-transparent"><Loader2 className="animate-spin text-sky-400" size={46} /></div>;
@@ -549,20 +599,80 @@ export default function TreinosModule() {
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">Alunos vinculados diretamente</p>
-                      <p className="mt-1 text-sm text-zinc-500">Opcional. Selecione quantos alunos quiser ou deixe vazio para liberar apenas pelo plano.</p>
+                      <p className="mt-1 text-sm text-zinc-500">Opcional. Pesquise por nome ou filtre por plano para selecionar mais rapido.</p>
                     </div>
                     <div className="rounded-full border border-white/6 bg-white/[0.03] px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-zinc-400">{(newTreino.assigned_student_ids || []).length} selecionados</div>
                   </div>
-                  <div className="grid max-h-[220px] gap-3 overflow-y-auto rounded-[24px] border border-zinc-800 bg-black/20 p-4 md:grid-cols-2">
-                    {alunos.map((aluno) => {
+
+                  <div className="grid gap-3 md:grid-cols-[minmax(0,1.7fr)_220px]">
+                    <div className="relative">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
+                      <input
+                        value={studentSearchTerm}
+                        onChange={(e) => setStudentSearchTerm(e.target.value)}
+                        className="w-full rounded-2xl border border-zinc-800 bg-black px-11 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30"
+                        placeholder="Pesquisar aluno por nome ou e-mail"
+                      />
+                    </div>
+
+                    <select
+                      value={studentPlanFilter}
+                      onChange={(e) => setStudentPlanFilter(e.target.value)}
+                      className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30"
+                    >
+                      <option value="">Todos os planos</option>
+                      <option value="__sem_plano__">Sem plano</option>
+                      {studentPlanOptions.map((planName) => (
+                        <option key={planName} value={planName}>
+                          {planName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 text-xs font-semibold text-zinc-500">
+                    <span>{filteredStudentsForAssignment.length} aluno(s) encontrados</span>
+                    {(studentSearchTerm || studentPlanFilter) ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStudentSearchTerm('');
+                          setStudentPlanFilter('');
+                        }}
+                        className="rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-400 transition-all hover:border-zinc-700"
+                      >
+                        Limpar filtros
+                      </button>
+                    ) : null}
+                  </div>
+
+                  <div className="grid max-h-[260px] gap-3 overflow-y-auto rounded-[24px] border border-zinc-800 bg-black/20 p-4 md:grid-cols-2">
+                    {filteredStudentsForAssignment.map((aluno) => {
                       const checked = (newTreino.assigned_student_ids || []).includes(aluno.id);
                       return (
-                        <button key={aluno.id} type="button" onClick={() => toggleAssignedStudent(aluno.id)} className={`flex items-center justify-between rounded-2xl border px-4 py-4 text-left transition-all ${checked ? 'border-sky-500/20 bg-sky-500/10 text-white' : 'border-zinc-800 bg-black/25 text-zinc-300 hover:border-zinc-700'}`}>
-                          <span className="font-bold">{aluno.name}</span>
-                          {checked ? <CheckCircle2 size={16} className="text-sky-300" /> : <Users size={16} className="text-zinc-500" />}
+                        <button key={aluno.id} type="button" onClick={() => toggleAssignedStudent(aluno.id)} className={`flex items-start justify-between gap-3 rounded-2xl border px-4 py-4 text-left transition-all ${checked ? 'border-sky-500/20 bg-sky-500/10 text-white' : 'border-zinc-800 bg-black/25 text-zinc-300 hover:border-zinc-700'}`}>
+                          <div className="min-w-0">
+                            <span className="block truncate font-bold">{aluno.name}</span>
+                            <div className="mt-1 flex flex-wrap gap-2">
+                              <span className="rounded-full border border-white/6 bg-white/[0.03] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-500">
+                                {aluno.plan_name || 'Sem plano'}
+                              </span>
+                              {aluno.status ? (
+                                <span className="rounded-full border border-white/6 bg-white/[0.03] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-500">
+                                  {aluno.status}
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                          {checked ? <CheckCircle2 size={16} className="mt-1 shrink-0 text-sky-300" /> : <Users size={16} className="mt-1 shrink-0 text-zinc-500" />}
                         </button>
                       );
                     })}
+                    {filteredStudentsForAssignment.length === 0 ? (
+                      <div className="md:col-span-2 rounded-2xl border border-dashed border-zinc-800 bg-black/20 px-4 py-5 text-sm text-zinc-500">
+                        Nenhum aluno encontrado com os filtros atuais.
+                      </div>
+                    ) : null}
                   </div>
                 </div>
 

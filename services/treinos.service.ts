@@ -746,7 +746,7 @@ export async function fetchTreinos(linkedAuthUserId?: string): Promise<Treino[]>
 export async function fetchAlunosParaTreino(linkedAuthUserId?: string): Promise<StudentListItem[]> {
   let query = supabase
     .from(TABLES.STUDENTS)
-    .select('id, name, email, phone, linked_auth_user_id, status')
+    .select('id, name, email, phone, linked_auth_user_id, status, plan_id, plan_name, plan')
     .order('name', { ascending: true });
 
   if (linkedAuthUserId) {
