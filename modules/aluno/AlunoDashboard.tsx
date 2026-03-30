@@ -24,6 +24,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import AssessmentPhotoGallery from '@/components/avaliacao/AssessmentPhotoGallery';
+import ExerciseOfficialPreviewModal from '@/components/treinos/ExerciseOfficialPreviewModal';
 import { formatDatePtBr } from '@/lib/date';
 import { exportAvaliacaoEvolutionPdf } from '@/lib/pdf/exportAvaliacaoEvolutionPdf';
 import { exportAvaliacaoPdf } from '@/lib/pdf/exportAvaliacaoPdf';
@@ -32,8 +33,10 @@ import AccountSecurityForm from '@/components/account/AccountSecurityForm';
 import { formatTrainingDay, isTreinoRecentlyUpdated, pickTodayWorkout } from '@/lib/training';
 import { ensureStudentWorkspace } from '@/services/account.service';
 import * as avaliacoesService from '@/services/avaliacoes.service';
+import * as exerciseLibraryService from '@/services/exerciseLibrary.service';
 import * as treinosService from '@/services/treinos.service';
 import type { Avaliacao } from '@/types/avaliacao';
+import type { ExerciseLibraryItem } from '@/types/exercise-library';
 import type {
   StudentMonthlyTrainingProgress,
   TrainingPlan,
@@ -232,6 +235,9 @@ export default function AlunoDashboard() {
   const [executionSession, setExecutionSession] = useState<TreinoExecutionSession | null>(null);
   const [executionTreino, setExecutionTreino] = useState<Treino | null>(null);
   const [executionSaving, setExecutionSaving] = useState(false);
+  const [selectedExercisePreview, setSelectedExercisePreview] = useState<ExerciseLibraryItem | null>(null);
+  const [exercisePreviewLoadingKey, setExercisePreviewLoadingKey] = useState<string | null>(null);
+  const [exercisePreviewError, setExercisePreviewError] = useState<string | null>(null);
 
   useEffect(() => {
     const run = async () => {
@@ -487,8 +493,46 @@ export default function AlunoDashboard() {
       const session = await treinosService.startTreinoExecution({ treinoId: treino.id });
       setExecutionTreino(treino);
       setExecutionSession(session);
+      setExercisePreviewError(null);
     } catch (error) {
       console.error('Erro ao iniciar execucao do treino:', error);
+    }
+  };
+
+  const closeExercisePreviewModal = () => {
+    setSelectedExercisePreview(null);
+  };
+
+  const openExercisePreviewByName = async (exerciseName: string, loadingKey: string) => {
+    const normalizedName = exerciseName.trim();
+    if (!normalizedName) {
+      setExercisePreviewError('Este exercicio nao possui nome suficiente para buscar a demonstracao.');
+      return;
+    }
+
+    try {
+      setExercisePreviewLoadingKey(loadingKey);
+      setExercisePreviewError(null);
+      const response = await exerciseLibraryService.searchOfficialExerciseLibrary(normalizedName);
+      const bestMatch = exerciseLibraryService.pickBestOfficialExerciseMatch(
+        response.results || [],
+        normalizedName,
+      );
+
+      if (!bestMatch) {
+        setExercisePreviewError('Nao encontramos demonstracao oficial para este exercicio.');
+        return;
+      }
+
+      setSelectedExercisePreview(bestMatch);
+    } catch (error) {
+      setExercisePreviewError(
+        error instanceof Error
+          ? error.message
+          : 'Nao foi possivel abrir a demonstracao oficial do exercicio.',
+      );
+    } finally {
+      setExercisePreviewLoadingKey(null);
     }
   };
 
@@ -1483,6 +1527,12 @@ export default function AlunoDashboard() {
             </div>
 
             <div className="mt-6 grid gap-4">
+              {exercisePreviewError ? (
+                <div className="rounded-[22px] border border-rose-500/20 bg-rose-500/10 px-4 py-4 text-sm text-rose-200">
+                  {exercisePreviewError}
+                </div>
+              ) : null}
+
               {executionSession.items.map((item, index) => (
                 <div key={`${executionSession.id}-${item.exercise_index}`} className="rounded-[24px] border border-zinc-800 bg-black/25 p-4">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -1502,6 +1552,24 @@ export default function AlunoDashboard() {
                       />
                       Concluido
                     </label>
+                  </div>
+
+                  <div className="mt-4 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void openExercisePreviewByName(
+                          item.exercise_name,
+                          `${executionSession.id}-${item.exercise_index}`,
+                        )
+                      }
+                      disabled={exercisePreviewLoadingKey === `${executionSession.id}-${item.exercise_index}`}
+                      className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition-all hover:border-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {exercisePreviewLoadingKey === `${executionSession.id}-${item.exercise_index}`
+                        ? 'Buscando...'
+                        : 'Como executar'}
+                    </button>
                   </div>
 
                   <div className="mt-4 grid gap-3 md:grid-cols-3">
@@ -1553,6 +1621,7 @@ export default function AlunoDashboard() {
                 onClick={() => {
                   setExecutionSession(null);
                   setExecutionTreino(null);
+                  setExercisePreviewError(null);
                 }}
                 className="flex-1 rounded-2xl bg-zinc-800 px-4 py-4 font-bold text-white transition-all hover:bg-zinc-700"
               >
@@ -1582,6 +1651,13 @@ export default function AlunoDashboard() {
           </div>
         </div>
       )}
+
+      {selectedExercisePreview ? (
+        <ExerciseOfficialPreviewModal
+          item={selectedExercisePreview}
+          onClose={closeExercisePreviewModal}
+        />
+      ) : null}
 
       {mustChangePassword && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/92 px-6 py-10 backdrop-blur-md">

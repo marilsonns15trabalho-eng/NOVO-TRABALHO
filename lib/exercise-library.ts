@@ -1,8 +1,12 @@
 import type { ExerciseLibraryItem } from '@/types/exercise-library';
 
 type WgerExercise = Record<string, any>;
+type WgerTranslation = Record<string, any>;
 
 const WGER_API_BASE_DEFAULT = 'https://wger.de/api/v2';
+const WGER_LANGUAGE_EN = 2;
+const WGER_LANGUAGE_ES = 4;
+const WGER_LANGUAGE_PT = 7;
 
 const SEARCH_TERM_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\brosca\b/gi, 'curl'],
@@ -57,6 +61,30 @@ const EXACT_EXERCISE_NAME_MAP = new Map<string, string>([
 ]);
 
 const WORD_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/\banterior deltoid\b/gi, 'ombros'],
+  [/\bposterior deltoid\b/gi, 'ombro posterior'],
+  [/\brectus abdominis\b/gi, 'abdomen'],
+  [/\bpectoralis major\b/gi, 'peito'],
+  [/\btriceps brachii\b/gi, 'triceps'],
+  [/\bgluteus maximus\b/gi, 'gluteos'],
+  [/\bquadriceps femoris\b/gi, 'quadriceps'],
+  [/\blatissimus dorsi\b/gi, 'dorsais'],
+  [/\bgastrocnemius\b/gi, 'panturrilhas'],
+  [/\btrapezius\b/gi, 'trapezio'],
+  [/\bshoulders\b/gi, 'ombros'],
+  [/\bshoulder\b/gi, 'ombro'],
+  [/\bchest\b/gi, 'peito'],
+  [/\barms\b/gi, 'bracos'],
+  [/\barm\b/gi, 'braco'],
+  [/\blegs\b/gi, 'pernas'],
+  [/\bleg\b/gi, 'perna'],
+  [/\bback\b/gi, 'costas'],
+  [/\babs\b/gi, 'abdomen'],
+  [/\bcore\b/gi, 'core'],
+  [/\bcalves\b/gi, 'panturrilhas'],
+  [/\bglutes\b/gi, 'gluteos'],
+  [/\bquads\b/gi, 'quadriceps'],
+  [/\blats\b/gi, 'dorsais'],
   [/\bbarbell\b/gi, 'barra'],
   [/\bdumbbell\b/gi, 'halter'],
   [/\bcable\b/gi, 'polia'],
@@ -82,6 +110,144 @@ const WORD_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bstanding\b/gi, 'em pe'],
   [/\bseated\b/gi, 'sentado'],
   [/\brear delt\b/gi, 'posterior de ombro'],
+];
+
+const EN_PT_INSTRUCTION_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/\bstart the movement by\b/gi, 'inicie o movimento'],
+  [/\bbegin the movement by\b/gi, 'inicie o movimento'],
+  [/\bstart by\b/gi, 'comece'],
+  [/\bbegin by\b/gi, 'comece'],
+  [/\breturn to the starting position\b/gi, 'retorne para a posicao inicial'],
+  [/\breturn to starting position\b/gi, 'retorne para a posicao inicial'],
+  [/\breturning the handles to their starting positions\b/gi, 'retornando os pegadores para a posicao inicial'],
+  [/\bmaintaining good form\b/gi, 'mantendo a boa tecnica'],
+  [/\bkeep your back straight\b/gi, 'mantenha as costas retas'],
+  [/\bkeep your core engaged\b/gi, 'mantenha o abdomen ativado'],
+  [/\bengage your core\b/gi, 'ative o abdomen'],
+  [/\bkeep your arms straight\b/gi, 'mantenha os bracos estendidos'],
+  [/\bkeep your elbows close to your body\b/gi, 'mantenha os cotovelos proximos do corpo'],
+  [/\bunder control\b/gi, 'de forma controlada'],
+  [/\bas fast as you can\b/gi, 'o mais rapido que conseguir'],
+  [/\bfeet shoulder-width apart\b/gi, 'pes na largura dos ombros'],
+  [/\bshoulder-width apart\b/gi, 'na largura dos ombros'],
+  [/\bwith your right hand\b/gi, 'com a mao direita'],
+  [/\bwith your left hand\b/gi, 'com a mao esquerda'],
+  [/\bright hand\b/gi, 'mao direita'],
+  [/\bleft hand\b/gi, 'mao esquerda'],
+  [/\brightside\b/gi, 'lado direito'],
+  [/\bleft side\b/gi, 'lado esquerdo'],
+  [/\badjust the weight\b/gi, 'ajuste a carga'],
+  [/\badjust the pulleys to the right height\b/gi, 'ajuste as polias para a altura correta'],
+  [/\brest your weight on\b/gi, 'apoie o peso em'],
+  [/\bmove by stepping with\b/gi, 'avance movendo'],
+  [/\bpause at the finish of the move\b/gi, 'faça uma breve pausa ao final do movimento'],
+  [/\bworks your\b/gi, 'trabalha'],
+  [/\bthis is your starting position\b/gi, 'essa e a posicao inicial'],
+];
+
+const EN_PT_WORD_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/\bpushup position\b/gi, 'posicao de flexao'],
+  [/\bpush-up position\b/gi, 'posicao de flexao'],
+  [/\bpushups?\b/gi, 'flexoes'],
+  [/\bbarbell\b/gi, 'barra'],
+  [/\bdumbbells?\b/gi, 'halteres'],
+  [/\bdumbbell\b/gi, 'halter'],
+  [/\bplates?\b/gi, 'anilhas'],
+  [/\bhandle(s)?\b/gi, 'pegadores'],
+  [/\bpulley\b/gi, 'polia'],
+  [/\bpulleys\b/gi, 'polias'],
+  [/\bcable(s)?\b/gi, 'polia'],
+  [/\bmachine\b/gi, 'maquina'],
+  [/\bbench\b/gi, 'banco'],
+  [/\bballs of your feet\b/gi, 'pontas dos pes'],
+  [/\bpalms\b/gi, 'palmas das maos'],
+  [/\bfeet\b/gi, 'pes'],
+  [/\bfoot\b/gi, 'pe'],
+  [/\bhands\b/gi, 'maos'],
+  [/\bhand\b/gi, 'mao'],
+  [/\barms\b/gi, 'bracos'],
+  [/\barm\b/gi, 'braco'],
+  [/\blegs\b/gi, 'pernas'],
+  [/\bleg\b/gi, 'perna'],
+  [/\bhips\b/gi, 'quadril'],
+  [/\bhip\b/gi, 'quadril'],
+  [/\bshoulders\b/gi, 'ombros'],
+  [/\bshoulder\b/gi, 'ombro'],
+  [/\bchest\b/gi, 'peito'],
+  [/\bback\b/gi, 'costas'],
+  [/\blower back\b/gi, 'lombar'],
+  [/\bcore\b/gi, 'abdomen'],
+  [/\babs\b/gi, 'abdominais'],
+  [/\bglutes\b/gi, 'gluteos'],
+  [/\bquads\b/gi, 'quadriceps'],
+  [/\bcalves\b/gi, 'panturrilhas'],
+  [/\btriceps\b/gi, 'triceps'],
+  [/\bbiceps\b/gi, 'biceps'],
+  [/\bdeltoids?\b/gi, 'deltoides'],
+  [/\btraps\b/gi, 'trapezio'],
+  [/\blats\b/gi, 'dorsais'],
+  [/\bgrip\b/gi, 'pegada'],
+  [/\bstand\b/gi, 'fique em pe'],
+  [/\bsit\b/gi, 'sente-se'],
+  [/\blie\b/gi, 'deite-se'],
+  [/\bgrab\b/gi, 'segure'],
+  [/\bhold\b/gi, 'segure'],
+  [/\braise\b/gi, 'eleve'],
+  [/\blower\b/gi, 'abaixe'],
+  [/\bbend\b/gi, 'flexione'],
+  [/\bstraighten\b/gi, 'estenda'],
+  [/\bsqueeze\b/gi, 'contraia'],
+  [/\bexhale\b/gi, 'expire'],
+  [/\binhale\b/gi, 'inspire'],
+  [/\brepeat\b/gi, 'repita'],
+  [/\bslowly\b/gi, 'lentamente'],
+];
+
+const ES_PT_INSTRUCTION_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/\bposicion inicial\b/gi, 'posicao inicial'],
+  [/\bmovimiento\b/gi, 'movimento'],
+  [/\binstrucciones\b/gi, 'instrucoes'],
+  [/\bmusculos trabajados\b/gi, 'musculos trabalhados'],
+  [/\bintensidad y medicion\b/gi, 'intensidade e medicao'],
+  [/\bde forma controlada\b/gi, 'de forma controlada'],
+];
+
+const ES_PT_WORD_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/\bmancuernas?\b/gi, 'halteres'],
+  [/\bbarra\b/gi, 'barra'],
+  [/\bpolea(s)?\b/gi, 'polia$1'],
+  [/\bmaquina\b/gi, 'maquina'],
+  [/\bpecho\b/gi, 'peito'],
+  [/\bhombros\b/gi, 'ombros'],
+  [/\bcadera(s)?\b/gi, 'quadril'],
+  [/\brodillas\b/gi, 'joelhos'],
+  [/\bpies\b/gi, 'pes'],
+  [/\bmano(s)?\b/gi, 'mao$1'],
+  [/\bbrazos\b/gi, 'bracos'],
+  [/\bcodos\b/gi, 'cotovelos'],
+  [/\bespalda\b/gi, 'costas'],
+  [/\bespalda baja\b/gi, 'lombar'],
+  [/\babdomen\b/gi, 'abdomen'],
+  [/\bgluteos\b/gi, 'gluteos'],
+  [/\bcuadriceps\b/gi, 'quadriceps'],
+  [/\bpantorrillas\b/gi, 'panturrilhas'],
+  [/\btriceps\b/gi, 'triceps'],
+  [/\bbiceps\b/gi, 'biceps'],
+  [/\bdeltoides\b/gi, 'deltoides'],
+  [/\btrapecios\b/gi, 'trapezio'],
+  [/\bdorsales\b/gi, 'dorsais'],
+  [/\bagarra\b/gi, 'segure'],
+  [/\bmanten\b/gi, 'mantenha'],
+  [/\bcolocate\b/gi, 'posicione-se'],
+  [/\bempieza\b/gi, 'comece'],
+  [/\binicia\b/gi, 'inicie'],
+  [/\bregresa\b/gi, 'retorne'],
+  [/\beleva\b/gi, 'eleve'],
+  [/\bbaja\b/gi, 'abaixe'],
+  [/\bflexiona\b/gi, 'flexione'],
+  [/\bextiende\b/gi, 'estenda'],
+  [/\brepite\b/gi, 'repita'],
+  [/\blentamente\b/gi, 'lentamente'],
 ];
 
 function normalizeLooseText(value: string) {
@@ -110,6 +276,62 @@ function stripHtml(value: string) {
     .replace(/&#39;/gi, "'")
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function cleanupTranslatedText(value: string) {
+  return value
+    .replace(/\u00A0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/\s+([,.;!?])/g, '$1')
+    .replace(/^\-+\s*/, '')
+    .replace(/\bInstructions:\s*/gi, '')
+    .replace(/\bInstruction:\s*/gi, '')
+    .replace(/\bInstrucciones:\s*/gi, '')
+    .trim();
+}
+
+function translateSentenceWithReplacements(
+  sentence: string,
+  replacements: Array<[RegExp, string]>,
+  wordReplacements: Array<[RegExp, string]>,
+) {
+  let translated = sentence;
+  for (const [pattern, replacement] of replacements) {
+    translated = translated.replace(pattern, replacement);
+  }
+  for (const [pattern, replacement] of wordReplacements) {
+    translated = translated.replace(pattern, replacement);
+  }
+  translated = cleanupTranslatedText(translated);
+  if (!translated) {
+    return translated;
+  }
+  return translated.charAt(0).toUpperCase() + translated.slice(1);
+}
+
+function translateInstructionToPortuguese(sentence: string, sourceLanguage: number | null) {
+  const cleaned = cleanupTranslatedText(sentence);
+  if (!cleaned) {
+    return '';
+  }
+
+  if (sourceLanguage === WGER_LANGUAGE_PT) {
+    return cleaned;
+  }
+
+  if (sourceLanguage === WGER_LANGUAGE_ES) {
+    return translateSentenceWithReplacements(
+      cleaned,
+      ES_PT_INSTRUCTION_REPLACEMENTS,
+      ES_PT_WORD_REPLACEMENTS,
+    );
+  }
+
+  return translateSentenceWithReplacements(
+    cleaned,
+    EN_PT_INSTRUCTION_REPLACEMENTS,
+    EN_PT_WORD_REPLACEMENTS,
+  );
 }
 
 function buildFriendlyExerciseName(rawName: string) {
@@ -151,26 +373,43 @@ export function getWgerSearchLanguage() {
 }
 
 export function mapWgerExerciseLibraryItem(raw: WgerExercise): ExerciseLibraryItem {
+  const translations = Array.isArray(raw.translations) ? raw.translations : [];
+  const portugueseTranslation =
+    translations.find((item: WgerTranslation) => item.language === WGER_LANGUAGE_PT && typeof item.name === 'string') ||
+    null;
+  const spanishTranslation =
+    translations.find((item: WgerTranslation) => item.language === WGER_LANGUAGE_ES && typeof item.name === 'string') ||
+    null;
   const englishTranslation =
-    Array.isArray(raw.translations)
-      ? raw.translations.find((item: Record<string, any>) => item.language === 2 && typeof item.name === 'string')
-      : null;
+    translations.find((item: WgerTranslation) => item.language === WGER_LANGUAGE_EN && typeof item.name === 'string') ||
+    null;
+  const fallbackTranslation =
+    translations.find((item: WgerTranslation) => typeof item.name === 'string') || null;
+
+  const translationForDescription =
+    portugueseTranslation || spanishTranslation || englishTranslation || fallbackTranslation;
 
   const originalName =
     (englishTranslation?.name as string | undefined) ||
-    (Array.isArray(raw.translations) ? raw.translations.find((item: Record<string, any>) => typeof item.name === 'string')?.name : null) ||
+    (fallbackTranslation?.name as string | undefined) ||
+    'Exercicio';
+
+  const displayNameSource =
+    (portugueseTranslation?.name as string | undefined) ||
+    (englishTranslation?.name as string | undefined) ||
+    (fallbackTranslation?.name as string | undefined) ||
     'Exercicio';
 
   const description = stripHtml(
-    String(englishTranslation?.description || raw.description || ''),
+    String(translationForDescription?.description || raw.description || ''),
   );
 
   const instructions = description
     ? description
         .split(/(?<=[.!?])\s+/)
-        .map((item) => item.trim())
+        .map((item) => translateInstructionToPortuguese(item, translationForDescription?.language ?? null))
         .filter(Boolean)
-        .slice(0, 4)
+        .slice(0, 5)
     : [];
 
   const primaryMuscle = Array.isArray(raw.muscles) && raw.muscles[0]
@@ -201,7 +440,10 @@ export function mapWgerExerciseLibraryItem(raw: WgerExercise): ExerciseLibraryIt
 
   return {
     id: String(raw.id ?? raw.uuid ?? originalName),
-    display_name: buildFriendlyExerciseName(originalName),
+    display_name:
+      portugueseTranslation?.name && typeof portugueseTranslation.name === 'string'
+        ? cleanupTranslatedText(String(portugueseTranslation.name))
+        : buildFriendlyExerciseName(displayNameSource),
     original_name: originalName,
     primary_muscle: primaryMuscle,
     primary_muscle_label: primaryMuscle ? buildFriendlyExerciseName(primaryMuscle) : null,
