@@ -37,6 +37,48 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const activeId = useMemo(() => getActiveIdFromPath(pathname), [pathname]);
   const title = TITLES[activeId] || 'Painel de Controle';
 
+  const handleNavigate = (id: string) => {
+    if (id === 'home') {
+      router.push('/dashboard');
+      return;
+    }
+
+    router.push(`/dashboard/${id}`);
+  };
+
+  const bottomNavItems = useMemo(() => {
+    if (!role) {
+      return [];
+    }
+
+    const preferredIds =
+      role === 'admin'
+        ? ['home', 'alunos', 'treinos', 'financeiro']
+        : ['home', 'alunos', 'treinos', 'avaliacao'];
+
+    const roleItems = getMenuItemsForRole(role);
+    const primaryItems = preferredIds
+      .map((id) => roleItems.find((item) => item.id === id))
+      .filter((item): item is NonNullable<typeof item> => Boolean(item));
+
+    return [
+      ...primaryItems.map((item) => ({
+        key: item.id,
+        label: item.label,
+        icon: item.icon,
+        active: activeId === item.id,
+        onClick: () => handleNavigate(item.id),
+      })),
+      {
+        key: 'menu',
+        label: 'Menu',
+        icon: Menu,
+        active: false,
+        onClick: () => setMobileMenuOpen(true),
+      },
+    ];
+  }, [activeId, role]);
+
   useEffect(() => {
     if (!isReady) return;
 
@@ -94,48 +136,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
     );
   }
-
-  const handleNavigate = (id: string) => {
-    if (id === 'home') {
-      router.push('/dashboard');
-      return;
-    }
-
-    router.push(`/dashboard/${id}`);
-  };
-
-  const bottomNavItems = useMemo(() => {
-    if (!role) {
-      return [];
-    }
-
-    const preferredIds =
-      role === 'admin'
-        ? ['home', 'alunos', 'treinos', 'financeiro']
-        : ['home', 'alunos', 'treinos', 'avaliacao'];
-
-    const roleItems = getMenuItemsForRole(role);
-    const primaryItems = preferredIds
-      .map((id) => roleItems.find((item) => item.id === id))
-      .filter((item): item is NonNullable<typeof item> => Boolean(item));
-
-    return [
-      ...primaryItems.map((item) => ({
-        key: item.id,
-        label: item.label,
-        icon: item.icon,
-        active: activeId === item.id,
-        onClick: () => handleNavigate(item.id),
-      })),
-      {
-        key: 'menu',
-        label: 'Menu',
-        icon: Menu,
-        active: false,
-        onClick: () => setMobileMenuOpen(true),
-      },
-    ];
-  }, [activeId, role]);
 
   return (
     <div className="flex min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.08),_transparent_22%),linear-gradient(180deg,#09090b_0%,#000_100%)] font-sans text-white selection:bg-orange-500 selection:text-black">
