@@ -60,8 +60,96 @@ const INTENSITY_MET: Record<WorkoutShareIntensity, number> = {
   alta: 7.2,
 };
 
+const INTENSITY_CALORIE_SCALE: Record<WorkoutShareIntensity, number> = {
+  leve: 0.94,
+  moderada: 1,
+  alta: 1.08,
+};
+
+const EXERCISE_CALORIE_PROFILES: Array<{
+  keywords: string[];
+  met: number;
+}> = [
+  {
+    keywords: [
+      'agachamento',
+      'squat',
+      'leg press',
+      'afundo',
+      'avanco',
+      'bulgar',
+      'passada',
+      'stiff',
+      'terra',
+      'sumo',
+      'thruster',
+      'levantamento',
+    ],
+    met: 7.4,
+  },
+  {
+    keywords: [
+      'remada',
+      'puxada',
+      'serrote',
+      'barra fixa',
+      'pulldown',
+      'puxador',
+      'row',
+    ],
+    met: 6.5,
+  },
+  {
+    keywords: [
+      'supino',
+      'desenvolvimento',
+      'ombro',
+      'elevacao',
+      'push press',
+      'flexao',
+      'crucifixo',
+      'peito',
+    ],
+    met: 6.1,
+  },
+  {
+    keywords: [
+      'rosca',
+      'triceps',
+      'extensora',
+      'flexora',
+      'abducao',
+      'coice',
+      'aducao',
+      'panturrilha',
+      'gluteo',
+      'quadril',
+      'hip thrust',
+    ],
+    met: 5.1,
+  },
+  {
+    keywords: [
+      'abs',
+      'abdominal',
+      'canivete',
+      'prancha',
+      'core',
+      'pernas elevadas',
+    ],
+    met: 4.3,
+  },
+];
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+function normalizeExerciseName(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
 }
 
 function roundRect(
@@ -132,14 +220,11 @@ function wrapText(
   }
 
   if (lines.length === maxLines && words.length > 0) {
-    const lastLine = lines[maxLines - 1];
-    if (context.measureText(lastLine).width > maxWidth) {
-      let trimmed = lastLine;
-      while (trimmed.length > 0 && context.measureText(`${trimmed}...`).width > maxWidth) {
-        trimmed = trimmed.slice(0, -1);
-      }
-      lines[maxLines - 1] = `${trimmed}...`;
+    let trimmed = lines[maxLines - 1];
+    while (trimmed.length > 0 && context.measureText(`${trimmed}...`).width > maxWidth) {
+      trimmed = trimmed.slice(0, -1);
     }
+    lines[maxLines - 1] = `${trimmed}...`;
   }
 
   return lines;
@@ -175,6 +260,78 @@ function sanitizeFileName(value: string) {
     .toLowerCase();
 }
 
+function parseRepetitionScore(reps?: string | null) {
+  if (!reps) {
+    return 12;
+  }
+
+  const values = Array.from(reps.matchAll(/\d+(?:[.,]\d+)?/g))
+    .map((match) => Number.parseFloat(match[0].replace(',', '.')))
+    .filter((value) => Number.isFinite(value) && value > 0);
+
+  if (!values.length) {
+    return 12;
+  }
+
+  const total = values.reduce((sum, value) => sum + value, 0);
+  return clamp(total, 6, 40);
+}
+
+function getExerciseMet(exercise: WorkoutShareExercise) {
+  const normalizedName = normalizeExerciseName(exercise.name);
+  const matchedProfile = EXERCISE_CALORIE_PROFILES.find((profile) =>
+    profile.keywords.some((keyword) => normalizedName.includes(keyword)),
+  );
+
+  let met = matchedProfile?.met ?? 5.6;
+
+  if (normalizedName.includes('+')) {
+    met += 0.6;
+  }
+
+  if (normalizedName.includes('full body')) {
+    met += 0.4;
+  }
+
+  return clamp(met, 4.1, 8.2);
+}
+
+function getExerciseWorkload(exercise: WorkoutShareExercise) {
+  const sets = clamp(exercise.sets ?? 4, 1, 8);
+  const repsScore = parseRepetitionScore(exercise.reps);
+  const comboFactor = exercise.name.includes('+') ? 1.14 : 1;
+  const completionFactor = exercise.completed === false ? 0.4 : 1;
+
+  return sets * (repsScore / 12) * comboFactor * completionFactor;
+}
+
+function drawPowerGauge(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  intensity: WorkoutShareIntensity,
+  darkOnOrange = false,
+) {
+  const gaugeBlocks = 12;
+  const gaugeActive = intensity === 'alta' ? 12 : intensity === 'moderada' ? 8 : 5;
+
+  for (let index = 0; index < gaugeBlocks; index += 1) {
+    fillRoundedRect(
+      context,
+      x + index * 48,
+      y,
+      28,
+      12,
+      6,
+      index < gaugeActive
+        ? darkOnOrange
+          ? '#090909'
+          : '#ff7a1a'
+        : 'rgba(255,255,255,0.12)',
+    );
+  }
+}
+
 export function getWorkoutShareFormatMeta(format: WorkoutShareFormat) {
   return WORKOUT_SHARE_FORMATS[format];
 }
@@ -201,6 +358,7 @@ export function estimateWorkoutCalories(params: {
   weightKg?: number | null;
   durationMinutes?: number | null;
   intensity: WorkoutShareIntensity;
+  exercises?: WorkoutShareExercise[] | null;
 }) {
   const weightKg = params.weightKg || 0;
   const durationMinutes = params.durationMinutes || 0;
@@ -209,7 +367,26 @@ export function estimateWorkoutCalories(params: {
     return null;
   }
 
-  const met = INTENSITY_MET[params.intensity];
+  let met = INTENSITY_MET[params.intensity];
+
+  if (params.exercises?.length) {
+    const weighted = params.exercises.reduce(
+      (accumulator, exercise) => {
+        const workload = getExerciseWorkload(exercise);
+        return {
+          totalLoad: accumulator.totalLoad + workload,
+          totalMet: accumulator.totalMet + getExerciseMet(exercise) * workload,
+        };
+      },
+      { totalLoad: 0, totalMet: 0 },
+    );
+
+    if (weighted.totalLoad > 0) {
+      met = weighted.totalMet / weighted.totalLoad;
+    }
+  }
+
+  met = clamp(met * INTENSITY_CALORIE_SCALE[params.intensity], 4, 8.9);
   const calories = (met * 3.5 * weightKg * durationMinutes) / 200;
   return Math.round(calories);
 }
@@ -218,7 +395,7 @@ export function buildWorkoutShareMessage(data: WorkoutShareCardData) {
   const introName = data.studentName ? `${data.studentName} finalizou` : 'Treino finalizado';
   const durationSnippet = data.durationMinutes ? ` em ${data.durationMinutes} min` : '';
   const caloriesSnippet = data.caloriesEstimate
-    ? ` com ${data.caloriesEstimate} kcal estimadas`
+    ? ` com ${data.caloriesEstimate} kcal no treino`
     : '';
 
   return `${introName} ${data.treinoName}${durationSnippet}${caloriesSnippet} no app Lioness Personal Estudio.`;
@@ -243,50 +420,78 @@ export async function renderWorkoutShareImage(params: {
     throw new Error('Nao foi possivel preparar a arte para compartilhamento.');
   }
 
-  const margin = params.format === 'post' ? 64 : 72;
+  const margin = params.format === 'post' ? 68 : 72;
   const contentWidth = width - margin * 2;
-  const photoHeight = params.photoFile ? Math.round(height * (params.format === 'post' ? 0.36 : 0.42)) : 0;
-  const photo = params.photoFile ? await loadImageSource(params.photoFile) : null;
-  const headlineY = photo ? photoHeight + 110 : 170;
-  const statCardsY = headlineY + (params.format === 'post' ? 260 : 320);
-  const progressCardHeight = params.format === 'post' ? 168 : 188;
-  const exercisesCardY = statCardsY + (params.format === 'post' ? 240 : 300);
-  const footerY = height - 120;
+  const heroHeight = params.photoFile
+    ? Math.round(height * (params.format === 'post' ? 0.38 : 0.42))
+    : Math.round(height * (params.format === 'post' ? 0.24 : 0.28));
+  const statCardsY = heroHeight + 36;
   const cardsGap = 24;
+  const statCardHeight = params.format === 'post' ? 168 : 176;
+  const intensityCardHeight = params.format === 'post' ? 144 : 152;
   const smallCardWidth = Math.floor((contentWidth - cardsGap) / 2);
+  const intensityCardY = statCardsY + statCardHeight + 20;
+  const summaryCardY = intensityCardY + intensityCardHeight + 26;
+  const footerY = height - 84;
+  const summaryCardHeight = footerY - summaryCardY;
+  const visibleExercises = params.data.exercises.slice(0, params.format === 'post' ? 4 : 3);
+  const remainingExercises = Math.max(params.data.exercises.length - visibleExercises.length, 0);
+  const photo = params.photoFile ? await loadImageSource(params.photoFile) : null;
 
   context.clearRect(0, 0, width, height);
   context.fillStyle = '#050505';
   context.fillRect(0, 0, width, height);
 
   const backgroundGradient = context.createLinearGradient(0, 0, width, height);
-  backgroundGradient.addColorStop(0, '#1b120d');
-  backgroundGradient.addColorStop(0.28, '#050505');
-  backgroundGradient.addColorStop(1, '#0d0d0d');
+  backgroundGradient.addColorStop(0, '#141414');
+  backgroundGradient.addColorStop(0.42, '#050505');
+  backgroundGradient.addColorStop(1, '#0f0a06');
   context.fillStyle = backgroundGradient;
   context.fillRect(0, 0, width, height);
 
-  const glowGradient = context.createRadialGradient(width * 0.12, height * 0.08, 30, width * 0.12, height * 0.08, width * 0.52);
+  const glowGradient = context.createRadialGradient(
+    width * 0.16,
+    height * 0.08,
+    20,
+    width * 0.16,
+    height * 0.08,
+    width * 0.56,
+  );
   glowGradient.addColorStop(0, 'rgba(255, 138, 56, 0.38)');
-  glowGradient.addColorStop(0.4, 'rgba(255, 106, 0, 0.16)');
+  glowGradient.addColorStop(0.45, 'rgba(255, 106, 0, 0.14)');
   glowGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
   context.fillStyle = glowGradient;
   context.fillRect(0, 0, width, height);
 
   if (photo) {
-    const scale = Math.max(width / photo.width, photoHeight / photo.height);
+    const scale = Math.max(width / photo.width, heroHeight / photo.height);
     const renderedWidth = photo.width * scale;
     const renderedHeight = photo.height * scale;
     const imageX = (width - renderedWidth) / 2;
-    const imageY = (photoHeight - renderedHeight) / 2;
+    const imageY = (heroHeight - renderedHeight) / 2;
     context.drawImage(photo, imageX, imageY, renderedWidth, renderedHeight);
 
-    const photoOverlay = context.createLinearGradient(0, 0, 0, photoHeight + 160);
-    photoOverlay.addColorStop(0, 'rgba(0, 0, 0, 0.12)');
-    photoOverlay.addColorStop(0.55, 'rgba(0, 0, 0, 0.58)');
+    const photoOverlay = context.createLinearGradient(0, 0, 0, heroHeight + 180);
+    photoOverlay.addColorStop(0, 'rgba(0, 0, 0, 0.16)');
+    photoOverlay.addColorStop(0.52, 'rgba(0, 0, 0, 0.64)');
     photoOverlay.addColorStop(1, 'rgba(5, 5, 5, 0.98)');
     context.fillStyle = photoOverlay;
-    context.fillRect(0, 0, width, photoHeight + 180);
+    context.fillRect(0, 0, width, heroHeight + 180);
+  } else {
+    const heroGradient = context.createLinearGradient(0, 0, width, heroHeight);
+    heroGradient.addColorStop(0, '#090909');
+    heroGradient.addColorStop(0.5, '#120b07');
+    heroGradient.addColorStop(1, '#050505');
+    context.fillStyle = heroGradient;
+    context.fillRect(0, 0, width, heroHeight);
+
+    context.save();
+    context.globalAlpha = 0.1;
+    context.fillStyle = '#ff7a1a';
+    context.font = `${params.format === 'post' ? 520 : 620}px 'Arial Black', sans-serif`;
+    context.textAlign = 'center';
+    context.fillText('L', width * 0.64, heroHeight * 0.88);
+    context.restore();
   }
 
   fillRoundedRect(context, margin, 56, 120, 120, 28, '#ff7a1a');
@@ -299,43 +504,73 @@ export async function renderWorkoutShareImage(params: {
   context.font = "700 18px 'Arial', sans-serif";
   context.fillText('ACESSO MOBILE', margin, 212);
 
+  fillRoundedRect(context, width - margin - 240, 64, 240, 84, 22, 'rgba(0,0,0,0.56)');
+  context.fillStyle = '#8f8f8f';
+  context.font = "700 16px 'Arial', sans-serif";
+  context.fillText(getWorkoutShareFormatMeta(params.format).label.toUpperCase(), width - margin - 208, 100);
   context.fillStyle = '#ffffff';
-  context.font = `${params.format === 'post' ? 84 : 112}px 'Space Grotesk', 'Arial Black', sans-serif`;
+  context.font = "700 24px 'Arial', sans-serif";
+  context.fillText(formatDatePtBr(params.data.completedOn), width - margin - 208, 134);
+
+  const headlineY = photo ? heroHeight - (params.format === 'post' ? 108 : 144) : heroHeight - 110;
+  context.fillStyle = '#ffffff';
+  context.font = `${params.format === 'post' ? 86 : 98}px 'Space Grotesk', 'Arial Black', sans-serif`;
   context.fillText('TREINO', margin, headlineY);
   context.fillStyle = '#ff7a1a';
-  context.fillText('FINALIZADO', margin, headlineY + (params.format === 'post' ? 96 : 124));
+  context.fillText('FINALIZADO', margin, headlineY + (params.format === 'post' ? 94 : 108));
 
   const subtitle = params.data.studentName
     ? `${params.data.studentName} concluiu ${params.data.treinoName}`
     : `${params.data.treinoName} concluido com sucesso`;
   context.fillStyle = '#d2d2d2';
-  context.font = "500 30px 'Arial', sans-serif";
-  const subtitleLines = wrapText(context, subtitle, contentWidth, 2);
+  context.font = "500 28px 'Arial', sans-serif";
+  const subtitleLines = wrapText(context, subtitle, contentWidth - 60, 2);
   subtitleLines.forEach((line, index) => {
-    context.fillText(line, margin, headlineY + (params.format === 'post' ? 148 : 190) + index * 38);
+    context.fillText(line, margin, headlineY + (params.format === 'post' ? 144 : 166) + index * 36);
   });
 
-  context.fillStyle = '#8e8e8e';
-  context.font = "600 18px 'Arial', sans-serif";
-  context.fillText(formatDatePtBr(params.data.completedOn), margin, headlineY + (params.format === 'post' ? 232 : 280));
-
   const cardBackground = 'rgba(10, 10, 10, 0.82)';
-  const orangeGradient = context.createLinearGradient(margin, statCardsY, margin + smallCardWidth, statCardsY + 180);
+  fillRoundedRect(context, margin, statCardsY, smallCardWidth, statCardHeight, 32, cardBackground);
+  fillRoundedRect(
+    context,
+    margin + smallCardWidth + cardsGap,
+    statCardsY,
+    smallCardWidth,
+    statCardHeight,
+    32,
+    cardBackground,
+  );
+
+  const orangeGradient = context.createLinearGradient(
+    margin,
+    intensityCardY,
+    margin + contentWidth,
+    intensityCardY + intensityCardHeight,
+  );
   orangeGradient.addColorStop(0, '#ff7a1a');
   orangeGradient.addColorStop(1, '#ff9a57');
-
-  fillRoundedRect(context, margin, statCardsY, smallCardWidth, 168, 32, cardBackground);
-  fillRoundedRect(context, margin + smallCardWidth + cardsGap, statCardsY, smallCardWidth, 168, 32, cardBackground);
-  fillRoundedRect(context, margin, statCardsY + 190, contentWidth, progressCardHeight, 36, params.data.intensity === 'alta' ? orangeGradient : cardBackground);
+  fillRoundedRect(
+    context,
+    margin,
+    intensityCardY,
+    contentWidth,
+    intensityCardHeight,
+    34,
+    params.data.intensity === 'alta' ? orangeGradient : cardBackground,
+  );
 
   context.fillStyle = '#8f8f8f';
   context.font = "700 18px 'Arial', sans-serif";
-  context.fillText('KCAL ESTIMADAS', margin + 28, statCardsY + 40);
+  context.fillText('KCAL DO TREINO', margin + 28, statCardsY + 40);
   context.fillText('DURACAO', margin + smallCardWidth + cardsGap + 28, statCardsY + 40);
 
   context.fillStyle = '#ffffff';
   context.font = "700 72px 'Space Grotesk', 'Arial Black', sans-serif";
-  context.fillText(params.data.caloriesEstimate ? String(params.data.caloriesEstimate) : '--', margin + 28, statCardsY + 112);
+  context.fillText(
+    params.data.caloriesEstimate ? String(params.data.caloriesEstimate) : '--',
+    margin + 28,
+    statCardsY + 112,
+  );
   context.fillText(
     params.data.durationMinutes ? String(params.data.durationMinutes) : '--',
     margin + smallCardWidth + cardsGap + 28,
@@ -349,58 +584,37 @@ export async function renderWorkoutShareImage(params: {
 
   context.fillStyle = params.data.intensity === 'alta' ? '#090909' : '#ffffff';
   context.font = "700 18px 'Arial', sans-serif";
-  context.fillText('INTENSIDADE E PROGRESSO', margin + 32, statCardsY + 226);
+  context.fillText('INTENSIDADE E PROGRESSO', margin + 32, intensityCardY + 42);
   context.font = "800 54px 'Space Grotesk', 'Arial Black', sans-serif";
-  context.fillText(params.data.intensity.toUpperCase(), margin + 32, statCardsY + 292);
+  context.fillText(params.data.intensity.toUpperCase(), margin + 32, intensityCardY + 102);
 
   context.font = "600 24px 'Arial', sans-serif";
   context.fillText(
     `${params.data.exercisesCompleted}/${Math.max(params.data.exercises.length, params.data.exercisesCompleted)} exercicios concluidos`,
     margin + 32,
-    statCardsY + 332,
+    intensityCardY + 136,
   );
+  drawPowerGauge(context, margin + 32, intensityCardY + intensityCardHeight - 36, params.data.intensity, params.data.intensity === 'alta');
 
-  const powerGaugeX = margin + 32;
-  const powerGaugeY = statCardsY + progressCardHeight + 140;
-  const gaugeBlocks = 12;
-  const gaugeActive =
-    params.data.intensity === 'alta' ? 12 : params.data.intensity === 'moderada' ? 8 : 5;
-  for (let index = 0; index < gaugeBlocks; index += 1) {
-    fillRoundedRect(
-      context,
-      powerGaugeX + index * 64,
-      powerGaugeY,
-      42,
-      16,
-      8,
-      index < gaugeActive
-        ? params.data.intensity === 'alta'
-          ? '#090909'
-          : '#ff7a1a'
-        : 'rgba(255,255,255,0.12)',
-    );
-  }
-
-  fillRoundedRect(context, margin, exercisesCardY, contentWidth, footerY - exercisesCardY - 40, 36, 'rgba(16, 16, 16, 0.88)');
+  fillRoundedRect(context, margin, summaryCardY, contentWidth, summaryCardHeight, 36, 'rgba(16, 16, 16, 0.88)');
   context.fillStyle = '#ffffff';
   context.font = "700 18px 'Arial', sans-serif";
-  context.fillText('RESUMO DO TREINO', margin + 32, exercisesCardY + 48);
+  context.fillText('RESUMO DO TREINO', margin + 32, summaryCardY + 48);
   context.fillStyle = '#8f8f8f';
   context.font = "500 20px 'Arial', sans-serif";
   const splitOrDateLabel = params.data.splitLabel
     ? `Split ${params.data.splitLabel}`
     : `Concluido em ${formatDatePtBr(params.data.completedOn)}`;
-  context.fillText(splitOrDateLabel, margin + 32, exercisesCardY + 84);
+  context.fillText(splitOrDateLabel, margin + 32, summaryCardY + 84);
 
-  const exercises = params.data.exercises.slice(0, params.format === 'post' ? 4 : 5);
-  exercises.forEach((exercise, index) => {
-    const itemY = exercisesCardY + 132 + index * 92;
+  visibleExercises.forEach((exercise, index) => {
+    const itemY = summaryCardY + 124 + index * 96;
     fillRoundedRect(
       context,
       margin + 28,
       itemY,
       contentWidth - 56,
-      72,
+      74,
       24,
       exercise.completed === false ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.06)',
     );
@@ -408,7 +622,7 @@ export async function renderWorkoutShareImage(params: {
     fillRoundedRect(
       context,
       margin + 48,
-      itemY + 18,
+      itemY + 19,
       36,
       36,
       12,
@@ -418,7 +632,7 @@ export async function renderWorkoutShareImage(params: {
     context.fillStyle = exercise.completed === false ? '#b1b1b1' : '#090909';
     context.font = "700 18px 'Arial', sans-serif";
     context.textAlign = 'center';
-    context.fillText(String(index + 1), margin + 66, itemY + 43);
+    context.fillText(String(index + 1), margin + 66, itemY + 44);
     context.textAlign = 'left';
 
     context.fillStyle = '#ffffff';
@@ -432,8 +646,24 @@ export async function renderWorkoutShareImage(params: {
       exercise.sets ? `${exercise.sets} series` : null,
       exercise.reps ? `${exercise.reps} reps` : null,
     ].filter(Boolean);
-    context.fillText(metaParts.join(' • ') || 'Execucao concluida', margin + 108, itemY + 58);
+    context.fillText(metaParts.join(' / ') || 'Execucao concluida', margin + 108, itemY + 58);
   });
+
+  if (remainingExercises > 0) {
+    const itemY = summaryCardY + 124 + visibleExercises.length * 96;
+    fillRoundedRect(
+      context,
+      margin + 28,
+      itemY,
+      contentWidth - 56,
+      68,
+      24,
+      'rgba(255,122,26,0.08)',
+    );
+    context.fillStyle = '#ffb37f';
+    context.font = "700 22px 'Arial', sans-serif";
+    context.fillText(`+ ${remainingExercises} exercicio(s) na sessao`, margin + 40, itemY + 42);
+  }
 
   context.fillStyle = '#7e7e7e';
   context.font = "600 18px 'Arial', sans-serif";
@@ -443,7 +673,7 @@ export async function renderWorkoutShareImage(params: {
   context.fillText('LIONESS PERSONAL ESTUDIO', margin, footerY + 34);
 
   const blob = await new Promise<Blob | null>((resolve) => {
-    canvas.toBlob(resolve, 'image/png', 1);
+    canvas.toBlob(resolve, 'image/jpeg', 0.92);
   });
 
   if (!blob) {
@@ -451,8 +681,8 @@ export async function renderWorkoutShareImage(params: {
   }
 
   const sanitizedName = sanitizeFileName(params.data.treinoName || 'treino-finalizado');
-  return new File([blob], `${sanitizedName || 'treino-finalizado'}-${exportSuffix}.png`, {
-    type: 'image/png',
+  return new File([blob], `${sanitizedName || 'treino-finalizado'}-${exportSuffix}.jpg`, {
+    type: 'image/jpeg',
     lastModified: Date.now(),
   });
 }

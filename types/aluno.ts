@@ -34,6 +34,9 @@ export interface Aluno {
   modalidade?: string;
   created_at: string;
   linked_auth_user_id?: string | null;
+  avatar_url?: string | null;
+  avatar_path?: string | null;
+  avatar_updated_at?: string | null;
 }
 
 /** Dados para o formulário de criação/edição de aluno */
@@ -76,4 +79,7 @@ export interface StudentDBRow {
   modality?: string | null;
   created_at: string;
   linked_auth_user_id?: string | null;
+  avatar_url?: string | null;
+  avatar_path?: string | null;
+  avatar_updated_at?: string | null;
 }

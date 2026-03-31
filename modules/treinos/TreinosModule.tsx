@@ -19,6 +19,7 @@ import {
   Users,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
+import ProfileAvatar from '@/components/account/ProfileAvatar';
 import ExerciseOfficialPreviewModal from '@/components/treinos/ExerciseOfficialPreviewModal';
 import { useTreinos } from '@/hooks/useTreinos';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -843,11 +844,19 @@ export default function TreinosModule() {
                   onClick={() => setSelectedStudentView(entry.student)}
                   className="grid w-full gap-4 border-b border-zinc-800 px-4 py-4 text-left transition-all hover:bg-zinc-900/70 last:border-b-0 lg:grid-cols-[minmax(0,2fr)_110px_110px_auto] lg:items-center lg:px-5"
                 >
-                  <div className="min-w-0">
-                    <p className="truncate text-base font-bold text-white">{entry.student.name}</p>
-                    <p className="mt-1 truncate text-sm text-zinc-500">
-                      {entry.student.email || 'Sem e-mail informado'}
-                    </p>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <ProfileAvatar
+                      displayName={entry.student.name}
+                      avatarUrl={entry.student.avatar_url}
+                      className="h-11 w-11 shrink-0 rounded-2xl border border-zinc-800"
+                      textClassName="text-sm"
+                    />
+                    <div className="min-w-0">
+                      <p className="truncate text-base font-bold text-white">{entry.student.name}</p>
+                      <p className="mt-1 truncate text-sm text-zinc-500">
+                        {entry.student.email || 'Sem e-mail informado'}
+                      </p>
+                    </div>
                   </div>
                   <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-3 py-3 text-center">
                     <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Treinos</p>
@@ -996,11 +1005,19 @@ export default function TreinosModule() {
                   const checked = selectedPlanStudentIds.includes(aluno.id);
                   return (
                     <button key={aluno.id} type="button" onClick={() => togglePlanStudent(aluno.id)} className={`flex items-center justify-between rounded-2xl border px-4 py-4 text-left transition-all ${checked ? 'border-sky-500/20 bg-sky-500/10 text-white' : 'border-zinc-800 bg-black/25 text-zinc-300 hover:border-zinc-700'}`}>
-                      <div>
-                        <p className="font-bold">{aluno.name}</p>
-                        <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">
-                          {aluno.email || 'participa da rotina'}
-                        </p>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <ProfileAvatar
+                          displayName={aluno.name}
+                          avatarUrl={aluno.avatar_url}
+                          className="h-10 w-10 shrink-0 rounded-2xl border border-zinc-800"
+                          textClassName="text-sm"
+                        />
+                        <div className="min-w-0">
+                          <p className="truncate font-bold">{aluno.name}</p>
+                          <p className="mt-1 truncate text-xs uppercase tracking-[0.18em] text-zinc-500">
+                            {aluno.email || 'participa da rotina'}
+                          </p>
+                        </div>
                       </div>
                       {checked ? <CheckCircle2 size={18} className="text-sky-300" /> : <UserCheck size={18} className="text-zinc-500" />}
                     </button>
@@ -1199,22 +1216,30 @@ export default function TreinosModule() {
                       const isFromRoutine = routineStudentIds.has(aluno.id);
                       return (
                         <button key={aluno.id} type="button" onClick={() => toggleAssignedStudent(aluno.id)} className={`flex items-start justify-between gap-3 rounded-2xl border px-4 py-4 text-left transition-all ${checked ? 'border-sky-500/20 bg-sky-500/10 text-white' : 'border-zinc-800 bg-black/25 text-zinc-300 hover:border-zinc-700'}`}>
-                          <div className="min-w-0">
-                            <span className="block truncate font-bold">{aluno.name}</span>
-                            <div className="mt-1 flex flex-wrap gap-2">
-                              <span className="rounded-full border border-white/6 bg-white/[0.03] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-500">
-                                 {aluno.plan_name || 'Sem mensalidade'}
-                              </span>
-                              {aluno.status ? (
+                          <div className="flex min-w-0 items-start gap-3">
+                            <ProfileAvatar
+                              displayName={aluno.name}
+                              avatarUrl={aluno.avatar_url}
+                              className="h-11 w-11 shrink-0 rounded-2xl border border-zinc-800"
+                              textClassName="text-sm"
+                            />
+                            <div className="min-w-0">
+                              <span className="block truncate font-bold">{aluno.name}</span>
+                              <div className="mt-1 flex flex-wrap gap-2">
                                 <span className="rounded-full border border-white/6 bg-white/[0.03] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-500">
-                                  {aluno.status}
+                                   {aluno.plan_name || 'Sem mensalidade'}
                                 </span>
-                              ) : null}
-                              {newTreino.training_plan_id && isFromRoutine ? (
-                                <span className="rounded-full border border-sky-500/20 bg-sky-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-sky-300">
-                                  Da rotina
-                                </span>
-                              ) : null}
+                                {aluno.status ? (
+                                  <span className="rounded-full border border-white/6 bg-white/[0.03] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-500">
+                                    {aluno.status}
+                                  </span>
+                                ) : null}
+                                {newTreino.training_plan_id && isFromRoutine ? (
+                                  <span className="rounded-full border border-sky-500/20 bg-sky-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-sky-300">
+                                    Da rotina
+                                  </span>
+                                ) : null}
+                              </div>
                             </div>
                           </div>
                           {checked ? <CheckCircle2 size={16} className="mt-1 shrink-0 text-sky-300" /> : <Users size={16} className="mt-1 shrink-0 text-zinc-500" />}
@@ -1248,7 +1273,12 @@ export default function TreinosModule() {
                               key={`plan-preview-${student.id}`}
                               className="inline-flex items-center gap-2 rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-300"
                             >
-                              <UserCheck size={12} />
+                              <ProfileAvatar
+                                displayName={student.name}
+                                avatarUrl={student.avatar_url}
+                                className="h-5 w-5 rounded-full border border-sky-500/20"
+                                textClassName="text-[9px]"
+                              />
                               {student.name}
                             </span>
                           ))}
@@ -1467,9 +1497,17 @@ export default function TreinosModule() {
                   <div className="grid gap-3">
                     {(selectedTreino.assigned_students || []).map((student) => (
                       <div key={`${selectedTreino.id}-${student.id}`} className="flex flex-col gap-4 rounded-[24px] border border-zinc-800 bg-black/25 p-4 md:flex-row md:items-center md:justify-between">
-                        <div>
-                          <p className="font-bold text-white">{student.name}</p>
-                          <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">origem: {student.assignment_source === 'plan' ? 'rotina' : student.assignment_source === 'direct' ? 'vinculo direto' : 'legado'}</p>
+                        <div className="flex items-center gap-3">
+                          <ProfileAvatar
+                            displayName={student.name}
+                            avatarUrl={alunos.find((item) => item.id === student.id)?.avatar_url || null}
+                            className="h-11 w-11 shrink-0 rounded-2xl border border-zinc-800"
+                            textClassName="text-sm"
+                          />
+                          <div>
+                            <p className="font-bold text-white">{student.name}</p>
+                            <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">origem: {student.assignment_source === 'plan' ? 'rotina' : student.assignment_source === 'direct' ? 'vinculo direto' : 'legado'}</p>
+                          </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-3">
                           {student.completed_today ? (
@@ -1561,7 +1599,17 @@ export default function TreinosModule() {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedStudentView(null)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
             <motion.div initial={{ scale: 0.96, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0, y: 20 }} className="relative w-full max-w-5xl rounded-[30px] border border-zinc-800 bg-zinc-950 p-5 shadow-2xl max-h-[94vh] overflow-y-auto md:p-8">
               <div className="flex items-start justify-between gap-4">
-                <SectionTitle eyebrow="Ficha da aluna" title={selectedStudentView.name} description={selectedStudentView.email || 'Abra um treino abaixo para acompanhar a execucao exercicio por exercicio.'} />
+                <div className="flex min-w-0 flex-1 items-start gap-4">
+                  <ProfileAvatar
+                    displayName={selectedStudentView.name}
+                    avatarUrl={selectedStudentView.avatar_url}
+                    className="h-14 w-14 shrink-0 rounded-2xl border border-zinc-800"
+                    textClassName="text-lg"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <SectionTitle eyebrow="Ficha da aluna" title={selectedStudentView.name} description={selectedStudentView.email || 'Abra um treino abaixo para acompanhar a execucao exercicio por exercicio.'} />
+                  </div>
+                </div>
                 <CloseModalButton onClick={() => setSelectedStudentView(null)} />
               </div>
 
@@ -1669,7 +1717,17 @@ export default function TreinosModule() {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeOperationalModal} className="absolute inset-0 bg-black/85 backdrop-blur-sm" />
             <motion.div initial={{ scale: 0.96, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0, y: 20 }} className="relative w-full max-w-6xl rounded-[30px] border border-zinc-800 bg-zinc-950 p-5 shadow-2xl max-h-[94vh] overflow-y-auto md:p-8">
               <div className="flex items-start justify-between gap-4">
-                <SectionTitle eyebrow="Execucao assistida" title={`${operationalStudent.name} - ${operationalTreino.nome}`} description="Registre a execucao exercicio por exercicio. O painel da aluna reflete essa mesma sessao." />
+                <div className="flex min-w-0 flex-1 items-start gap-4">
+                  <ProfileAvatar
+                    displayName={operationalStudent.name}
+                    avatarUrl={operationalStudent.avatar_url}
+                    className="h-14 w-14 shrink-0 rounded-2xl border border-zinc-800"
+                    textClassName="text-lg"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <SectionTitle eyebrow="Execucao assistida" title={`${operationalStudent.name} - ${operationalTreino.nome}`} description="Registre a execucao exercicio por exercicio. O painel da aluna reflete essa mesma sessao." />
+                  </div>
+                </div>
                 <CloseModalButton onClick={closeOperationalModal} />
               </div>
 

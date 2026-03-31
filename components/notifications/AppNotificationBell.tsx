@@ -73,7 +73,7 @@ export default function AppNotificationBell({ compact = false }: AppNotification
   }, [role, user?.id]);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: PointerEvent) => {
       if (!notificationsRef.current) {
         return;
       }
@@ -84,11 +84,11 @@ export default function AppNotificationBell({ compact = false }: AppNotification
     };
 
     if (isNotificationsOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('pointerdown', handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('pointerdown', handleClickOutside);
     };
   }, [isNotificationsOpen]);
 
@@ -212,7 +212,7 @@ export default function AppNotificationBell({ compact = false }: AppNotification
   }
 
   return (
-    <div ref={notificationsRef} className="relative z-[90]">
+    <div ref={notificationsRef} className="relative z-[140]">
       <button
         onClick={() => setIsNotificationsOpen((current) => !current)}
         className={`relative rounded-2xl border border-zinc-800 bg-zinc-900/80 text-zinc-400 transition-colors hover:text-orange-400 ${
@@ -230,7 +230,7 @@ export default function AppNotificationBell({ compact = false }: AppNotification
       </button>
 
       {isNotificationsOpen ? (
-        <div className="absolute right-0 top-[calc(100%+12px)] z-[120] w-[min(360px,calc(100vw-2rem))] rounded-[28px] border border-zinc-800 bg-zinc-950/95 p-3 shadow-[0_36px_120px_-64px_rgba(0,0,0,0.95)] backdrop-blur-xl">
+        <div className="fixed inset-x-3 top-[84px] z-[220] rounded-[28px] border border-zinc-800 bg-zinc-950/95 p-3 shadow-[0_36px_120px_-64px_rgba(0,0,0,0.95)] backdrop-blur-xl sm:absolute sm:right-0 sm:left-auto sm:top-[calc(100%+12px)] sm:w-[360px]">
           <div className="flex items-center justify-between border-b border-zinc-800 px-3 pb-3">
             <div>
               <div className="flex items-center gap-2">
@@ -256,7 +256,7 @@ export default function AppNotificationBell({ compact = false }: AppNotification
             </button>
           </div>
 
-          <div className="mt-3 max-h-[420px] space-y-2 overflow-y-auto pr-1">
+          <div className="mt-3 max-h-[62vh] space-y-2 overflow-y-auto pr-1 sm:max-h-[420px]">
             {notifications.length === 0 ? (
               <div className="rounded-[22px] border border-dashed border-zinc-800 bg-black/20 px-4 py-6 text-sm text-zinc-500">
                 Nenhuma notificacao relevante no momento.

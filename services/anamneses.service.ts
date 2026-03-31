@@ -7,13 +7,22 @@ import type { Anamnese, AnamneseFormData, AnamneseStudentContext } from '@/types
 import type { AlunoListItem } from '@/types/common';
 import { assertCanManageStudentDataForUserId } from '@/lib/authz';
 import { emitAnamneseCreatedNotification } from '@/services/app-notifications.service';
+import {
+  attachStudentAvatar,
+  collectLinkedAuthUserIds,
+  fetchStudentAvatarMap,
+  type StudentAvatarPayload,
+} from '@/services/student-avatars.service';
 
-function mapAnamneseRow(item: any): Anamnese {
+function mapAnamneseRow(
+  item: any,
+  avatarMap?: Map<string, StudentAvatarPayload>,
+): Anamnese {
   const student = normalizeStudentRelation(item.student ?? item.students);
 
   return {
     ...item,
-    students: student,
+    students: student ? attachStudentAvatar(student, avatarMap || new Map()) : undefined,
   };
 }
 
@@ -33,7 +42,14 @@ export async function fetchAnamneses(linkedAuthUserId?: string): Promise<Anamnes
     return [];
   }
 
-  return (data || []).map(mapAnamneseRow);
+  const rows = data || [];
+  const avatarMap = await fetchStudentAvatarMap(
+    collectLinkedAuthUserIds(
+      rows.map((item: any) => normalizeStudentRelation(item.student ?? item.students)),
+    ),
+  );
+
+  return rows.map((item) => mapAnamneseRow(item, avatarMap));
 }
 
 /** Busca lista de alunos para o select de anamnese */
@@ -51,7 +67,10 @@ export async function fetchAlunosParaAnamnese(linkedAuthUserId?: string): Promis
     throw error;
   }
 
-  return (data || []).map(mapStudentToAlunoListItem);
+  const rows = data || [];
+  const avatarMap = await fetchStudentAvatarMap(collectLinkedAuthUserIds(rows));
+
+  return rows.map((row) => mapStudentToAlunoListItem(attachStudentAvatar(row, avatarMap)));
 }
 
 function sanitizeOptionalNumber(value: unknown) {
@@ -148,7 +167,7 @@ export async function fetchStudentAnamneseContext(studentId: string): Promise<An
     await Promise.all([
       supabase
         .from(TABLES.STUDENTS)
-        .select('id, name, email, birth_date, gender, plan_name')
+        .select('id, name, email, birth_date, gender, plan_name, linked_auth_user_id')
         .eq('id', studentId)
         .limit(1),
       supabase
@@ -171,6 +190,8 @@ export async function fetchStudentAnamneseContext(studentId: string): Promise<An
   if (!student?.id) {
     return null;
   }
+  const avatarMap = await fetchStudentAvatarMap(collectLinkedAuthUserIds([student]));
+  const studentWithAvatar = attachStudentAvatar(student, avatarMap);
 
   const latestAvaliacao = (avaliacaoRows || [])[0] as
     | { data?: string | null; peso?: number | null; altura?: number | null }
@@ -179,6 +200,7 @@ export async function fetchStudentAnamneseContext(studentId: string): Promise<An
   return {
     student_id: student.id,
     student_name: student.nome || student.name || 'Aluno',
+    linked_auth_user_id: student.linked_auth_user_id ?? null,
     email: (studentRows || [])[0]?.email || null,
     birth_date: student.birth_date || null,
     gender: student.gender || null,
@@ -186,6 +208,9 @@ export async function fetchStudentAnamneseContext(studentId: string): Promise<An
     latest_avaliacao_date: latestAvaliacao?.data || null,
     latest_peso: latestAvaliacao?.peso ?? null,
     latest_altura: latestAvaliacao?.altura ?? null,
+    avatar_url: studentWithAvatar.avatar_url ?? null,
+    avatar_path: studentWithAvatar.avatar_path ?? null,
+    avatar_updated_at: studentWithAvatar.avatar_updated_at ?? null,
   };
 }
 

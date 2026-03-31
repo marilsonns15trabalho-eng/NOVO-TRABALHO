@@ -9,6 +9,12 @@ import {
   findStudentIdByLinkedAuthUserId,
   resolveStudentIdForWrite,
 } from '@/lib/student-access';
+import {
+  attachStudentAvatar,
+  collectLinkedAuthUserIds,
+  fetchStudentAvatarMap,
+  type StudentAvatarPayload,
+} from '@/services/student-avatars.service';
 import type {
   Avaliacao,
   AvaliacaoAlunoItem,
@@ -67,13 +73,16 @@ function mapPhotoRow(item: any): AvaliacaoPhoto {
   };
 }
 
-function mapAvaliacaoRow(item: any): Avaliacao {
+function mapAvaliacaoRow(
+  item: any,
+  avatarMap?: Map<string, StudentAvatarPayload>,
+): Avaliacao {
   const student = normalizeStudentRelation(item.student ?? item.students);
   const photos = Array.isArray(item.photos) ? item.photos.map(mapPhotoRow) : [];
 
   return {
     ...item,
-    students: student,
+    students: student ? attachStudentAvatar(student, avatarMap || new Map()) : undefined,
     photos,
     ombro: item.ombro ?? item.medidas?.ombro,
     torax: item.torax ?? item.medidas?.torax,
@@ -162,7 +171,13 @@ export async function fetchAvaliacoes(
     return [];
   }
 
-  const avaliacoes = (data || []).map(mapAvaliacaoRow);
+  const rows = data || [];
+  const avatarMap = await fetchStudentAvatarMap(
+    collectLinkedAuthUserIds(
+      rows.map((item: any) => normalizeStudentRelation(item.student ?? item.students)),
+    ),
+  );
+  const avaliacoes = rows.map((item) => mapAvaliacaoRow(item, avatarMap));
   return includePhotos ? attachSignedPhotoUrls(avaliacoes) : avaliacoes;
 }
 
@@ -185,16 +200,23 @@ export async function fetchAlunosParaAvaliacao(
     return [];
   }
 
-  return (data || []).map((row: any) => {
-    const student = normalizeStudentRelation(row);
+  const rows = data || [];
+  const avatarMap = await fetchStudentAvatarMap(collectLinkedAuthUserIds(rows));
+
+  return rows.map((row: any) => {
+    const student = normalizeStudentRelation(attachStudentAvatar(row, avatarMap));
 
     return {
       id: student?.id || row.id,
       nome: student?.nome || '',
+      linked_auth_user_id: student?.linked_auth_user_id ?? null,
       sexo: student?.sexo,
       data_nascimento: student?.data_nascimento,
       gender: student?.gender ?? null,
       birth_date: student?.birth_date ?? null,
+      avatar_url: student?.avatar_url ?? null,
+      avatar_path: student?.avatar_path ?? null,
+      avatar_updated_at: student?.avatar_updated_at ?? null,
     };
   });
 }
@@ -220,7 +242,14 @@ export async function fetchHistoricoAluno(
     throw error;
   }
 
-  return attachSignedPhotoUrls((data || []).map(mapAvaliacaoRow));
+  const rows = data || [];
+  const avatarMap = await fetchStudentAvatarMap(
+    collectLinkedAuthUserIds(
+      rows.map((item: any) => normalizeStudentRelation(item.student ?? item.students)),
+    ),
+  );
+
+  return attachSignedPhotoUrls(rows.map((item) => mapAvaliacaoRow(item, avatarMap)));
 }
 
 export async function salvarAvaliacao(

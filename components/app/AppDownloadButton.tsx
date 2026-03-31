@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { Download, Smartphone } from 'lucide-react';
 import { useNativeApp } from '@/hooks/useNativeApp';
 
@@ -9,6 +10,7 @@ interface AppDownloadButtonProps {
 
 export default function AppDownloadButton({ compact = false }: AppDownloadButtonProps) {
   const nativeApp = useNativeApp();
+  const downloadHref = useMemo(() => `/download/app?t=${Date.now()}`, []);
 
   if (nativeApp) {
     return null;
@@ -16,7 +18,7 @@ export default function AppDownloadButton({ compact = false }: AppDownloadButton
 
   return (
     <a
-      href="/download/app"
+      href={downloadHref}
       className={`inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-2xl border border-zinc-800 bg-zinc-900/80 text-white transition-all hover:border-orange-500/20 hover:bg-orange-500/10 hover:text-orange-300 ${
         compact ? 'px-3 py-2 text-[11px] font-bold uppercase tracking-[0.16em] sm:text-xs sm:tracking-[0.18em]' : 'px-4 py-2.5 text-sm font-bold'
       }`}

@@ -19,6 +19,7 @@ import {
 import { AnimatePresence, motion } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import { Toast } from '@/components/ui';
+import ProfileAvatar from '@/components/account/ProfileAvatar';
 import { useFinanceiro } from '@/hooks/useFinanceiro';
 import { compareDateOnly, formatDatePtBr } from '@/lib/date';
 import type { AlunoBoletos, Boleto } from '@/types/financeiro';
@@ -62,7 +63,7 @@ function ModalFrame({
   children,
   widthClass = 'max-w-2xl',
 }: {
-  title: string;
+  title: React.ReactNode;
   onClose: () => void;
   children: React.ReactNode;
   widthClass?: string;
@@ -84,7 +85,7 @@ function ModalFrame({
       >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 flex-1">
-            <h3 className="text-2xl font-bold text-white">{title}</h3>
+            {typeof title === 'string' ? <h3 className="text-2xl font-bold text-white">{title}</h3> : title}
           </div>
           <button
             type="button"
@@ -409,11 +410,19 @@ export default function FinanceiroModule() {
                 <div className="divide-y divide-zinc-800">
                   {filteredBoletos.map((boleto) => (
                     <div key={boleto.id} className="grid gap-3 px-5 py-4 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center">
-                      <div className="min-w-0">
-                        <p className="truncate font-bold text-white">{boleto.students?.name || 'Sem nome'}</p>
-                        <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">
-                          Vence em {formatDatePtBr(boleto.due_date)}
-                        </p>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <ProfileAvatar
+                          displayName={boleto.students?.name}
+                          avatarUrl={boleto.students?.avatar_url}
+                          className="h-10 w-10 shrink-0 rounded-2xl border border-zinc-800"
+                          textClassName="text-sm"
+                        />
+                        <div className="min-w-0">
+                          <p className="truncate font-bold text-white">{boleto.students?.name || 'Sem nome'}</p>
+                          <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">
+                            Vence em {formatDatePtBr(boleto.due_date)}
+                          </p>
+                        </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <StatusBadge status={boleto.status} />
@@ -469,11 +478,19 @@ export default function FinanceiroModule() {
                     onClick={() => setSelectedStudent(aluno)}
                     className="grid w-full gap-3 px-5 py-4 text-left transition-all hover:bg-zinc-900/70 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
                   >
-                    <div className="min-w-0">
-                      <p className="truncate font-bold text-white">{aluno.name}</p>
-                      <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">
-                        {aluno.boletos.length > 0 ? `${aluno.boletos.length} boletos no historico` : 'Sem boletos'}
-                      </p>
+                    <div className="flex min-w-0 items-center gap-3">
+                      <ProfileAvatar
+                        displayName={aluno.name}
+                        avatarUrl={aluno.avatar_url}
+                        className="h-10 w-10 shrink-0 rounded-2xl border border-zinc-800"
+                        textClassName="text-sm"
+                      />
+                      <div className="min-w-0">
+                        <p className="truncate font-bold text-white">{aluno.name}</p>
+                        <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">
+                          {aluno.boletos.length > 0 ? `${aluno.boletos.length} boletos no historico` : 'Sem boletos'}
+                        </p>
+                      </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                       {aluno.displayBoleto ? (
@@ -578,7 +595,24 @@ export default function FinanceiroModule() {
 
       <AnimatePresence>
         {selectedStudent ? (
-          <ModalFrame title={selectedStudent.name} onClose={() => setSelectedStudent(null)} widthClass="max-w-4xl">
+          <ModalFrame
+            title={
+              <div className="flex items-center gap-3">
+                <ProfileAvatar
+                  displayName={selectedStudent.name}
+                  avatarUrl={selectedStudent.avatar_url}
+                  className="h-12 w-12 rounded-2xl border border-zinc-800"
+                  textClassName="text-base"
+                />
+                <div>
+                  <p className="text-2xl font-bold text-white">{selectedStudent.name}</p>
+                  <p className="mt-1 text-sm text-zinc-500">Historico financeiro individual</p>
+                </div>
+              </div>
+            }
+            onClose={() => setSelectedStudent(null)}
+            widthClass="max-w-4xl"
+          >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-zinc-500">
                 Consulte os boletos da aluna e gere novas cobrancas quando precisar.

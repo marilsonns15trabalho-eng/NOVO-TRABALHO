@@ -64,6 +64,17 @@ function getFileExtension(file: File) {
   return 'jpg';
 }
 
+function sanitizeExportFileName(fileName: string) {
+  const normalized = fileName
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9._-]+/g, '-')
+    .replace(/-{2,}/g, '-')
+    .replace(/^-|-$/g, '');
+
+  return normalized || `lioness-${Date.now()}`;
+}
+
 function toBase64Payload(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -108,6 +119,11 @@ export async function shareFile(options: {
   if (isNativeApp()) {
     try {
       const { Directory, Filesystem } = await import('@capacitor/filesystem');
+      const canShareResult = await Share.canShare().catch(() => ({ value: true }));
+      if (!canShareResult.value) {
+        return false;
+      }
+
       const extension = getFileExtension(options.file);
       const path = `share/${Date.now()}-${Math.random().toString(36).slice(2, 9)}.${extension}`;
       const data = await toBase64Payload(options.file);
@@ -124,22 +140,33 @@ export async function shareFile(options: {
         directory: Directory.Cache,
       });
 
-      await Share.share({
-        title: options.title,
-        text: options.text,
-        files: [uri],
-        dialogTitle: options.dialogTitle,
-      });
-
       try {
-        await Filesystem.deleteFile({
+        await Share.share({
+          title: options.title,
+          text: options.text,
+          url: uri,
+          dialogTitle: options.dialogTitle,
+        });
+      } catch {
+        await Share.share({
+          title: options.title,
+          text: options.text,
+          files: [uri],
+          dialogTitle: options.dialogTitle,
+        });
+      }
+
+      window.setTimeout(() => {
+        void Filesystem.deleteFile({
           path,
           directory: Directory.Cache,
-        });
-      } catch {}
+        }).catch(() => undefined);
+      }, 60000);
 
       return true;
-    } catch {}
+    } catch (error) {
+      console.error('Erro ao compartilhar arquivo no app:', error);
+    }
   }
 
   if (navigator.share) {
@@ -161,4 +188,42 @@ export async function shareFile(options: {
   }
 
   return false;
+}
+
+export async function saveFileToDevice(options: {
+  file: File;
+  folderName?: string;
+  preferredName?: string;
+}) {
+  if (typeof window === 'undefined' || !isNativeApp()) {
+    return null;
+  }
+
+  try {
+    const { Directory, Filesystem } = await import('@capacitor/filesystem');
+    const extension = getFileExtension(options.file);
+    const preferredName =
+      options.preferredName ||
+      (options.file.name?.includes('.') ? options.file.name : `${options.file.name}.${extension}`);
+    const fileName = sanitizeExportFileName(preferredName);
+    const folderName = sanitizeExportFileName(options.folderName || 'Lioness');
+    const path = `${folderName}/${fileName}`;
+    const data = await toBase64Payload(options.file);
+
+    const result = await Filesystem.writeFile({
+      path,
+      data,
+      directory: Directory.Documents,
+      recursive: true,
+    });
+
+    return {
+      fileName,
+      path,
+      uri: result.uri,
+    };
+  } catch (error) {
+    console.error('Erro ao salvar arquivo no aparelho:', error);
+    return null;
+  }
 }

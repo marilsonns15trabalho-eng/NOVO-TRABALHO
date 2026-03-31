@@ -19,6 +19,7 @@ import {
 import { motion } from 'motion/react';
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import ChartWrapper from '@/components/ChartWrapper';
+import ProfileAvatar from '@/components/account/ProfileAvatar';
 import { Toast } from '@/components/ui';
 import { useDashboard } from '@/hooks/useDashboard';
 import { useNotification } from '@/hooks/useNotification';
@@ -415,13 +416,21 @@ export default function Dashboard({ setActiveTab }: DashboardProps) {
                       className="rounded-[24px] border border-zinc-800 bg-black/30 p-4"
                     >
                       <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-bold text-white">
-                            {bill.students?.name || 'Aluno'}
-                          </p>
-                          <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">
-                            vence em {formatDatePtBr(bill.due_date)}
-                          </p>
+                        <div className="flex items-start gap-3">
+                          <ProfileAvatar
+                            displayName={bill.students?.name}
+                            avatarUrl={bill.students?.avatar_url}
+                            className="h-11 w-11 shrink-0 rounded-2xl border border-zinc-800"
+                            textClassName="text-sm"
+                          />
+                          <div>
+                            <p className="text-sm font-bold text-white">
+                              {bill.students?.name || 'Aluno'}
+                            </p>
+                            <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">
+                              vence em {formatDatePtBr(bill.due_date)}
+                            </p>
+                          </div>
                         </div>
 
                         <div className="rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1 text-xs font-bold text-orange-300">
@@ -473,13 +482,12 @@ export default function Dashboard({ setActiveTab }: DashboardProps) {
                       onClick={() => setActiveTab('financeiro')}
                       className="flex w-full items-start gap-4 rounded-[24px] border border-zinc-800 bg-black/25 p-4 text-left transition-all hover:border-zinc-700"
                     >
-                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-zinc-900 font-bold text-white">
-                        {activity.user
-                          .split(' ')
-                          .map((part: string) => part[0])
-                          .slice(0, 2)
-                          .join('')}
-                      </div>
+                      <ProfileAvatar
+                        displayName={activity.user}
+                        avatarUrl={activity.avatar_url}
+                        className="h-11 w-11 shrink-0 rounded-2xl border border-zinc-800"
+                        textClassName="text-sm"
+                      />
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-3">

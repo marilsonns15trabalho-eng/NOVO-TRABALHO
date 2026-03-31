@@ -75,6 +75,9 @@ export interface Avaliacao {
     data_nascimento?: string;
     gender?: string | null;
     birth_date?: string | null;
+    avatar_url?: string | null;
+    avatar_path?: string | null;
+    avatar_updated_at?: string | null;
   };
 }
 
@@ -84,8 +87,12 @@ export type AvaliacaoFormData = Partial<Avaliacao>;
 export interface AvaliacaoAlunoItem {
   id: string;
   nome: string;
+  linked_auth_user_id?: string | null;
   sexo?: string;
   data_nascimento?: string;
   gender?: string | null;
   birth_date?: string | null;
+  avatar_url?: string | null;
+  avatar_path?: string | null;
+  avatar_updated_at?: string | null;
 }

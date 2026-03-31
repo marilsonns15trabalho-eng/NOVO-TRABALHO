@@ -30,6 +30,7 @@ import {
   ModuleStatCard,
   ModuleSurface,
 } from '@/components/dashboard/ModulePrimitives';
+import ProfileAvatar from '@/components/account/ProfileAvatar';
 import AlunoForm from '@/modules/alunos/AlunoForm';
 import type { Aluno, AlunoFormData } from '@/types/aluno';
 import * as usersService from '@/services/users.service';
@@ -346,9 +347,12 @@ export default function AlunosModule() {
                   <div key={aluno.id} className="space-y-4 px-5 py-5">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 text-sm font-bold text-orange-500">
-                          {(aluno.nome || '').charAt(0)}
-                        </div>
+                        <ProfileAvatar
+                          displayName={aluno.nome}
+                          avatarUrl={aluno.avatar_url}
+                          className="h-10 w-10 rounded-full border border-zinc-700"
+                          textClassName="text-sm"
+                        />
                         <div className="min-w-0">
                           <p className="truncate text-base font-bold text-white">{aluno.nome}</p>
                           <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">
@@ -459,9 +463,12 @@ export default function AlunosModule() {
                     <tr key={aluno.id} className="group transition-colors hover:bg-zinc-800/30">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 text-xs font-bold text-orange-500 transition-colors group-hover:bg-orange-500 group-hover:text-black">
-                            {(aluno.nome || '').charAt(0)}
-                          </div>
+                          <ProfileAvatar
+                            displayName={aluno.nome}
+                            avatarUrl={aluno.avatar_url}
+                            className="h-8 w-8 rounded-full border border-zinc-700 transition-colors"
+                            textClassName="text-xs"
+                          />
                           <div>
                             <p className="max-w-[150px] truncate text-sm font-bold text-white transition-colors group-hover:text-orange-500">{aluno.nome}</p>
                           </div>

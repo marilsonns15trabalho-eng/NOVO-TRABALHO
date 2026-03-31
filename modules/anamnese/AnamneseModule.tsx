@@ -32,6 +32,7 @@ import {
   ModuleStatCard,
   ModuleSurface,
 } from '@/components/dashboard/ModulePrimitives';
+import ProfileAvatar from '@/components/account/ProfileAvatar';
 import { useAnamneses, type AnamneseFormStep } from '@/hooks/useAnamneses';
 import { formatDatePtBr, isSameMonthDate } from '@/lib/date';
 import type { Anamnese, AnamneseFormData } from '@/types/anamnese';
@@ -1068,9 +1069,12 @@ export default function AnamneseModule() {
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900 text-orange-400">
-                      <User size={18} />
-                    </div>
+                    <ProfileAvatar
+                      displayName={anamnese.students?.nome}
+                      avatarUrl={anamnese.students?.avatar_url}
+                      className="h-10 w-10 shrink-0 rounded-2xl border border-zinc-800"
+                      textClassName="text-sm"
+                    />
                     <div className="min-w-0">
                       <p className="truncate text-base font-bold text-white">{anamnese.students?.nome || 'Aluno sem nome'}</p>
                       <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
@@ -1226,15 +1230,25 @@ export default function AnamneseModule() {
                 ) : studentContext ? (
                   <div className="mt-4 space-y-3">
                     <div className="rounded-2xl border border-zinc-800 bg-black/30 p-4">
-                      <p className="text-base font-bold text-white">{studentContext.student_name}</p>
-                      <div className="mt-2 space-y-1 text-sm text-zinc-400">
-                        <p>{studentContext.email || 'Sem e-mail cadastrado'}</p>
-                        <p>Plano atual: {studentContext.plan_name || 'Nao informado'}</p>
-                        <p>Sexo: {formatGender(studentContext.gender)}</p>
-                        <p>
-                          Nascimento: {studentContext.birth_date ? formatDatePtBr(studentContext.birth_date) : '-'}
-                          {calculateAge(studentContext.birth_date) !== null ? ` - ${calculateAge(studentContext.birth_date)} anos` : ''}
-                        </p>
+                      <div className="flex items-start gap-3">
+                        <ProfileAvatar
+                          displayName={studentContext.student_name}
+                          avatarUrl={studentContext.avatar_url}
+                          className="h-12 w-12 shrink-0 rounded-2xl border border-zinc-800"
+                          textClassName="text-base"
+                        />
+                        <div className="min-w-0">
+                          <p className="text-base font-bold text-white">{studentContext.student_name}</p>
+                          <div className="mt-2 space-y-1 text-sm text-zinc-400">
+                            <p>{studentContext.email || 'Sem e-mail cadastrado'}</p>
+                            <p>Plano atual: {studentContext.plan_name || 'Nao informado'}</p>
+                            <p>Sexo: {formatGender(studentContext.gender)}</p>
+                            <p>
+                              Nascimento: {studentContext.birth_date ? formatDatePtBr(studentContext.birth_date) : '-'}
+                              {calculateAge(studentContext.birth_date) !== null ? ` - ${calculateAge(studentContext.birth_date)} anos` : ''}
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     </div>
 

@@ -2,6 +2,11 @@ import { supabase } from '@/lib/supabase';
 import { TABLES } from '@/lib/constants';
 import { extractDateOnly, formatDatePtBr, getLocalDateInputValue } from '@/lib/date';
 import {
+  attachStudentAvatar,
+  collectLinkedAuthUserIds,
+  fetchStudentAvatarMap,
+} from '@/services/student-avatars.service';
+import {
   fetchPersistedNotifications,
   markPersistedNotificationsAsRead,
   subscribeToPersistedNotifications,
@@ -26,12 +31,23 @@ export interface ProximoVencimento {
   id: string;
   amount: number;
   due_date: string;
-  students: { name: string; phone?: string } | null;
+  students: {
+    name: string;
+    phone?: string;
+    linked_auth_user_id?: string | null;
+    avatar_url?: string | null;
+    avatar_path?: string | null;
+    avatar_updated_at?: string | null;
+  } | null;
 }
 
 export interface RecentActivity {
   id: string;
   user: string;
+  linked_auth_user_id?: string | null;
+  avatar_url?: string | null;
+  avatar_path?: string | null;
+  avatar_updated_at?: string | null;
   action: string;
   time: string;
   type: 'payment' | 'new_user';
@@ -98,7 +114,7 @@ export async function fetchDashboardData() {
       .eq('ativo', true),
     supabase
       .from(TABLES.BILLS)
-      .select('id, status, created_at, students(name)')
+      .select('id, status, created_at, students(name, linked_auth_user_id)')
       .order('created_at', { ascending: false })
       .limit(5),
     supabase
@@ -107,7 +123,7 @@ export async function fetchDashboardData() {
       .eq('tipo', 'receita'),
     supabase
       .from(TABLES.BILLS)
-      .select('id, amount, due_date, students(name, phone)')
+      .select('id, amount, due_date, students(name, phone, linked_auth_user_id)')
       .eq('status', 'pending')
       .gte('due_date', getLocalDateInputValue())
       .order('due_date', { ascending: true })
@@ -127,14 +143,32 @@ export async function fetchDashboardData() {
     pagamentosMesResult.data?.reduce((acc: number, curr: any) => acc + curr.valor, 0) || 0;
   const planosAtivos = planosResult.count ?? 0;
   const treinosAtivos = treinosResult.count ?? 0;
+  const recentBillStudents = (recentBillsResult.data || []).map((row: any) =>
+    normalizeJoinedRow<{ name?: string | null; linked_auth_user_id?: string | null }>(row.students),
+  );
+  const upcomingBillStudents = (proximosVencimentosResult.data || []).map((row: any) =>
+    normalizeJoinedRow<{ name?: string | null; phone?: string | null; linked_auth_user_id?: string | null }>(
+      row.students,
+    ),
+  );
+  const avatarMap = await fetchStudentAvatarMap(
+    collectLinkedAuthUserIds([...recentBillStudents, ...upcomingBillStudents]),
+  );
 
   const activities: RecentActivity[] = (recentBillsResult.data || []).map((b: any) => {
     const studentsRaw = b.students;
-    const student = Array.isArray(studentsRaw) ? studentsRaw[0] : studentsRaw;
+    const student = attachStudentAvatar(
+      (Array.isArray(studentsRaw) ? studentsRaw[0] : studentsRaw) || {},
+      avatarMap,
+    );
 
     return {
       id: b.id,
       user: student?.name || 'Sistema',
+      linked_auth_user_id: student?.linked_auth_user_id ?? null,
+      avatar_url: student?.avatar_url ?? null,
+      avatar_path: student?.avatar_path ?? null,
+      avatar_updated_at: student?.avatar_updated_at ?? null,
       action: b.status === 'paid' ? 'Pagamento realizado' : 'Boleto gerado',
       time: new Date(b.created_at).toLocaleTimeString('pt-BR', {
         hour: '2-digit',
@@ -187,13 +221,25 @@ export async function fetchDashboardData() {
 
   const proximosVencimentos: ProximoVencimento[] = (proximosVencimentosResult.data || []).map((b: any) => {
     const studentsRaw = b.students;
-    const student = Array.isArray(studentsRaw) ? studentsRaw[0] : studentsRaw;
+    const student = attachStudentAvatar(
+      (Array.isArray(studentsRaw) ? studentsRaw[0] : studentsRaw) || {},
+      avatarMap,
+    );
 
     return {
       id: b.id,
       amount: b.amount,
       due_date: b.due_date,
-      students: student ? { name: student.name, phone: student.phone ?? undefined } : null,
+      students: student?.name
+        ? {
+            name: student.name,
+            phone: student.phone ?? undefined,
+            linked_auth_user_id: student.linked_auth_user_id ?? null,
+            avatar_url: student.avatar_url ?? null,
+            avatar_path: student.avatar_path ?? null,
+            avatar_updated_at: student.avatar_updated_at ?? null,
+          }
+        : null,
     };
   });
 

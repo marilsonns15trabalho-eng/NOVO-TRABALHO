@@ -35,6 +35,9 @@ export function mapStudentRowToAluno(row: Record<string, any>): Aluno {
     modalidade: row.modality || '',
     created_at: row.created_at,
     linked_auth_user_id: row.linked_auth_user_id || null,
+    avatar_url: row.avatar_url || null,
+    avatar_path: row.avatar_path || null,
+    avatar_updated_at: row.avatar_updated_at || null,
   };
 }
 
@@ -99,16 +102,23 @@ export function normalizeStudentRelation<T extends Record<string, any> | null | 
     sexo: gender ?? undefined,
     birth_date: birthDate,
     data_nascimento: birthDate ?? undefined,
+    avatar_url: row.avatar_url ?? null,
+    avatar_path: row.avatar_path ?? null,
+    avatar_updated_at: row.avatar_updated_at ?? null,
   };
 }
 
 export function mapStudentToListItem(row: Record<string, any>): {
   id: string;
   name: string;
+  linked_auth_user_id?: string | null;
   plan_id?: string | null;
   plan_name?: string | null;
   email?: string | null;
   status?: string | null;
+  avatar_url?: string | null;
+  avatar_path?: string | null;
+  avatar_updated_at?: string | null;
 } {
   const student = normalizeStudentRelation(row);
   const fallbackName =
@@ -121,31 +131,43 @@ export function mapStudentToListItem(row: Record<string, any>): {
   return {
     id: student?.id || row.id,
     name: fallbackName,
+    linked_auth_user_id: student?.linked_auth_user_id ?? null,
     plan_id: row.plan_id || null,
     plan_name: row.plan_name || row.plan || null,
     email: row.email || null,
     status: row.status || null,
+    avatar_url: student?.avatar_url ?? null,
+    avatar_path: student?.avatar_path ?? null,
+    avatar_updated_at: student?.avatar_updated_at ?? null,
   };
 }
 
 export function mapStudentToAlunoListItem(row: Record<string, any>): {
   id: string;
   nome: string;
+  linked_auth_user_id?: string | null;
   email?: string | null;
   plan_name?: string | null;
   birth_date?: string | null;
   gender?: string | null;
   status?: string | null;
+  avatar_url?: string | null;
+  avatar_path?: string | null;
+  avatar_updated_at?: string | null;
 } {
   const student = normalizeStudentRelation(row);
 
   return {
     id: student?.id || row.id,
     nome: student?.nome || '',
+    linked_auth_user_id: student?.linked_auth_user_id ?? null,
     email: row.email || null,
     plan_name: row.plan_name || row.plan || null,
     birth_date: student?.birth_date || null,
     gender: student?.gender || null,
     status: row.status || null,
+    avatar_url: student?.avatar_url ?? null,
+    avatar_path: student?.avatar_path ?? null,
+    avatar_updated_at: student?.avatar_updated_at ?? null,
   };
 }

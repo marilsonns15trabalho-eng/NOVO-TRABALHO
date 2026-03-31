@@ -1,6 +1,11 @@
 import { supabase } from '@/lib/supabase';
 import { TABLES, DEFAULTS } from '@/lib/constants';
 import { extractDateOnly, getLocalDateInputValue } from '@/lib/date';
+import {
+  attachStudentAvatar,
+  collectLinkedAuthUserIds,
+  fetchStudentAvatarMap,
+} from '@/services/student-avatars.service';
 import type {
   Pagamento,
   Boleto,
@@ -90,7 +95,7 @@ export async function fetchFinanceiroData() {
       .order('data_vencimento', { ascending: false }),
     supabase
       .from(TABLES.BILLS)
-      .select('id, student_id, amount, due_date, status, code, students(name)')
+      .select('id, student_id, amount, due_date, status, code, students(name, phone, linked_auth_user_id)')
       .order('due_date', { ascending: false }),
     supabase.from(TABLES.STUDENTS).select('id, name, due_day, plan_id, linked_auth_user_id'),
     supabase.from(TABLES.PLANS).select('id, price'),
@@ -126,24 +131,51 @@ export async function fetchFinanceiroData() {
       linked_auth_user_id: a.linked_auth_user_id ?? null,
     })),
   );
+  const studentRows = ((alunosRes.data as any[]) || []).filter(
+    (student: any) => !billingProtectedStudentIds.has(student.id),
+  );
+  const billRows = ((boletosRes.data as any[]) || []).filter(
+    (bill: any) => !billingProtectedStudentIds.has(bill.student_id),
+  );
+  const avatarMap = await fetchStudentAvatarMap(
+    collectLinkedAuthUserIds([
+      ...studentRows,
+      ...billRows.map((bill: any) => {
+        const studentsRaw = bill.students;
+        return Array.isArray(studentsRaw) ? studentsRaw[0] : studentsRaw;
+      }),
+    ]),
+  );
 
-  const boletos: Boleto[] = ((boletosRes.data as any[]) || [])
-    .filter((b: any) => !billingProtectedStudentIds.has(b.student_id))
+  const boletos: Boleto[] = billRows
     .map((b) => ({
       ...b,
-      students: b.students ? { name: b.students.name } : null,
+      students: b.students
+        ? (() => {
+            const rawStudent = Array.isArray(b.students) ? b.students[0] : b.students;
+            const student = attachStudentAvatar(rawStudent, avatarMap);
+            return {
+              name: student.name,
+              phone: student.phone ?? null,
+              linked_auth_user_id: student.linked_auth_user_id ?? null,
+              avatar_url: student.avatar_url ?? null,
+              avatar_path: student.avatar_path ?? null,
+              avatar_updated_at: student.avatar_updated_at ?? null,
+            };
+          })()
+        : null,
     }));
 
-  const alunos: FinanceiroStudent[] = ((alunosRes.data as any[]) || [])
-    .filter((a: any) => !billingProtectedStudentIds.has(a.id))
+  const alunos: FinanceiroStudent[] = studentRows
     .map((a: any) => ({
-    id: a.id,
-    name: a.name,
-    due_day: a.due_day,
-    plan_id: a.plan_id || undefined,
-    linked_auth_user_id: a.linked_auth_user_id ?? null,
-    plans: a.plan_id ? { price: planPriceById.get(a.plan_id) || 0 } : undefined,
-  }));
+      ...attachStudentAvatar(a, avatarMap),
+      id: a.id,
+      name: a.name,
+      due_day: a.due_day,
+      plan_id: a.plan_id || undefined,
+      linked_auth_user_id: a.linked_auth_user_id ?? null,
+      plans: a.plan_id ? { price: planPriceById.get(a.plan_id) || 0 } : undefined,
+    }));
 
   return { pagamentos, boletos, alunos };
 }

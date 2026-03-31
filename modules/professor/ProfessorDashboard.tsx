@@ -19,6 +19,7 @@ import {
   fetchProfessorDashboardData,
   type ProfessorDashboardData,
 } from '@/services/professorDashboard.service';
+import ProfileAvatar from '@/components/account/ProfileAvatar';
 import { formatDatePtBr } from '@/lib/date';
 
 interface ProfessorDashboardProps {
@@ -353,11 +354,19 @@ export default function ProfessorDashboard({ onNavigate }: ProfessorDashboardPro
                   className="rounded-[24px] border border-zinc-800 bg-black/25 p-4 transition-all hover:border-zinc-700"
                 >
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <p className="text-sm font-bold text-white">{avaliacao.students?.nome || 'Aluno'}</p>
-                      <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">
-                        {avaliacao.data ? formatDatePtBr(avaliacao.data) : '-'}
-                      </p>
+                    <div className="flex items-center gap-3">
+                      <ProfileAvatar
+                        displayName={avaliacao.students?.nome}
+                        avatarUrl={avaliacao.students?.avatar_url}
+                        className="h-11 w-11 shrink-0 rounded-2xl border border-zinc-800"
+                        textClassName="text-sm"
+                      />
+                      <div>
+                        <p className="text-sm font-bold text-white">{avaliacao.students?.nome || 'Aluno'}</p>
+                        <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">
+                          {avaliacao.data ? formatDatePtBr(avaliacao.data) : '-'}
+                        </p>
+                      </div>
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-2">

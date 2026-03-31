@@ -5,6 +5,11 @@ import { mapStudentToListItem } from '@/lib/mappers';
 import { findStudentIdByLinkedAuthUserId } from '@/lib/student-access';
 import { assertCanManageStudentDataForUserId } from '@/lib/authz';
 import {
+  attachStudentAvatar,
+  collectLinkedAuthUserIds,
+  fetchStudentAvatarMap,
+} from '@/services/student-avatars.service';
+import {
   emitTreinoCompletionNotifications,
   emitTreinoUpdatedNotifications,
 } from '@/services/app-notifications.service';
@@ -787,7 +792,10 @@ export async function fetchAlunosParaTreino(linkedAuthUserId?: string): Promise<
   const { data, error } = await query;
   assertNoTreinoError('Treinos.alunosParaTreino', error);
 
-  return (data || []).map(mapStudentToListItem);
+  const rows = data || [];
+  const avatarMap = await fetchStudentAvatarMap(collectLinkedAuthUserIds(rows));
+
+  return rows.map((row) => mapStudentToListItem(attachStudentAvatar(row, avatarMap)));
 }
 
 export async function fetchStudentsForTrainingPlan(trainingPlanId: string): Promise<StudentListItem[]> {
@@ -803,11 +811,13 @@ export async function fetchStudentsForTrainingPlan(trainingPlanId: string): Prom
 
   assertNoTreinoError('Treinos.trainingPlanStudentsPreview', error);
 
-  return (data || [])
-    .map((row: any) => {
-      const student = Array.isArray(row.student) ? row.student[0] : row.student;
-      return student ? mapStudentToListItem(student) : null;
-    })
+  const studentRows = (data || [])
+    .map((row: any) => (Array.isArray(row.student) ? row.student[0] : row.student))
+    .filter(Boolean);
+  const avatarMap = await fetchStudentAvatarMap(collectLinkedAuthUserIds(studentRows));
+
+  return studentRows
+    .map((student: any) => mapStudentToListItem(attachStudentAvatar(student, avatarMap)))
     .filter(Boolean) as StudentListItem[];
 }
 

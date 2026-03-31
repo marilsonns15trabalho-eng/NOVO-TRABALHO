@@ -46,7 +46,7 @@ export async function GET() {
         versionName,
         apkFileName,
         updatedAt: apkStats.mtime.toISOString(),
-        downloadUrl: '/download/app',
+        downloadUrl: `/download/app?v=${versionCode}&t=${apkStats.mtime.getTime()}`,
       },
       {
         headers: {

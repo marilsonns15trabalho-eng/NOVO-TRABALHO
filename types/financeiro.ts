@@ -19,7 +19,14 @@ export interface Boleto {
   due_date: string;
   status: 'pending' | 'paid' | 'late';
   code: string;
-  students: { name: string } | null;
+  students: {
+    name: string;
+    phone?: string | null;
+    linked_auth_user_id?: string | null;
+    avatar_url?: string | null;
+    avatar_path?: string | null;
+    avatar_updated_at?: string | null;
+  } | null;
 }
 
 export interface BoletoFormData {
@@ -35,6 +42,9 @@ export interface FinanceiroStudent {
   due_day?: number;
   plan_id?: string;
   linked_auth_user_id?: string | null;
+  avatar_url?: string | null;
+  avatar_path?: string | null;
+  avatar_updated_at?: string | null;
   plans?: {
     price: number;
   };

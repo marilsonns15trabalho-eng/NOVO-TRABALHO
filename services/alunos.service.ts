@@ -3,6 +3,11 @@ import { authorizedApiJson } from '@/lib/api-client';
 import { TABLES } from '@/lib/constants';
 import { mapAlunoToStudentRow, mapStudentRowToAluno } from '@/lib/mappers';
 import { assertAdminForUserId } from '@/lib/authz';
+import {
+  attachStudentAvatar,
+  collectLinkedAuthUserIds,
+  fetchStudentAvatarMap,
+} from '@/services/student-avatars.service';
 import type { PlanoListItem } from '@/types/common';
 import type { Aluno } from '@/types/aluno';
 
@@ -50,7 +55,10 @@ export async function fetchAlunos(): Promise<Aluno[]> {
     return [];
   }
 
-  return (data || []).map(mapStudentRowToAluno);
+  const rows = data || [];
+  const avatarMap = await fetchStudentAvatarMap(collectLinkedAuthUserIds(rows));
+
+  return rows.map((row) => mapStudentRowToAluno(attachStudentAvatar(row, avatarMap)));
 }
 
 export async function fetchPlanosAtivos(): Promise<PlanoListItem[]> {

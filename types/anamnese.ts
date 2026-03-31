@@ -63,6 +63,9 @@ export interface Anamnese {
     birth_date?: string | null;
     gender?: string | null;
     plan_name?: string | null;
+    avatar_url?: string | null;
+    avatar_path?: string | null;
+    avatar_updated_at?: string | null;
   };
 }
 
@@ -71,6 +74,7 @@ export type AnamneseFormData = Partial<Anamnese>;
 export interface AnamneseStudentContext {
   student_id: string;
   student_name: string;
+  linked_auth_user_id?: string | null;
   email?: string | null;
   birth_date?: string | null;
   gender?: string | null;
@@ -78,4 +82,7 @@ export interface AnamneseStudentContext {
   latest_avaliacao_date?: string | null;
   latest_peso?: number | null;
   latest_altura?: number | null;
+  avatar_url?: string | null;
+  avatar_path?: string | null;
+  avatar_updated_at?: string | null;
 }

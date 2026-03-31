@@ -16,6 +16,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useAvaliacoes } from '@/hooks/useAvaliacoes';
 import { useUserRole } from '@/hooks/useUserRole';
+import ProfileAvatar from '@/components/account/ProfileAvatar';
 import ChartWrapper from '@/components/ChartWrapper';
 import {
   LineChart,
@@ -372,9 +373,12 @@ export default function AvaliacaoModule() {
                   <tr key={avaliacao.id} className="hover:bg-zinc-800/30 transition-colors group">
                     <td className="px-4 py-4 md:px-6">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-500 border border-purple-500/20 group-hover:bg-purple-500 group-hover:text-white transition-colors">
-                          <User size={18} />
-                        </div>
+                        <ProfileAvatar
+                          displayName={avaliacao.students?.nome}
+                          avatarUrl={avaliacao.students?.avatar_url}
+                          className="h-10 w-10 rounded-xl border border-purple-500/20 bg-purple-500/10"
+                          textClassName="text-sm"
+                        />
                         <div>
                           <p className="font-bold text-white group-hover:text-purple-400 transition-colors">{avaliacao.students?.nome}</p>
                         </div>
@@ -447,9 +451,17 @@ export default function AvaliacaoModule() {
               className="relative bg-zinc-900 border border-zinc-800 rounded-3xl p-8 w-full max-w-5xl shadow-2xl max-h-[90vh] overflow-y-auto"
             >
               <div className="flex justify-between items-start mb-8">
-                <div>
-                  <h3 className="text-3xl font-bold text-white">{selectedReport.students?.nome}</h3>
+                <div className="flex items-start gap-4">
+                  <ProfileAvatar
+                    displayName={selectedReport.students?.nome}
+                    avatarUrl={selectedReport.students?.avatar_url}
+                    className="h-14 w-14 shrink-0 rounded-2xl border border-zinc-800"
+                    textClassName="text-lg"
+                  />
+                  <div>
+                    <h3 className="text-3xl font-bold text-white">{selectedReport.students?.nome}</h3>
                   <p className="text-zinc-500">Relatório de Avaliação Física - {formatDatePtBr(selectedReport.data)}</p>
+                </div>
                 </div>
                 <div className="flex gap-3">
                   <button
@@ -698,9 +710,20 @@ export default function AvaliacaoModule() {
                                 setAlunoSearch(aluno.nome);
                                 setShowAlunoDropdown(false);
                               }}
-                              className="px-4 py-2 hover:bg-purple-500/20 cursor-pointer text-sm text-white"
+                              className="flex items-center gap-3 px-4 py-2 hover:bg-purple-500/20 cursor-pointer text-sm text-white"
                             >
-                              {aluno.nome}
+                              <ProfileAvatar
+                                displayName={aluno.nome}
+                                avatarUrl={aluno.avatar_url}
+                                className="h-9 w-9 shrink-0 rounded-xl border border-zinc-800"
+                                textClassName="text-xs"
+                              />
+                              <div className="min-w-0">
+                                <p className="truncate font-bold">{aluno.nome}</p>
+                                <p className="truncate text-xs text-zinc-500">
+                                  {aluno.birth_date || aluno.gender ? 'Aluna cadastrada' : 'Selecionar'}
+                                </p>
+                              </div>
                             </div>
                           ))
                         ) : (
