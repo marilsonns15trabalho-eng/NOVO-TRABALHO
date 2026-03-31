@@ -442,7 +442,7 @@ export default function WorkoutShareComposer({
                     {cardData.caloriesEstimate ?? '--'}
                   </p>
                   <p className="mt-2 text-xs leading-5 text-zinc-500">
-                    Valor estimado a partir de duracao, intensidade e peso mais recente.
+                    Estimativa usada para compor o resumo do treino.
                   </p>
                 </div>
 
@@ -455,7 +455,7 @@ export default function WorkoutShareComposer({
                     {cardData.durationMinutes ?? '--'} min
                   </p>
                   <p className="mt-2 text-xs leading-5 text-zinc-500">
-                    Usa a duracao planejada do treino, sem criar consulta extra no banco.
+                    Tempo exibido no resumo compartilhado.
                   </p>
                 </div>
 
@@ -468,7 +468,7 @@ export default function WorkoutShareComposer({
                     {cardData.exercisesCompleted}/{Math.max(cardData.exercises.length, cardData.exercisesCompleted)}
                   </p>
                   <p className="mt-2 text-xs leading-5 text-zinc-500">
-                    Quantidade de exercicios usados para montar o resumo compartilhavel.
+                    Resumo da sessao concluida.
                   </p>
                 </div>
               </div>
@@ -526,8 +526,7 @@ export default function WorkoutShareComposer({
                   Tempo real do treino
                 </p>
                 <p className="mt-2 text-sm leading-6 text-zinc-500">
-                  Ajuste o tempo so para esta arte. Isso nao altera o treino oficial nem grava nada
-                  no banco.
+                  Se quiser, ajuste o tempo exibido antes de compartilhar.
                 </p>
 
                 <div className="mt-4 flex items-center gap-3 border border-zinc-800 bg-zinc-950 px-4 py-3">
@@ -548,7 +547,7 @@ export default function WorkoutShareComposer({
                 </div>
 
                 <p className="mt-3 text-xs leading-5 text-zinc-500">
-                  As kcal estimadas do card acompanham esse tempo ajustado automaticamente.
+                  O resumo e atualizado automaticamente conforme esse tempo.
                 </p>
               </section>
 
@@ -646,9 +645,7 @@ export default function WorkoutShareComposer({
                 </div>
 
                 <p className="mt-3 text-xs leading-5 text-zinc-500">
-                  No app, o compartilhamento usa o share nativo do aparelho. No navegador, se o
-                  compartilhamento direto nao estiver disponivel, a imagem e baixada para voce postar
-                  manualmente.
+                  Escolha onde deseja enviar a arte ou salve para postar depois.
                 </p>
               </section>
 

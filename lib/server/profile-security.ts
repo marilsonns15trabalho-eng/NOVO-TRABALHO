@@ -77,7 +77,7 @@ export async function updateUserProfileSecurity(
 
     if (SECRET_RECOVERY_COLUMNS.includes(missingColumn as (typeof SECRET_RECOVERY_COLUMNS)[number])) {
       warning =
-        'A senha foi atualizada, mas a pergunta secreta ainda nao pode ser salva neste banco. Rode phase3_07_account_security_hardening.sql para liberar esse recurso.';
+        'A senha foi atualizada, mas a configuracao complementar de seguranca nao pode ser salva neste momento.';
     }
 
     delete pending[missingColumn as keyof ProfileSecurityUpdate];

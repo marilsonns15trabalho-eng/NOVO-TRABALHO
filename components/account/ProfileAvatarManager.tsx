@@ -146,8 +146,7 @@ export default function ProfileAvatarManager({
             </p>
             <h2 className="mt-2 text-2xl font-bold text-white">Foto de perfil</h2>
             <p className="mt-2 max-w-xl text-sm leading-6 text-zinc-500">
-              Sua foto fica em storage privado e o app usa cache local para abrir mais rapido no
-              celular.
+              Escolha a imagem que vai representar seu perfil no app e no site.
             </p>
           </div>
 
@@ -192,8 +191,7 @@ export default function ProfileAvatarManager({
                 Atualizar foto
               </p>
               <p className="mt-2 text-sm leading-6 text-zinc-500">
-                A foto e recortada em formato quadrado e otimizada antes do envio para manter o
-                app leve e rapido.
+                Use uma foto nítida para aparecer melhor no topo da sua conta.
               </p>
 
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -235,11 +233,10 @@ export default function ProfileAvatarManager({
 
             <div className="border border-zinc-800 bg-black/30 p-4">
               <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-zinc-500">
-                Experiencia no app
+                Foto atual
               </p>
               <p className="mt-2 text-sm leading-6 text-zinc-500">
-                O avatar fica salvo em cache privado no celular para reduzir recargas e deixar a
-                interface mais fluida sem aumentar o peso do banco.
+                Se quiser, remova a foto atual e volte a usar suas iniciais no perfil.
               </p>
 
               <button

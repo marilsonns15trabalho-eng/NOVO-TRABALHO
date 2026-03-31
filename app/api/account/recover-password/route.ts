@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
       if (isMissingProfileSecurityColumnError(profileError)) {
         throw new ApiRouteError(
           503,
-          'A recuperacao por pergunta secreta ainda nao foi habilitada neste banco. Rode phase3_07_account_security_hardening.sql.'
+          'A recuperacao por pergunta secreta nao esta disponivel neste momento.'
         );
       }
       throw profileError;
