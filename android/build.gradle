@@ -17,6 +17,13 @@ buildscript {
 
 apply from: "variables.gradle"
 
+def externalBuildRoot = new File(
+    System.getenv("LIONESS_ANDROID_BUILD_DIR")
+        ?: new File(System.getProperty("java.io.tmpdir"), "lioness-android-build").absolutePath
+)
+
+rootProject.buildDir = new File(externalBuildRoot, "root")
+
 allprojects {
     repositories {
         google()
@@ -24,6 +31,10 @@ allprojects {
     }
 }
 
+subprojects {
+    project.buildDir = new File(externalBuildRoot, project.name)
+}
+
 task clean(type: Delete) {
-    delete rootProject.buildDir
+    delete externalBuildRoot
 }

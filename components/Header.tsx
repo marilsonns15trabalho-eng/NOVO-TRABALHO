@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Bell, CalendarDays, CheckCircle2, Dumbbell, Loader2, LogOut, Menu, ReceiptText, Sparkles } from 'lucide-react';
+import AppDownloadButton from '@/components/app/AppDownloadButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useNativeApp } from '@/hooks/useNativeApp';
 import * as dashboardService from '@/services/dashboard.service';
@@ -224,6 +225,8 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
         </div>
 
         <div className="flex items-center gap-3">
+          <AppDownloadButton compact />
+
           {(role === 'admin' || role === 'professor') && (
             <div ref={notificationsRef} className="relative">
               <button

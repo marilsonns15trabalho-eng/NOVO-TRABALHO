@@ -25,6 +25,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import AssessmentPhotoGallery from '@/components/avaliacao/AssessmentPhotoGallery';
 import AppBottomNav from '@/components/app/AppBottomNav';
+import AppDownloadButton from '@/components/app/AppDownloadButton';
+import AppPermissionsPanel from '@/components/app/AppPermissionsPanel';
 import ExerciseOfficialPreviewModal from '@/components/treinos/ExerciseOfficialPreviewModal';
 import { useNativeApp } from '@/hooks/useNativeApp';
 import { formatDatePtBr } from '@/lib/date';
@@ -665,13 +667,16 @@ export default function AlunoDashboard() {
             <h1 className="text-2xl font-bold tracking-tight">Ola, {firstName}</h1>
           </div>
 
-          <button
-            onClick={handleSignOut}
-            className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-2.5 text-sm font-bold text-zinc-300 transition-all hover:border-red-500/20 hover:bg-red-500/10 hover:text-red-500"
-          >
-            <LogOut size={16} />
-            Sair
-          </button>
+          <div className="flex items-center gap-2">
+            <AppDownloadButton />
+            <button
+              onClick={handleSignOut}
+              className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-2.5 text-sm font-bold text-zinc-300 transition-all hover:border-red-500/20 hover:bg-red-500/10 hover:text-red-500"
+            >
+              <LogOut size={16} />
+              Sair
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1531,6 +1536,8 @@ export default function AlunoDashboard() {
             <section className="rounded-[32px] border border-zinc-800 bg-zinc-950/70 p-3 shadow-[0_30px_90px_-60px_rgba(0,0,0,0.95)]">
               <AccountSecurityForm compact />
             </section>
+
+            <AppPermissionsPanel />
           </section>
         )}
         </div>

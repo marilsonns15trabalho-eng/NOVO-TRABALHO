@@ -4,6 +4,7 @@ import './globals.css';
 import './mobile.css';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { AuthProvider } from '@/contexts/AuthContext';
+import AppPermissionsPrompt from '@/components/app/AppPermissionsPrompt';
 import AppModeDetector from '@/components/AppModeDetector';
 
 const inter = Inter({
@@ -42,7 +43,10 @@ export default function RootLayout({
       >
         <AppModeDetector />
         <ErrorBoundary>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            {children}
+            <AppPermissionsPrompt />
+          </AuthProvider>
         </ErrorBoundary>
       </body>
     </html>

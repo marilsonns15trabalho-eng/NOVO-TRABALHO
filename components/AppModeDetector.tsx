@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { ensureNotificationChannel } from '@/lib/native-app';
 
 function resolveDeviceMode() {
   const hasTouch = window.matchMedia('(pointer: coarse)').matches;
@@ -24,6 +25,7 @@ export default function AppModeDetector() {
     const { body } = document;
     const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.();
     let removeBackButtonListener: (() => void) | null = null;
+    let removeNotificationListener: (() => void) | null = null;
 
     const applyDeviceMode = () => {
       const device = resolveDeviceMode();
@@ -49,11 +51,13 @@ export default function AppModeDetector() {
           import('@capacitor/status-bar'),
           import('@capacitor/splash-screen'),
         ]);
+        const { LocalNotifications } = await import('@capacitor/local-notifications');
 
         await StatusBar.setOverlaysWebView({ overlay: false });
         await StatusBar.setStyle({ style: Style.Dark });
         await StatusBar.setBackgroundColor({ color: '#000000' });
         await SplashScreen.hide();
+        await ensureNotificationChannel();
         const listener = await App.addListener('backButton', () => {
           const currentPath = window.location.pathname;
 
@@ -70,6 +74,21 @@ export default function AppModeDetector() {
         removeBackButtonListener = () => {
           void listener.remove();
         };
+
+        const notificationListener = await LocalNotifications.addListener(
+          'localNotificationActionPerformed',
+          (event) => {
+            const route = event.notification.extra?.route;
+
+            if (typeof route === 'string' && route.startsWith('/')) {
+              window.location.assign(route);
+            }
+          },
+        );
+
+        removeNotificationListener = () => {
+          void notificationListener.remove();
+        };
       } catch {}
     })();
 
@@ -77,6 +96,9 @@ export default function AppModeDetector() {
       window.removeEventListener('resize', applyDeviceMode);
       if (removeBackButtonListener) {
         removeBackButtonListener();
+      }
+      if (removeNotificationListener) {
+        removeNotificationListener();
       }
     };
   }, []);

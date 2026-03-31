@@ -15,6 +15,7 @@ import {
   Settings,
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import AppPermissionsPanel from '@/components/app/AppPermissionsPanel';
 import { useConfiguracoes } from '@/hooks/useConfiguracoes';
 import {
   ModuleHero,
@@ -313,6 +314,16 @@ export default function ConfiguracoesModule() {
                   />
                 </div>
               </div>
+            </div>
+
+            <div className="space-y-6 border-t border-zinc-800 pt-8">
+              <ModuleSectionHeading
+                eyebrow="Aplicativo"
+                title="Permissoes do celular"
+                description="Revise camera e notificacoes quando estiver usando o sistema pelo aplicativo Android."
+              />
+
+              <AppPermissionsPanel />
             </div>
 
             <div className="space-y-6 border-t border-zinc-800 pt-8">

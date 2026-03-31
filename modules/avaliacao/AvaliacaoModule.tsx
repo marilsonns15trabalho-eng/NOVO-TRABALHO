@@ -41,8 +41,10 @@ import {
 import { createPhotoDraftMap, revokePhotoDraftUrls } from '@/lib/assessmentPhotos';
 import { calcularBiometria } from '@/lib/biometrics';
 import { compareDateOnly, extractDateOnly, formatDateDayMonthPtBr, formatDatePtBr, isSameMonthDate } from '@/lib/date';
+import { captureAssessmentPhotoFile } from '@/lib/native-app';
 import { exportAvaliacaoPdf } from '@/lib/pdf/exportAvaliacaoPdf';
 import { exportAvaliacaoEvolutionPdf } from '@/lib/pdf/exportAvaliacaoEvolutionPdf';
+import { useNativeApp } from '@/hooks/useNativeApp';
 import { syncAvaliacaoPhotos } from '@/services/avaliacoes.service';
 import type { Avaliacao, AvaliacaoPhotoDraftMap, AvaliacaoPhotoPosition } from '@/types/avaliacao';
 
@@ -57,6 +59,7 @@ function parseOptionalDecimal(value: string) {
 
 export default function AvaliacaoModule() {
   const { isAdmin, isProfessor } = useUserRole();
+  const nativeApp = useNativeApp();
   const canManageRecords = isAdmin || isProfessor;
   const {
     avaliacoes,
@@ -78,6 +81,7 @@ export default function AvaliacaoModule() {
     historico: historicoAluno,
     viewAvaliacao: handleViewReport,
     notification,
+    showNotification,
     clearNotification,
   } = useAvaliacoes();
 
@@ -89,6 +93,7 @@ export default function AvaliacaoModule() {
   const [alunoSearch, setAlunoSearch] = useState('');
   const [showAlunoDropdown, setShowAlunoDropdown] = useState(false);
   const [photoDrafts, setPhotoDrafts] = useState<AvaliacaoPhotoDraftMap>(() => createPhotoDraftMap());
+  const [capturingPhotoPosition, setCapturingPhotoPosition] = useState<AvaliacaoPhotoPosition | null>(null);
   const alunoPickerRef = useRef<HTMLDivElement | null>(null);
 
   const comparisonBase = useMemo(() => {
@@ -167,6 +172,23 @@ export default function AvaliacaoModule() {
         },
       };
     });
+  };
+
+  const handleCapturePhoto = async (position: AvaliacaoPhotoPosition) => {
+    try {
+      setCapturingPhotoPosition(position);
+      const file = await captureAssessmentPhotoFile(position);
+      handlePhotoPick(position, file);
+      showNotification('Foto capturada com sucesso.', 'success');
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Nao foi possivel abrir a camera para capturar a foto.';
+      showNotification(message, 'error');
+    } finally {
+      setCapturingPhotoPosition(null);
+    }
   };
 
   useEffect(() => {
@@ -791,6 +813,8 @@ export default function AvaliacaoModule() {
                 <AssessmentPhotoUploader
                   drafts={photoDrafts}
                   onPickFile={handlePhotoPick}
+                  onCapturePhoto={nativeApp ? handleCapturePhoto : undefined}
+                  capturingPosition={capturingPhotoPosition}
                   onRemove={handlePhotoRemove}
                 />
 

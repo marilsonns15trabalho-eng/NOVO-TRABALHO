@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
-import { ImagePlus, RefreshCcw, Trash2 } from 'lucide-react';
+import { Camera, ImagePlus, Loader2, RefreshCcw, Trash2 } from 'lucide-react';
 import { AVALIACAO_PHOTO_POSITIONS } from '@/lib/assessmentPhotos';
 import type {
   AvaliacaoPhotoDraftMap,
@@ -11,12 +11,16 @@ import type {
 interface AssessmentPhotoUploaderProps {
   drafts: AvaliacaoPhotoDraftMap;
   onPickFile: (position: AvaliacaoPhotoPosition, file: File | null) => void;
+  onCapturePhoto?: (position: AvaliacaoPhotoPosition) => void | Promise<void>;
+  capturingPosition?: AvaliacaoPhotoPosition | null;
   onRemove: (position: AvaliacaoPhotoPosition) => void;
 }
 
 export default function AssessmentPhotoUploader({
   drafts,
   onPickFile,
+  onCapturePhoto,
+  capturingPosition,
   onRemove,
 }: AssessmentPhotoUploaderProps) {
   const inputRefs = useRef<Record<AvaliacaoPhotoPosition, HTMLInputElement | null>>({
@@ -67,6 +71,18 @@ export default function AssessmentPhotoUploader({
                 </div>
 
                 <div className="mt-4 grid gap-2">
+                  {onCapturePhoto ? (
+                    <button
+                      type="button"
+                      onClick={() => void onCapturePhoto(key)}
+                      disabled={capturingPosition === key}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-orange-500/20 bg-orange-500/10 px-4 py-3 text-sm font-bold text-orange-300 transition-all hover:bg-orange-500 hover:text-black disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {capturingPosition === key ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
+                      {capturingPosition === key ? 'Abrindo camera...' : 'Tirar foto'}
+                    </button>
+                  ) : null}
+
                   <input
                     ref={(element) => {
                       inputRefs.current[key] = element;
