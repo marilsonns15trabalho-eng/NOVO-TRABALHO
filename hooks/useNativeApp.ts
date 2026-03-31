@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { isNativeApp } from '@/lib/platform';
 
 export function useNativeApp() {
-  const [nativeApp, setNativeApp] = useState(() => isNativeApp());
+  const [nativeApp, setNativeApp] = useState(false);
 
   useEffect(() => {
     setNativeApp(isNativeApp());

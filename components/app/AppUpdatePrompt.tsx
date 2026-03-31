@@ -4,7 +4,7 @@ import { Download, RefreshCcw, X } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { useAppUpdate } from '@/hooks/useAppUpdate';
 import { openExternalUrl } from '@/lib/external-links';
-import { getPublicAppUrl, isNativeApp } from '@/lib/platform';
+import { isNativeApp } from '@/lib/platform';
 
 export default function AppUpdatePrompt() {
   const pathname = usePathname();
@@ -19,7 +19,8 @@ export default function AppUpdatePrompt() {
   }
 
   const handleUpdate = async () => {
-    await openExternalUrl(getPublicAppUrl(remote.downloadUrl));
+    const origin = window.location.origin;
+    await openExternalUrl(`${origin}${remote.downloadUrl}`);
   };
 
   return (

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { getPublicAppUrl, isNativeApp } from '@/lib/platform';
+import { isNativeApp } from '@/lib/platform';
 
 interface RemoteAppVersionPayload {
   versionCode: number;
@@ -37,7 +37,7 @@ export function useAppUpdate() {
         setLoading(true);
         const [{ App }, response] = await Promise.all([
           import('@capacitor/app'),
-          fetch(getPublicAppUrl('/api/app/version'), { cache: 'no-store' }),
+          fetch('/api/app/version', { cache: 'no-store' }),
         ]);
 
         if (!response.ok) {
