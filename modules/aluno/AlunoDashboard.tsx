@@ -24,7 +24,9 @@ import {
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import AssessmentPhotoGallery from '@/components/avaliacao/AssessmentPhotoGallery';
+import AppBottomNav from '@/components/app/AppBottomNav';
 import ExerciseOfficialPreviewModal from '@/components/treinos/ExerciseOfficialPreviewModal';
+import { useNativeApp } from '@/hooks/useNativeApp';
 import { formatDatePtBr } from '@/lib/date';
 import { exportAvaliacaoEvolutionPdf } from '@/lib/pdf/exportAvaliacaoEvolutionPdf';
 import { exportAvaliacaoPdf } from '@/lib/pdf/exportAvaliacaoPdf';
@@ -222,6 +224,7 @@ function StudentNavItem({
 export default function AlunoDashboard() {
   const { user, profile, signOut, isReady } = useAuth();
   const router = useRouter();
+  const nativeApp = useNativeApp();
 
   const [loading, setLoading] = useState(true);
   const [studentId, setStudentId] = useState<string | null>(null);
@@ -461,6 +464,36 @@ export default function AlunoDashboard() {
       icon: <ShieldCheck size={16} />,
     },
   ];
+  const appBottomNavItems = [
+    {
+      key: 'inicio',
+      label: 'Inicio',
+      icon: ClipboardList,
+      active: activeSection === 'inicio',
+      onClick: () => setActiveSection('inicio'),
+    },
+    {
+      key: 'treinos',
+      label: 'Treinos',
+      icon: Dumbbell,
+      active: activeSection === 'treinos',
+      onClick: () => setActiveSection('treinos'),
+    },
+    {
+      key: 'avaliacoes',
+      label: 'Avaliacoes',
+      icon: Activity,
+      active: activeSection === 'avaliacoes',
+      onClick: () => setActiveSection('avaliacoes'),
+    },
+    {
+      key: 'conta',
+      label: 'Conta',
+      icon: ShieldCheck,
+      active: activeSection === 'conta',
+      onClick: () => setActiveSection('conta'),
+    },
+  ];
 
   const refreshStudentTrainingState = async () => {
     if (!user) {
@@ -642,7 +675,7 @@ export default function AlunoDashboard() {
         </div>
       </div>
 
-      <div className="mx-auto flex max-w-7xl gap-6 px-4 py-6 md:px-6 md:py-8">
+      <div className={`mx-auto flex max-w-7xl gap-6 px-4 py-6 md:px-6 md:py-8 ${nativeApp ? 'pb-28 md:pb-8' : ''}`}>
         <aside className="hidden w-[290px] shrink-0 md:block">
           <div className="sticky top-6 space-y-4">
             <div className="rounded-[30px] border border-zinc-800 bg-zinc-950/90 p-5 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)]">
@@ -651,7 +684,7 @@ export default function AlunoDashboard() {
                   L
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h2 className="truncate text-lg font-bold text-white">LIONESS PRIME</h2>
+                  <h2 className="truncate text-lg font-bold text-white">LIONESS</h2>
                   <p className="mt-1 text-[11px] uppercase tracking-[0.28em] text-zinc-500">
                     Painel do aluno
                   </p>
@@ -740,7 +773,7 @@ export default function AlunoDashboard() {
           </div>
         </section>
 
-        <section className="rounded-[28px] border border-zinc-800 bg-zinc-950/85 p-3 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)] md:hidden">
+        <section className={`rounded-[28px] border border-zinc-800 bg-zinc-950/85 p-3 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)] md:hidden ${nativeApp ? 'hidden' : ''}`}>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {sectionItems.map((item) => {
               return (
@@ -1704,6 +1737,8 @@ export default function AlunoDashboard() {
           </div>
         </div>
       )}
+
+      {nativeApp ? <AppBottomNav items={appBottomNavItems} /> : null}
     </motion.div>
   );
 }

@@ -1,6 +1,6 @@
-// Constantes centralizadas do sistema LIONESS PRIME
+// Constantes centralizadas do sistema LIONESS
 
-/** Valores padrão para formulários */
+/** Valores padrao para formularios */
 export const DEFAULTS = {
   DUE_DAY: 10,
   PLAN_DURATION_MONTHS: 1,
@@ -29,7 +29,7 @@ export const PAGAMENTO_STATUS = {
   ATRASADO: 'atrasado',
 } as const;
 
-/** Tipos de transação financeira */
+/** Tipos de transacao financeira */
 export const TRANSACTION_TYPE = {
   RECEITA: 'receita',
   DESPESA: 'despesa',
@@ -63,5 +63,5 @@ export const STORAGE_BUCKETS = {
   AVALIACAO_PHOTOS: 'avaliacao-photos',
 } as const;
 
-/** Super admin — protegido contra alterações */
+/** Super admin protegido contra alteracoes */
 export const SUPER_ADMIN_EMAIL = 'marilsonns15@gmail.com';

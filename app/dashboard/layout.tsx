@@ -2,13 +2,15 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Menu } from 'lucide-react';
+import AppBottomNav from '@/components/app/AppBottomNav';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import MobileMenu from '@/components/MobileMenu';
 import AccountSecurityForm from '@/components/account/AccountSecurityForm';
 import { useAuth } from '@/hooks/useAuth';
-import { getActiveIdFromPath, getDefaultRouteForRole, ROLE_ACCESS } from '@/lib/navigation';
+import { useNativeApp } from '@/hooks/useNativeApp';
+import { getActiveIdFromPath, getDefaultRouteForRole, getMenuItemsForRole, ROLE_ACCESS } from '@/lib/navigation';
 
 const TITLES: Record<string, string> = {
   home: 'Painel de Controle',
@@ -27,6 +29,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const nativeApp = useNativeApp();
 
   const activeId = useMemo(() => getActiveIdFromPath(pathname), [pathname]);
   const title = TITLES[activeId] || 'Painel de Controle';
@@ -98,6 +101,39 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push(`/dashboard/${id}`);
   };
 
+  const bottomNavItems = useMemo(() => {
+    if (!nativeApp || !role) {
+      return [];
+    }
+
+    const preferredIds =
+      role === 'admin'
+        ? ['home', 'alunos', 'treinos', 'financeiro']
+        : ['home', 'alunos', 'treinos', 'avaliacao'];
+
+    const roleItems = getMenuItemsForRole(role);
+    const primaryItems = preferredIds
+      .map((id) => roleItems.find((item) => item.id === id))
+      .filter((item): item is NonNullable<typeof item> => Boolean(item));
+
+    return [
+      ...primaryItems.map((item) => ({
+        key: item.id,
+        label: item.label,
+        icon: item.icon,
+        active: activeId === item.id,
+        onClick: () => handleNavigate(item.id),
+      })),
+      {
+        key: 'menu',
+        label: 'Menu',
+        icon: Menu,
+        active: false,
+        onClick: () => setMobileMenuOpen(true),
+      },
+    ];
+  }, [activeId, nativeApp, role]);
+
   return (
     <div className="flex min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.08),_transparent_22%),linear-gradient(180deg,#09090b_0%,#000_100%)] font-sans text-white selection:bg-orange-500 selection:text-black">
       <div className="hidden md:block">
@@ -112,10 +148,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         userRole={role}
       />
 
-      <main className="flex flex-1 flex-col overflow-hidden">
+      <main className={`flex flex-1 flex-col overflow-hidden ${nativeApp ? 'pb-24 md:pb-0' : ''}`}>
         <Header title={title} onMenuToggle={() => setMobileMenuOpen(true)} />
         <div className="flex-1 overflow-y-auto">{children}</div>
       </main>
+
+      {nativeApp && bottomNavItems.length > 0 ? <AppBottomNav items={bottomNavItems} /> : null}
 
       {Boolean(profile?.must_change_password) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/92 px-6 py-10 backdrop-blur-md">

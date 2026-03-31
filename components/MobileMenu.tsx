@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'motion/react';
 import { LogOut, Sparkles, X } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useNativeApp } from '@/hooks/useNativeApp';
 import { getMenuItemsForRole } from '@/lib/navigation';
 import type { UserRole } from '@/hooks/useAuth';
 
@@ -49,6 +50,7 @@ export default function MobileMenu({
   const router = useRouter();
   const menuItems = getMenuItemsForRole(userRole);
   const accent = useMemo(() => getRoleAccent(userRole), [userRole]);
+  const nativeApp = useNativeApp();
 
   const handleOverlayClick = (event: React.MouseEvent) => {
     if (event.target === overlayRef.current) onClose();
@@ -97,7 +99,7 @@ export default function MobileMenu({
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="fixed left-0 top-0 z-[9999] flex h-full w-[310px] flex-col border-r border-zinc-800/80 bg-[linear-gradient(180deg,rgba(17,17,19,0.98),rgba(5,5,6,0.98))] shadow-2xl"
+            className={`fixed left-0 top-0 z-[9999] flex h-full w-[310px] flex-col border-r border-zinc-800/80 bg-[linear-gradient(180deg,rgba(17,17,19,0.98),rgba(5,5,6,0.98))] shadow-2xl ${nativeApp ? 'pb-[env(safe-area-inset-bottom)]' : ''}`}
           >
             <div className="border-b border-zinc-800/80 p-5">
               <div className="flex items-start justify-between gap-4 rounded-[28px] border border-zinc-800 bg-zinc-950/90 p-5">
@@ -107,9 +109,9 @@ export default function MobileMenu({
                   >
                     L
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h1 className="text-base font-bold text-white">LIONESS PRIME</h1>
+                    <div>
+                      <div className="flex items-center gap-2">
+                      <h1 className="text-base font-bold text-white">LIONESS</h1>
                       <Sparkles size={13} className="text-orange-400" />
                     </div>
                     <p className="mt-1 text-[11px] uppercase tracking-[0.28em] text-zinc-500">
@@ -159,7 +161,6 @@ export default function MobileMenu({
                     </div>
                     <div className="text-left">
                       <p className="font-semibold">{item.label}</p>
-                      <p className="text-[11px] uppercase tracking-[0.24em] text-zinc-600">Area</p>
                     </div>
                   </button>
                 );

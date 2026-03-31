@@ -20,6 +20,7 @@ import { useAuth } from '@/hooks/useAuth';
 import type { UserRole } from '@/contexts/AuthContext';
 import { Modal, ConfirmDialog, Toast, LoadingSpinner } from '@/components/ui';
 import { formatDatePtBr } from '@/lib/date';
+import { openExternalUrl } from '@/lib/external-links';
 import {
   ModuleEmptyState,
   ModuleHero,
@@ -143,12 +144,11 @@ export default function AlunosModule() {
       return;
     }
 
-    window.open(
+    void openExternalUrl(
       buildWhatsAppUrl(
         normalizedPhone,
         `Ola ${aluno.nome}, tudo bem? Gostaria de falar sobre sua matricula na academia.`
-      ),
-      '_blank'
+      )
     );
   };
 
@@ -337,7 +337,110 @@ export default function AlunosModule() {
           />
         </div>
         {alunos.length > 0 ? (
-          <div className="overflow-x-auto">
+          <>
+            <div className="divide-y divide-zinc-800/60 md:hidden">
+              {alunos.map((aluno) => {
+                const isResettingThisAluno = resettingPasswordForId === aluno.id;
+
+                return (
+                  <div key={aluno.id} className="space-y-4 px-5 py-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 text-sm font-bold text-orange-500">
+                          {(aluno.nome || '').charAt(0)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-base font-bold text-white">{aluno.nome}</p>
+                          <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">
+                            {aluno.created_at ? `Cadastro em ${formatDatePtBr(aluno.created_at)}` : 'Cadastro sem data'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleToggleStatus(aluno.id, aluno.status)}
+                        disabled={isReadOnly}
+                        className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wider transition-all ${
+                          aluno.status === 'ativo'
+                            ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400'
+                            : 'border-rose-500/20 bg-rose-500/10 text-rose-400'
+                        } disabled:cursor-not-allowed disabled:opacity-50`}
+                      >
+                        {aluno.status === 'ativo' ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+                        {aluno.status}
+                      </button>
+                    </div>
+
+                    <div className="space-y-2 rounded-2xl border border-zinc-800 bg-black/20 p-4">
+                      {aluno.email ? (
+                        <div className="flex items-center gap-2 text-sm text-zinc-300">
+                          <Mail size={14} className="text-zinc-500" />
+                          <span className="truncate">{aluno.email}</span>
+                        </div>
+                      ) : null}
+
+                      {aluno.telefone ? (
+                        <div className="flex items-center gap-2 text-sm text-zinc-300">
+                          <Phone size={14} className="text-zinc-500" />
+                          <span>{aluno.telefone}</span>
+                        </div>
+                      ) : null}
+
+                      {!aluno.email && !aluno.telefone ? (
+                        <p className="text-sm text-zinc-500">Sem contato cadastrado.</p>
+                      ) : null}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        onClick={() => sendWhatsApp(aluno)}
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition-all hover:border-emerald-500/20 hover:bg-emerald-500/10 hover:text-emerald-300"
+                      >
+                        <MessageCircle size={16} />
+                        WhatsApp
+                      </button>
+
+                      {!isReadOnly ? (
+                        <button
+                          onClick={() => handleStartEdit(aluno)}
+                          className="inline-flex items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition-all hover:border-orange-500/20 hover:bg-orange-500/10 hover:text-orange-300"
+                        >
+                          Editar
+                        </button>
+                      ) : (
+                        <div />
+                      )}
+
+                      {isAdmin ? (
+                        <button
+                          onClick={() => openResetPasswordDialog(aluno)}
+                          disabled={!aluno.linked_auth_user_id || !!resettingPasswordForId}
+                          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition-all hover:border-amber-500/20 hover:bg-amber-500/10 hover:text-amber-300 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          {isResettingThisAluno ? <Loader2 size={16} className="animate-spin" /> : <KeyRound size={16} />}
+                          Senha
+                        </button>
+                      ) : (
+                        <div />
+                      )}
+
+                      {!isReadOnly ? (
+                        <button
+                          onClick={() => setDeleteConfirmation(aluno.id)}
+                          className="inline-flex items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition-all hover:border-rose-500/20 hover:bg-rose-500/10 hover:text-rose-300"
+                        >
+                          Excluir
+                        </button>
+                      ) : (
+                        <div />
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="hidden overflow-x-auto md:block">
             <table className="w-full border-collapse text-left">
               <thead>
                 <tr className="border-b border-zinc-800 bg-zinc-900/50">
@@ -451,7 +554,8 @@ export default function AlunosModule() {
                 })}
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
         ) : (
           <div className="p-8">
             <ModuleEmptyState

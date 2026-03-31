@@ -23,6 +23,7 @@ import { Toast } from '@/components/ui';
 import { useDashboard } from '@/hooks/useDashboard';
 import { useNotification } from '@/hooks/useNotification';
 import { formatDatePtBr } from '@/lib/date';
+import { openExternalUrl } from '@/lib/external-links';
 import { buildWhatsAppUrl, normalizeWhatsAppPhone } from '@/lib/phone';
 
 interface DashboardProps {
@@ -157,7 +158,7 @@ export default function Dashboard({ setActiveTab }: DashboardProps) {
     const message = `Ola ${aluno.name}, passando para lembrar que sua mensalidade de R$ ${amount} vence em ${dueDate}.`;
 
     if (phone) {
-      window.open(buildWhatsAppUrl(phone, message), '_blank');
+      void openExternalUrl(buildWhatsAppUrl(phone, message));
     } else {
       showNotification('Aluno sem telefone cadastrado.', 'error');
     }

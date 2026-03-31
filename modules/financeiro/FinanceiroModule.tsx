@@ -10,6 +10,7 @@ import {
   Loader2,
   Plus,
   RefreshCw,
+  Search,
   TrendingDown,
   TrendingUp,
   Wallet,
@@ -133,6 +134,7 @@ export default function FinanceiroModule() {
   const [showConfirmLote, setShowConfirmLote] = useState(false);
   const [boletoToPay, setBoletoToPay] = useState<Boleto | null>(null);
   const [selectedStudent, setSelectedStudent] = useState<AlunoBoletos | null>(null);
+  const [studentSearchTerm, setStudentSearchTerm] = useState('');
 
   const boletosPorAluno = useMemo<AlunoBoletos[]>(
     () =>
@@ -145,6 +147,26 @@ export default function FinanceiroModule() {
       }),
     [alunos, boletos],
   );
+  const filteredBoletosPorAluno = useMemo(() => {
+    const normalizedQuery = studentSearchTerm.trim().toLowerCase();
+
+    if (!normalizedQuery) {
+      return boletosPorAluno;
+    }
+
+    return boletosPorAluno.filter((aluno) => aluno.name.toLowerCase().includes(normalizedQuery));
+  }, [boletosPorAluno, studentSearchTerm]);
+  const filteredBoletos = useMemo(() => {
+    const normalizedQuery = studentSearchTerm.trim().toLowerCase();
+
+    if (!normalizedQuery) {
+      return boletos;
+    }
+
+    return boletos.filter((boleto) =>
+      (boleto.students?.name || '').toLowerCase().includes(normalizedQuery),
+    );
+  }, [boletos, studentSearchTerm]);
 
   const totalReceitas = pagamentos
     .filter((pagamento) => pagamento.tipo === 'receita' && pagamento.status === 'pago')
@@ -292,10 +314,31 @@ export default function FinanceiroModule() {
         <ModuleSectionHeading
           eyebrow="Controle financeiro"
           title="Lancamentos e cobrancas"
-          description="Alterne entre a visao geral e a leitura por aluna sem repetir blocos ou ocupar a tela com informacoes duplicadas."
+          description="Use a busca por nome para localizar uma aluna rapidamente e alternar entre a visao geral e a leitura individual."
         />
 
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-1 items-center gap-3 rounded-2xl border border-zinc-800 bg-black/30 px-4 py-3">
+            <Search size={16} className="shrink-0 text-zinc-500" />
+            <input
+              type="text"
+              value={studentSearchTerm}
+              onChange={(event) => setStudentSearchTerm(event.target.value)}
+              placeholder="Buscar aluna por nome"
+              className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-600"
+            />
+            {studentSearchTerm ? (
+              <button
+                type="button"
+                onClick={() => setStudentSearchTerm('')}
+                className="inline-flex items-center justify-center rounded-full border border-zinc-800 bg-zinc-900 p-1.5 text-zinc-400 transition-all hover:border-zinc-700 hover:text-white"
+                aria-label="Limpar busca"
+              >
+                <X size={14} />
+              </button>
+            ) : null}
+          </div>
+
           <button
             onClick={() => setActiveTab('geral')}
             className={`rounded-2xl px-5 py-3 text-sm font-bold transition-all ${
@@ -362,9 +405,9 @@ export default function FinanceiroModule() {
                 <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-500">Cobrancas</p>
                 <h3 className="mt-2 text-lg font-bold text-white">Boletos emitidos</h3>
               </div>
-              {boletos.length > 0 ? (
+              {filteredBoletos.length > 0 ? (
                 <div className="divide-y divide-zinc-800">
-                  {boletos.map((boleto) => (
+                  {filteredBoletos.map((boleto) => (
                     <div key={boleto.id} className="grid gap-3 px-5 py-4 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center">
                       <div className="min-w-0">
                         <p className="truncate font-bold text-white">{boleto.students?.name || 'Sem nome'}</p>
@@ -401,7 +444,11 @@ export default function FinanceiroModule() {
                 <ModuleEmptyState
                   icon={FileText}
                   title="Nenhum boleto emitido"
-                  description="Gere um boleto individual ou em lote para começar a acompanhar as cobrancas."
+                  description={
+                    studentSearchTerm
+                      ? 'Nenhum boleto encontrado para a aluna pesquisada.'
+                      : 'Gere um boleto individual ou em lote para comecar a acompanhar as cobrancas.'
+                  }
                 />
               )}
             </div>
@@ -411,10 +458,11 @@ export default function FinanceiroModule() {
             <div className="border-b border-zinc-800 px-5 py-4">
               <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-500">Leitura por aluna</p>
               <h3 className="mt-2 text-lg font-bold text-white">Financeiro individual</h3>
+              <p className="mt-2 text-sm text-zinc-500">Selecione a aluna para abrir o historico completo de cobrancas.</p>
             </div>
-            {boletosPorAluno.length > 0 ? (
+            {filteredBoletosPorAluno.length > 0 ? (
               <div className="divide-y divide-zinc-800">
-                {boletosPorAluno.map((aluno) => (
+                {filteredBoletosPorAluno.map((aluno) => (
                   <button
                     key={aluno.id}
                     type="button"
@@ -446,7 +494,11 @@ export default function FinanceiroModule() {
               <ModuleEmptyState
                 icon={Wallet}
                 title="Nenhuma aluna encontrada"
-                description="Ainda nao ha dados financeiros suficientes para montar a visao individual."
+                description={
+                  studentSearchTerm
+                    ? 'Nenhuma aluna corresponde ao nome pesquisado.'
+                    : 'Ainda nao ha dados financeiros suficientes para montar a visao individual.'
+                }
               />
             )}
           </div>

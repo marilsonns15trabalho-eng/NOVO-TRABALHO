@@ -17,8 +17,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Lioness Personal Estúdio - PRIME',
-  description: 'Sistema completo de gestão para personal trainers',
+  title: 'Lioness Personal Estudio',
+  description: 'Gestao integrada para administracao, professor e aluno.',
 };
 
 export const viewport: Viewport = {
@@ -36,12 +36,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR" className={`${inter.variable} ${jetbrainsMono.variable} dark`}>
-      <body className="bg-black text-white antialiased selection:bg-orange-500 selection:text-black" suppressHydrationWarning>
+      <body
+        className="bg-black text-white antialiased selection:bg-orange-500 selection:text-black"
+        suppressHydrationWarning
+      >
         <AppModeDetector />
         <ErrorBoundary>
-          <AuthProvider>
-            {children}
-          </AuthProvider>
+          <AuthProvider>{children}</AuthProvider>
         </ErrorBoundary>
       </body>
     </html>

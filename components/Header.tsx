@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Bell, CalendarDays, CheckCircle2, Dumbbell, Loader2, LogOut, Menu, ReceiptText, Sparkles } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useNativeApp } from '@/hooks/useNativeApp';
 import * as dashboardService from '@/services/dashboard.service';
 import { formatDatePtBr } from '@/lib/date';
 
@@ -27,6 +28,7 @@ function getRoleAccent(role: string | null) {
 export default function Header({ title, onMenuToggle }: HeaderProps) {
   const { user, profile, role, isAdmin, signOut } = useAuth();
   const router = useRouter();
+  const nativeApp = useNativeApp();
   const [notifications, setNotifications] = useState<dashboardService.HeaderNotificationItem[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
   const [clearingNotifications, setClearingNotifications] = useState(false);
@@ -189,7 +191,7 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-30 border-b border-zinc-800/80 bg-black/75 px-4 py-3 backdrop-blur-xl md:px-8 md:py-4">
+    <header className={`sticky top-0 z-30 border-b border-zinc-800/80 bg-black/75 backdrop-blur-xl ${nativeApp ? 'px-4 py-3 md:px-6 md:py-4' : 'px-4 py-3 md:px-8 md:py-4'}`}>
       <div className="flex items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3 md:gap-4">
           {onMenuToggle && (
@@ -207,9 +209,9 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
               <p className="truncate text-lg font-bold tracking-tight text-white md:text-2xl">
                 {title}
               </p>
-              <Sparkles size={14} className="hidden text-orange-400 sm:block" />
+              {!nativeApp ? <Sparkles size={14} className="hidden text-orange-400 sm:block" /> : null}
             </div>
-            <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-zinc-500">
+            <div className={`mt-1 flex flex-wrap items-center gap-3 text-xs text-zinc-500 ${nativeApp ? 'hidden sm:flex' : ''}`}>
               <span className="inline-flex items-center gap-1.5">
                 <CalendarDays size={12} />
                 {todayLabel}
@@ -239,7 +241,7 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
               </button>
 
               {isNotificationsOpen && (
-                <div className="absolute right-0 top-[calc(100%+12px)] z-50 w-[360px] rounded-[28px] border border-zinc-800 bg-zinc-950/95 p-3 shadow-[0_36px_120px_-64px_rgba(0,0,0,0.95)] backdrop-blur-xl">
+                <div className="absolute right-0 top-[calc(100%+12px)] z-50 w-[min(360px,calc(100vw-2rem))] rounded-[28px] border border-zinc-800 bg-zinc-950/95 p-3 shadow-[0_36px_120px_-64px_rgba(0,0,0,0.95)] backdrop-blur-xl">
                   <div className="flex items-center justify-between border-b border-zinc-800 px-3 pb-3">
                     <div>
                       <p className="text-sm font-bold text-white">Notificacoes</p>
@@ -303,7 +305,7 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
             </div>
           )}
 
-          <div className="hidden items-center gap-3 rounded-[24px] border border-zinc-800 bg-zinc-950/85 px-3 py-2 md:flex">
+          <div className={`hidden items-center gap-3 rounded-[24px] border border-zinc-800 bg-zinc-950/85 px-3 py-2 ${nativeApp ? 'lg:flex' : 'md:flex'}`}>
             <div className="text-right">
               <p className="text-sm font-bold text-white">Ola, {firstName}</p>
               <p className="text-xs text-zinc-500">{user?.email}</p>

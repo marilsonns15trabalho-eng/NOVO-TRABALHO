@@ -1,4 +1,4 @@
-package com.lioness.prime;
+package com.lioness.personalestudio;
 
 import com.getcapacitor.BridgeActivity;
 

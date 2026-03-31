@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
 import { Activity, ArrowRight, Dumbbell, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { openExternalUrl } from '@/lib/external-links';
 import { getDefaultRouteForRole } from '@/lib/navigation';
 
 const WHATSAPP_URL =
@@ -79,6 +80,14 @@ export default function LandingPage() {
     }
   }, [isReady, role, router, user]);
 
+  const handleOpenWhatsApp = async () => {
+    await openExternalUrl(WHATSAPP_URL);
+  };
+
+  const handleOpenInstagram = async () => {
+    await openExternalUrl(INSTAGRAM_URL);
+  };
+
   if (isNativeApp) {
     return (
       <div className="min-h-screen overflow-hidden bg-black px-4 py-6 text-white md:px-6">
@@ -147,14 +156,13 @@ export default function LandingPage() {
               Entrar
               <ArrowRight size={18} />
             </button>
-            <a
-              href={WHATSAPP_URL}
-              target="_blank"
-              rel="noreferrer"
+            <button
+              type="button"
+              onClick={() => void handleOpenWhatsApp()}
               className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-950/80 px-6 py-4 text-sm font-bold text-zinc-200 transition-all hover:border-zinc-700 hover:bg-zinc-900"
             >
               Falar no WhatsApp
-            </a>
+            </button>
           </div>
         </div>
       </div>
@@ -231,22 +239,20 @@ export default function LandingPage() {
             </p>
 
             <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-              <a
-                href={WHATSAPP_URL}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                type="button"
+                onClick={() => void handleOpenWhatsApp()}
                 className="inline-flex items-center justify-center rounded-sm bg-[#ff5a1f] px-8 py-4 text-sm font-black uppercase tracking-[0.08em] text-white transition-all hover:bg-[#ff7a2c]"
               >
                 Agendar aula experimental
-              </a>
-              <a
-                href={INSTAGRAM_URL}
-                target="_blank"
-                rel="noreferrer"
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleOpenInstagram()}
                 className="inline-flex items-center justify-center rounded-sm border border-white/12 px-8 py-4 text-sm font-black uppercase tracking-[0.08em] text-white transition-all hover:border-white/20 hover:bg-white/5"
               >
                 Conhecer o estudio
-              </a>
+              </button>
             </div>
           </motion.div>
 
@@ -276,23 +282,21 @@ export default function LandingPage() {
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
-                <a
-                  href={WHATSAPP_URL}
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  type="button"
+                  onClick={() => void handleOpenWhatsApp()}
                   className="inline-flex items-center justify-center gap-2 rounded-sm bg-[#ff5a1f] px-7 py-4 text-sm font-black uppercase tracking-[0.08em] text-white transition-all hover:bg-[#ff7a2c]"
                 >
                   Chamar no WhatsApp
                   <ArrowRight size={16} />
-                </a>
-                <a
-                  href={INSTAGRAM_URL}
-                  target="_blank"
-                  rel="noreferrer"
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleOpenInstagram()}
                   className="inline-flex items-center justify-center gap-2 rounded-sm border border-white/12 px-7 py-4 text-sm font-black uppercase tracking-[0.08em] text-white transition-all hover:border-white/20 hover:bg-white/5"
                 >
                   Abrir Instagram
-                </a>
+                </button>
               </div>
             </div>
           </div>

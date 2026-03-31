@@ -122,6 +122,64 @@ body.device-mobile .lioness-modal-card {
   padding-top: env(safe-area-inset-top);
 }
 
+.app-mode [data-lioness-shell] {
+  padding: 0.85rem;
+  gap: 0.85rem;
+}
+
+.app-mode [data-lioness-hero] {
+  padding: 0.95rem;
+  border-radius: 1.35rem;
+}
+
+.app-mode [data-lioness-hero-title] {
+  font-size: clamp(1.4rem, 6vw, 2rem);
+  line-height: 1.08;
+}
+
+.app-mode [data-lioness-hero-description] {
+  display: none;
+}
+
+.app-mode [data-lioness-chip-list] {
+  gap: 0.45rem;
+}
+
+.app-mode [data-lioness-chip-list] > * {
+  padding: 0.45rem 0.7rem;
+  font-size: 0.72rem;
+}
+
+.app-mode [data-lioness-hero-actions] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.app-mode [data-lioness-action],
+.app-mode [data-lioness-stat],
+.app-mode [data-lioness-surface],
+.app-mode [data-lioness-empty] {
+  border-radius: 1.15rem;
+  padding: 0.9rem;
+}
+
+.app-mode [data-lioness-stat-value] {
+  font-size: 1.45rem;
+}
+
+.app-mode .lioness-toolbar {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.app-mode .lioness-toolbar > * {
+  width: 100%;
+}
+
+.app-mode [data-app-bottom-nav] {
+  box-shadow: 0 -24px 70px -42px rgba(0, 0, 0, 0.92);
+}
+
 .app-mode * {
   -webkit-user-select: none;
   user-select: none;

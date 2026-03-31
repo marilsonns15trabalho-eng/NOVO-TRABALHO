@@ -1,8 +1,8 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.lioness.prime',
-  appName: 'Lioness Prime',
+  appId: 'com.lioness.personalestudio',
+  appName: 'Lioness Personal Estudio',
   webDir: 'out',
 
   server: {

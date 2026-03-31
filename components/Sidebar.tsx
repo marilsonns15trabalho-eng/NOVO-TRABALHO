@@ -75,12 +75,10 @@ export default function Sidebar({ activeTab, setActiveTab, userRole }: SidebarPr
 
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <h1 className="truncate text-lg font-bold tracking-tight text-white">LIONESS PRIME</h1>
+                <h1 className="truncate text-lg font-bold tracking-tight text-white">LIONESS</h1>
                 <Sparkles size={14} className="text-orange-400" />
               </div>
-              <p className="mt-1 text-xs uppercase tracking-[0.28em] text-zinc-500">
-                Personal Studio
-              </p>
+              <p className="mt-1 text-xs uppercase tracking-[0.28em] text-zinc-500">Painel</p>
 
               <div className={`mt-4 inline-flex rounded-full border px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.22em] ${accent.pill}`}>
                 {userRole}

@@ -23,6 +23,7 @@ export default function AppModeDetector() {
     const root = document.documentElement;
     const { body } = document;
     const isCapacitor = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.();
+    let removeBackButtonListener: (() => void) | null = null;
 
     const applyDeviceMode = () => {
       const device = resolveDeviceMode();
@@ -43,7 +44,8 @@ export default function AppModeDetector() {
     body.classList.add('app-mode');
     void (async () => {
       try {
-        const [{ StatusBar, Style }, { SplashScreen }] = await Promise.all([
+        const [{ App }, { StatusBar, Style }, { SplashScreen }] = await Promise.all([
+          import('@capacitor/app'),
           import('@capacitor/status-bar'),
           import('@capacitor/splash-screen'),
         ]);
@@ -52,21 +54,30 @@ export default function AppModeDetector() {
         await StatusBar.setStyle({ style: Style.Dark });
         await StatusBar.setBackgroundColor({ color: '#000000' });
         await SplashScreen.hide();
+        const listener = await App.addListener('backButton', () => {
+          const currentPath = window.location.pathname;
+
+          if (currentPath === '/' || currentPath === '/dashboard' || currentPath === '/aluno' || currentPath === '/auth') {
+            App.exitApp();
+            return;
+          }
+
+          if (window.history.length > 1) {
+            window.history.back();
+          }
+        });
+
+        removeBackButtonListener = () => {
+          void listener.remove();
+        };
       } catch {}
     })();
 
-    const handleBackButton = () => {
-      if (window.location.pathname === '/dashboard' || window.location.pathname === '/') {
-        window.history.pushState(null, '', window.location.pathname);
-      }
-    };
-
-    window.history.pushState(null, '', window.location.pathname);
-    window.addEventListener('popstate', handleBackButton);
-
     return () => {
       window.removeEventListener('resize', applyDeviceMode);
-      window.removeEventListener('popstate', handleBackButton);
+      if (removeBackButtonListener) {
+        removeBackButtonListener();
+      }
     };
   }, []);
 
