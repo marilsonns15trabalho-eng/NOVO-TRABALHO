@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { getCachedNativeFileSrc, cacheNativeBlobFile } from '@/lib/native-file-cache';
+import { cacheNativeBlobFile } from '@/lib/native-file-cache';
 import { useNativeApp } from '@/hooks/useNativeApp';
 import { buildProfileAvatarCachePath } from '@/lib/profile-avatar';
 import { fetchMyProfileAvatar } from '@/services/profile-avatar.service';
@@ -31,12 +31,6 @@ async function resolveAvatarUrl(params: {
   const loader = (async () => {
     if (params.nativeApp) {
       const nativePath = buildProfileAvatarCachePath(params.profileId, params.avatarUpdatedAt);
-      const cachedSrc = await getCachedNativeFileSrc(nativePath);
-
-      if (cachedSrc) {
-        memoryAvatarCache.set(cacheKey, cachedSrc);
-        return cachedSrc;
-      }
 
       const response = await fetchMyProfileAvatar();
       if (!response.avatar_url) {
@@ -44,17 +38,24 @@ async function resolveAvatarUrl(params: {
         return null;
       }
 
-      const imageResponse = await fetch(response.avatar_url, { cache: 'force-cache' });
-      if (!imageResponse.ok) {
-        memoryAvatarCache.set(cacheKey, response.avatar_url);
-        return response.avatar_url;
+      const versionToken = params.avatarUpdatedAt || Date.now().toString();
+      const separator = response.avatar_url.includes('?') ? '&' : '?';
+      const networkUrl = `${response.avatar_url}${separator}v=${encodeURIComponent(versionToken)}`;
+      memoryAvatarCache.set(cacheKey, networkUrl);
+
+      try {
+        const imageResponse = await fetch(networkUrl, { cache: 'no-store' });
+        if (!imageResponse.ok) {
+          return networkUrl;
+        }
+
+        const blob = await imageResponse.blob();
+        void cacheNativeBlobFile(nativePath, blob).catch(() => undefined);
+      } catch {
+        return networkUrl;
       }
 
-      const blob = await imageResponse.blob();
-      const cachedFileSrc = await cacheNativeBlobFile(nativePath, blob);
-      const finalUrl = cachedFileSrc || response.avatar_url;
-      memoryAvatarCache.set(cacheKey, finalUrl);
-      return finalUrl;
+      return networkUrl;
     }
 
     const response = await fetchMyProfileAvatar();

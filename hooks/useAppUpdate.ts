@@ -18,6 +18,39 @@ interface InstalledAppInfo {
 
 const DISMISS_PREFIX = 'lioness-app-update-dismissed:';
 
+function parseNumericVersionParts(value: string | null | undefined) {
+  if (!value) {
+    return [];
+  }
+
+  return value
+    .replace(/[^0-9.]+/g, '')
+    .split('.')
+    .map((part) => Number.parseInt(part, 10))
+    .filter((part) => Number.isFinite(part));
+}
+
+function compareVersionNames(installedVersion: string, remoteVersion: string) {
+  const installedParts = parseNumericVersionParts(installedVersion);
+  const remoteParts = parseNumericVersionParts(remoteVersion);
+  const totalParts = Math.max(installedParts.length, remoteParts.length);
+
+  for (let index = 0; index < totalParts; index += 1) {
+    const installedPart = installedParts[index] ?? 0;
+    const remotePart = remoteParts[index] ?? 0;
+
+    if (remotePart > installedPart) {
+      return 1;
+    }
+
+    if (remotePart < installedPart) {
+      return -1;
+    }
+  }
+
+  return 0;
+}
+
 export function useAppUpdate() {
   const [loading, setLoading] = useState(true);
   const [installed, setInstalled] = useState<InstalledAppInfo | null>(null);
@@ -89,7 +122,11 @@ export function useAppUpdate() {
     }
 
     const installedBuild = Number(installed.build || 0);
-    return Number.isFinite(installedBuild) && remote.versionCode > installedBuild;
+    if (Number.isFinite(installedBuild) && installedBuild > 0 && remote.versionCode > installedBuild) {
+      return true;
+    }
+
+    return compareVersionNames(installed.version, remote.versionName) > 0;
   }, [installed, remote]);
 
   const dismiss = () => {
