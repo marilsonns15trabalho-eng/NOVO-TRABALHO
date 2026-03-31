@@ -841,12 +841,14 @@ export default function TreinosModule() {
         {showTrainingPlanModal && canManageRecords && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeTrainingPlanModal} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
-            <motion.div initial={{ scale: 0.96, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0, y: 20 }} className="relative w-full max-w-2xl rounded-[30px] border border-zinc-800 bg-zinc-950 p-5 shadow-2xl md:p-8">
-              <div className="flex items-start justify-between gap-4">
-                <SectionTitle eyebrow={editingTrainingPlan ? 'Editar rotina' : 'Nova rotina'} title={editingTrainingPlan ? editingTrainingPlan.name : 'Rotina semanal'} description="Defina a frequencia da semana, a proposta da rotina e as orientacoes gerais da equipe." />
+            <motion.div initial={{ scale: 0.96, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0, y: 20 }} className="relative max-h-[94vh] w-full max-w-2xl overflow-y-auto rounded-[30px] border border-zinc-800 bg-zinc-950 p-4 shadow-2xl sm:p-5 md:p-8">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 flex-1">
+                  <SectionTitle eyebrow={editingTrainingPlan ? 'Editar rotina' : 'Nova rotina'} title={editingTrainingPlan ? editingTrainingPlan.name : 'Rotina semanal'} description="Defina a frequencia da semana, a proposta da rotina e as orientacoes gerais da equipe." />
+                </div>
                 <CloseModalButton onClick={closeTrainingPlanModal} />
               </div>
-              <form onSubmit={(e) => { e.preventDefault(); void handleSaveTrainingPlan(); }} className="mt-6 space-y-5">
+              <form onSubmit={(e) => { e.preventDefault(); void handleSaveTrainingPlan(); }} className="mt-5 space-y-5 sm:mt-6">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div>
                     <input value={newTrainingPlan.name} onChange={(e) => setNewTrainingPlan((c) => ({ ...c, name: e.target.value }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Nome da rotina semanal" />
@@ -881,9 +883,9 @@ export default function TreinosModule() {
                   <textarea rows={3} value={newTrainingPlan.coach_notes} onChange={(e) => setNewTrainingPlan((c) => ({ ...c, coach_notes: e.target.value }))} className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30" placeholder="Orientacoes do treinador" />
                   <FieldHint>Use esse campo para explicar observacoes gerais da rotina para a equipe e para futuras revisoes.</FieldHint>
                 </div>
-                <div className="flex gap-3">
-                  <button type="button" onClick={closeTrainingPlanModal} className="flex-1 rounded-2xl bg-zinc-800 px-4 py-4 font-bold text-white transition-all hover:bg-zinc-700">Cancelar</button>
-                  <button type="submit" className="flex-1 rounded-2xl bg-sky-500 px-4 py-4 font-bold text-black transition-all hover:bg-sky-400">{editingTrainingPlan ? 'Salvar alteracoes' : 'Salvar rotina'}</button>
+                <div className="flex flex-col-reverse gap-3 sm:flex-row">
+                  <button type="button" onClick={closeTrainingPlanModal} className="w-full flex-1 rounded-2xl bg-zinc-800 px-4 py-4 font-bold text-white transition-all hover:bg-zinc-700">Cancelar</button>
+                  <button type="submit" className="w-full flex-1 rounded-2xl bg-sky-500 px-4 py-4 font-bold text-black transition-all hover:bg-sky-400">{editingTrainingPlan ? 'Salvar alteracoes' : 'Salvar rotina'}</button>
                 </div>
               </form>
             </motion.div>
