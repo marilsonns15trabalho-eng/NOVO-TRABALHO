@@ -193,8 +193,8 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
 
   return (
     <header className={`sticky top-0 z-30 border-b border-zinc-800/80 bg-black/75 backdrop-blur-xl ${nativeApp ? 'px-4 py-3 md:px-6 md:py-4' : 'px-4 py-3 md:px-8 md:py-4'}`}>
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-3 md:gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-3 md:gap-4">
+        <div className="flex min-w-0 flex-1 items-center gap-3 md:gap-4">
           {onMenuToggle && (
             <button
               onClick={onMenuToggle}
@@ -224,7 +224,7 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex w-full items-center justify-end gap-2 sm:w-auto sm:gap-3">
           <AppDownloadButton compact />
 
           {(role === 'admin' || role === 'professor') && (

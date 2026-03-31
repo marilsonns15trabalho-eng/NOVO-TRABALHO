@@ -131,15 +131,15 @@ export default function AccountSecurityForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <div className="relative overflow-hidden rounded-[30px] border border-zinc-800 bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.14),_transparent_34%),linear-gradient(135deg,rgba(24,24,27,0.98),rgba(10,10,10,0.98))] p-6 shadow-[0_28px_90px_-48px_rgba(249,115,22,0.45)]">
-        <div className="absolute inset-y-0 right-0 w-48 bg-gradient-to-l from-orange-500/5 to-transparent" />
+    <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+      <div className="relative overflow-hidden rounded-[24px] border border-zinc-800 bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.14),_transparent_34%),linear-gradient(135deg,rgba(24,24,27,0.98),rgba(10,10,10,0.98))] p-4 shadow-[0_28px_90px_-48px_rgba(249,115,22,0.45)] sm:rounded-[30px] sm:p-6">
+        <div className="absolute inset-y-0 right-0 hidden w-48 bg-gradient-to-l from-orange-500/5 to-transparent sm:block" />
 
         <div className="relative flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
           <div className="max-w-2xl">
-            <div className="flex items-start gap-4">
-              <div className="rounded-3xl border border-orange-500/20 bg-orange-500/10 p-3 text-orange-400 shadow-lg shadow-orange-500/10">
-                <ShieldCheck size={22} />
+            <div className="flex items-start gap-3 sm:gap-4">
+              <div className="rounded-2xl border border-orange-500/20 bg-orange-500/10 p-2.5 text-orange-400 shadow-lg shadow-orange-500/10 sm:rounded-3xl sm:p-3">
+                <ShieldCheck size={20} className="sm:h-[22px] sm:w-[22px]" />
               </div>
 
               <div className="space-y-2">
@@ -147,7 +147,7 @@ export default function AccountSecurityForm({
                   <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-orange-400/80">
                     Seguranca da conta
                   </p>
-                  <h3 className="mt-1 text-2xl font-bold text-white">{title}</h3>
+                  <h3 className="mt-1 text-xl font-bold text-white sm:text-2xl">{title}</h3>
                 </div>
 
                 <p className="max-w-xl text-sm leading-6 text-zinc-400">
@@ -193,20 +193,20 @@ export default function AccountSecurityForm({
         </div>
       )}
 
-      <div className={`grid gap-5 ${compact ? 'grid-cols-1' : 'grid-cols-1 xl:grid-cols-[1.05fr_0.95fr]'}`}>
-        <div className="rounded-[28px] border border-zinc-800 bg-zinc-950/85 p-5 shadow-[0_24px_70px_-48px_rgba(0,0,0,0.9)]">
+      <div className={`grid gap-4 sm:gap-5 ${compact ? 'grid-cols-1' : 'grid-cols-1 xl:grid-cols-[1.05fr_0.95fr]'}`}>
+        <div className="rounded-[24px] border border-zinc-800 bg-zinc-950/85 p-4 shadow-[0_24px_70px_-48px_rgba(0,0,0,0.9)] sm:rounded-[28px] sm:p-5">
           <div className="mb-5 flex items-start justify-between gap-4">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">
                 Atualizar senha
               </p>
-              <h4 className="mt-2 text-xl font-bold text-white">Renove seu acesso</h4>
+              <h4 className="mt-2 text-lg font-bold text-white sm:text-xl">Renove seu acesso</h4>
               <p className="mt-2 max-w-lg text-sm leading-6 text-zinc-400">
                 Use uma senha nova, com pelo menos 6 caracteres, para proteger seu acesso ao painel.
               </p>
             </div>
 
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-3 text-zinc-300">
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-2.5 text-zinc-300 sm:p-3">
               <Sparkles size={18} />
             </div>
           </div>
@@ -244,12 +244,12 @@ export default function AccountSecurityForm({
           </div>
         </div>
 
-        <div className="rounded-[28px] border border-zinc-800 bg-zinc-950/85 p-5 shadow-[0_24px_70px_-48px_rgba(0,0,0,0.9)]">
+        <div className="rounded-[24px] border border-zinc-800 bg-zinc-950/85 p-4 shadow-[0_24px_70px_-48px_rgba(0,0,0,0.9)] sm:rounded-[28px] sm:p-5">
           <div className="mb-5">
             <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">
               Recuperacao
             </p>
-            <h4 className="mt-2 text-xl font-bold text-white">Pergunta secreta pronta</h4>
+            <h4 className="mt-2 text-lg font-bold text-white sm:text-xl">Pergunta secreta pronta</h4>
             <p className="mt-2 max-w-lg text-sm leading-6 text-zinc-400">
               Escolha uma das 5 perguntas oficiais do sistema e salve apenas a sua resposta.
             </p>
@@ -290,7 +290,7 @@ export default function AccountSecurityForm({
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-[26px] border border-zinc-800 bg-zinc-950/80 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 rounded-[22px] border border-zinc-800 bg-zinc-950/80 p-4 sm:rounded-[26px] sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-semibold text-white">Finalize a protecao do seu acesso</p>
           <p className="mt-1 text-sm text-zinc-500">

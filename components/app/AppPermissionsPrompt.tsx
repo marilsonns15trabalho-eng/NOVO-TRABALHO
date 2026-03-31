@@ -38,15 +38,15 @@ export default function AppPermissionsPrompt() {
   }
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:px-6 md:pb-6">
-      <div className="pointer-events-auto w-full max-w-2xl rounded-[30px] border border-zinc-800 bg-zinc-950/96 p-4 shadow-[0_40px_120px_-56px_rgba(0,0,0,0.95)] backdrop-blur-xl">
+    <div className="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 sm:px-4 md:px-6 md:pt-6 md:pb-6">
+      <div className="pointer-events-auto max-h-[calc(100vh-env(safe-area-inset-top)-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-[24px] border border-zinc-800 bg-zinc-950/96 p-3 shadow-[0_40px_120px_-56px_rgba(0,0,0,0.95)] backdrop-blur-xl sm:rounded-[30px] sm:p-4">
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-zinc-500">
               Preparar aparelho
             </p>
-            <h3 className="mt-2 text-xl font-bold text-white">Ative as permissoes do app</h3>
-            <p className="mt-2 text-sm leading-6 text-zinc-500">
+            <h3 className="mt-2 text-lg font-bold text-white sm:text-xl">Ative as permissoes do app</h3>
+            <p className="mt-2 text-sm leading-5 text-zinc-500 sm:leading-6">
               {cameraPending && notificationsPending
                 ? 'A camera e as notificacoes ajudam o aplicativo a funcionar melhor no celular.'
                 : cameraPending

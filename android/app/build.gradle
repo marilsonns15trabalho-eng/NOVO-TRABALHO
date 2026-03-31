@@ -20,8 +20,10 @@ android {
         applicationId "com.lioness.personalestudio"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // Sempre aumente o versionCode e atualize o versionName antes de gerar um APK novo.
+        // O app instalado usa esses campos para identificar que existe uma atualizacao publicada.
+        versionCode 2
+        versionName "1.01"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

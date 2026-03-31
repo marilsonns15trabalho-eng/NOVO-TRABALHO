@@ -290,6 +290,7 @@ export default function TreinosModule() {
   const [activePanel, setActivePanel] = useState<'rotinas' | 'treinos' | 'alunos'>('rotinas');
   const [selectedTrainingPlanView, setSelectedTrainingPlanView] = useState<TrainingPlan | null>(null);
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
+  const [planStudentSearchTerm, setPlanStudentSearchTerm] = useState('');
   const [studentPlanFilter, setStudentPlanFilter] = useState('');
   const [showAllStudentsForAssignment, setShowAllStudentsForAssignment] = useState(false);
   const [studentWorkoutSearchTerm, setStudentWorkoutSearchTerm] = useState('');
@@ -365,6 +366,12 @@ export default function TreinosModule() {
     }
   }, [showAddModal]);
 
+  useEffect(() => {
+    if (showPlanStudentsModal) {
+      setPlanStudentSearchTerm('');
+    }
+  }, [showPlanStudentsModal]);
+
   const studentPlanOptions = useMemo(() => {
     return Array.from(
       new Set(
@@ -424,6 +431,31 @@ export default function TreinosModule() {
     studentPlanFilter,
     studentSearchTerm,
   ]);
+
+  const filteredPlanStudents = useMemo(() => {
+    const needle = planStudentSearchTerm.trim().toLowerCase();
+    return alunos
+      .filter((aluno) => {
+        if (!needle) {
+          return true;
+        }
+
+        return (
+          aluno.name.toLowerCase().includes(needle) ||
+          (aluno.email || '').toLowerCase().includes(needle)
+        );
+      })
+      .sort((a, b) => {
+        const aSelected = selectedPlanStudentIds.includes(a.id);
+        const bSelected = selectedPlanStudentIds.includes(b.id);
+
+        if (aSelected !== bSelected) {
+          return aSelected ? -1 : 1;
+        }
+
+        return a.name.localeCompare(b.name, 'pt-BR');
+      });
+  }, [alunos, planStudentSearchTerm, selectedPlanStudentIds]);
 
   const studentsWithTreinos = useMemo(() => {
     const byStudent = new Map<
@@ -948,19 +980,38 @@ export default function TreinosModule() {
                 <SectionTitle eyebrow="Vinculacao" title={selectedPlanForStudents.name} description="Escolha as alunas que participam dessa rotina semanal." />
                 <CloseModalButton onClick={() => setShowPlanStudentsModal(false)} />
               </div>
-              <div className="mt-6 grid max-h-[420px] gap-3 overflow-y-auto pr-2">
-                {alunos.map((aluno) => {
+              <div className="mt-6 space-y-4">
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
+                  <input
+                    value={planStudentSearchTerm}
+                    onChange={(e) => setPlanStudentSearchTerm(e.target.value)}
+                    className="w-full rounded-2xl border border-zinc-800 bg-black px-11 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30"
+                    placeholder="Pesquisar aluna por nome ou e-mail"
+                  />
+                </div>
+
+                <div className="grid max-h-[420px] gap-3 overflow-y-auto pr-2">
+                {filteredPlanStudents.map((aluno) => {
                   const checked = selectedPlanStudentIds.includes(aluno.id);
                   return (
                     <button key={aluno.id} type="button" onClick={() => togglePlanStudent(aluno.id)} className={`flex items-center justify-between rounded-2xl border px-4 py-4 text-left transition-all ${checked ? 'border-sky-500/20 bg-sky-500/10 text-white' : 'border-zinc-800 bg-black/25 text-zinc-300 hover:border-zinc-700'}`}>
                       <div>
                         <p className="font-bold">{aluno.name}</p>
-                        <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">participa da rotina</p>
+                        <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">
+                          {aluno.email || 'participa da rotina'}
+                        </p>
                       </div>
                       {checked ? <CheckCircle2 size={18} className="text-sky-300" /> : <UserCheck size={18} className="text-zinc-500" />}
                     </button>
                   );
                 })}
+                {filteredPlanStudents.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-zinc-800 bg-black/20 px-4 py-6 text-sm text-zinc-500">
+                    Nenhuma aluna encontrada com esse nome.
+                  </div>
+                ) : null}
+                </div>
               </div>
               <div className="mt-6 flex gap-3">
                 <button type="button" onClick={() => setShowPlanStudentsModal(false)} className="flex-1 rounded-2xl bg-zinc-800 px-4 py-4 font-bold text-white transition-all hover:bg-zinc-700">Cancelar</button>

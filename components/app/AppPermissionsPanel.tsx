@@ -52,30 +52,42 @@ export default function AppPermissionsPanel({ compact = false }: AppPermissionsP
   }
 
   return (
-    <section className={`rounded-[28px] border border-zinc-800 bg-zinc-950/70 ${compact ? 'p-4' : 'p-5 md:p-6'}`}>
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div>
+    <section className={`rounded-[24px] border border-zinc-800 bg-zinc-950/70 ${compact ? 'p-3 sm:p-4' : 'p-5 md:p-6'} ${compact ? '' : 'sm:rounded-[28px]'}`}>
+      {compact ? (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-zinc-500">
-            Permissoes do app
+            Camera e notificacoes
           </p>
-          <h3 className="mt-2 text-xl font-bold text-white">Camera e notificacoes</h3>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
-            O aplicativo pede acesso so ao que for necessario no celular: tirar fotos de avaliacao e mostrar avisos do app.
-          </p>
+          <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-black/20 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-300">
+            {loading ? <Loader2 size={12} className="animate-spin" /> : <ShieldAlert size={12} />}
+            {loading ? 'Verificando' : 'Status'}
+          </div>
         </div>
+      ) : (
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-zinc-500">
+              Permissoes do app
+            </p>
+            <h3 className="mt-2 text-xl font-bold text-white">Camera e notificacoes</h3>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
+              O aplicativo pede acesso so ao que for necessario no celular: tirar fotos de avaliacao e mostrar avisos do app.
+            </p>
+          </div>
 
-        <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-black/20 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-zinc-300">
-          {loading ? <Loader2 size={14} className="animate-spin" /> : <ShieldAlert size={14} />}
-          {loading ? 'Verificando' : 'Status do aparelho'}
+          <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-black/20 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-zinc-300">
+            {loading ? <Loader2 size={14} className="animate-spin" /> : <ShieldAlert size={14} />}
+            {loading ? 'Verificando' : 'Status do aparelho'}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className={`mt-5 grid gap-4 ${compact ? '' : 'md:grid-cols-2'}`}>
         <div className={`rounded-[24px] border p-4 ${permissionTone(permissions.camera)}`}>
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-sm font-bold text-white">Camera</p>
-              <p className="mt-2 text-sm leading-6">
+              <p className={`mt-2 ${compact ? 'text-xs leading-5' : 'text-sm leading-6'}`}>
                 Permite tirar fotos direto pelo aplicativo durante a avaliacao.
               </p>
             </div>
@@ -103,7 +115,7 @@ export default function AppPermissionsPanel({ compact = false }: AppPermissionsP
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-sm font-bold text-white">Notificacoes</p>
-              <p className="mt-2 text-sm leading-6">
+              <p className={`mt-2 ${compact ? 'text-xs leading-5' : 'text-sm leading-6'}`}>
                 Libera avisos locais do app para lembrar tarefas e confirmar que o aparelho esta pronto.
               </p>
             </div>

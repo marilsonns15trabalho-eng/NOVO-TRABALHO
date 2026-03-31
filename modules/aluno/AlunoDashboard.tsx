@@ -662,7 +662,7 @@ export default function AlunoDashboard() {
       className="min-h-screen bg-black text-white"
     >
       <div className="border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-start justify-between gap-3 px-4 py-4 sm:px-6 sm:py-5">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.3em] text-orange-500">
               Aluno
@@ -670,7 +670,7 @@ export default function AlunoDashboard() {
             <h1 className="text-2xl font-bold tracking-tight">Ola, {firstName}</h1>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
             <AppDownloadButton />
             <button
               onClick={handleSignOut}
@@ -1716,9 +1716,9 @@ export default function AlunoDashboard() {
       ) : null}
 
       {mustChangePassword && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/92 px-6 py-10 backdrop-blur-md">
-          <div className="w-full max-w-4xl rounded-[34px] border border-zinc-800 bg-zinc-950 p-4 shadow-[0_40px_120px_-56px_rgba(0,0,0,0.95)]">
-            <div className="rounded-[28px] border border-orange-500/20 bg-orange-500/10 px-5 py-4 text-orange-200">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/92 px-3 py-3 backdrop-blur-md sm:px-4 sm:py-4 md:flex md:items-center md:justify-center md:px-6 md:py-8">
+          <div className="mx-auto w-full max-w-4xl rounded-[26px] border border-zinc-800 bg-zinc-950 p-3 shadow-[0_40px_120px_-56px_rgba(0,0,0,0.95)] sm:rounded-[30px] sm:p-4 md:max-h-[94vh] md:overflow-y-auto md:rounded-[34px]">
+            <div className="rounded-[22px] border border-orange-500/20 bg-orange-500/10 px-4 py-4 text-orange-200 sm:rounded-[28px] sm:px-5">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div className="flex items-center gap-3">
                   <div className="rounded-2xl bg-orange-500/15 p-3 text-orange-400">

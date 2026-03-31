@@ -159,8 +159,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {appLikeShell && bottomNavItems.length > 0 ? <AppBottomNav items={bottomNavItems} /> : null}
 
       {Boolean(profile?.must_change_password) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/92 px-6 py-10 backdrop-blur-md">
-          <div className="w-full max-w-4xl rounded-[34px] border border-zinc-800 bg-zinc-950 p-4 shadow-[0_40px_120px_-56px_rgba(0,0,0,0.95)]">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/92 px-3 py-3 backdrop-blur-md sm:px-4 sm:py-4 md:flex md:items-center md:justify-center md:px-6 md:py-8">
+          <div className="mx-auto w-full max-w-4xl rounded-[26px] border border-zinc-800 bg-zinc-950 p-3 shadow-[0_40px_120px_-56px_rgba(0,0,0,0.95)] sm:rounded-[30px] sm:p-4 md:max-h-[94vh] md:overflow-y-auto md:rounded-[34px]">
             <AccountSecurityForm required compact />
           </div>
         </div>
