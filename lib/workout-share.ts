@@ -187,6 +187,22 @@ function fillRoundedRect(
   context.fill();
 }
 
+function strokeRoundedRect(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+  strokeStyle: string | CanvasGradient,
+  lineWidth = 1,
+) {
+  roundRect(context, x, y, width, height, radius);
+  context.lineWidth = lineWidth;
+  context.strokeStyle = strokeStyle;
+  context.stroke();
+}
+
 function wrapText(
   context: CanvasRenderingContext2D,
   text: string,
@@ -318,11 +334,11 @@ function drawPowerGauge(
   for (let index = 0; index < gaugeBlocks; index += 1) {
     fillRoundedRect(
       context,
-      x + index * 48,
+      x + index * 36,
       y,
-      28,
-      12,
-      6,
+      20,
+      10,
+      5,
       index < gaugeActive
         ? darkOnOrange
           ? '#090909'
@@ -421,21 +437,25 @@ export async function renderWorkoutShareImage(params: {
   }
 
   const margin = params.format === 'post' ? 68 : 72;
+  const isPostFormat = params.format === 'post';
   const contentWidth = width - margin * 2;
   const heroHeight = params.photoFile
-    ? Math.round(height * (params.format === 'post' ? 0.38 : 0.42))
-    : Math.round(height * (params.format === 'post' ? 0.24 : 0.28));
-  const statCardsY = heroHeight + 36;
+    ? Math.round(height * (params.format === 'post' ? 0.4 : 0.44))
+    : Math.round(height * (params.format === 'post' ? 0.26 : 0.3));
+  const statCardsY = heroHeight + 42;
   const cardsGap = 24;
   const statCardHeight = params.format === 'post' ? 168 : 176;
-  const intensityCardHeight = params.format === 'post' ? 144 : 152;
+  const intensityCardHeight = params.format === 'post' ? 172 : 188;
   const smallCardWidth = Math.floor((contentWidth - cardsGap) / 2);
-  const intensityCardY = statCardsY + statCardHeight + 20;
-  const summaryCardY = intensityCardY + intensityCardHeight + 26;
+  const intensityCardY = statCardsY + statCardHeight + 22;
+  const summaryCardY = intensityCardY + intensityCardHeight + 30;
   const footerY = height - 84;
   const summaryCardHeight = footerY - summaryCardY;
-  const visibleExercises = params.data.exercises.slice(0, params.format === 'post' ? 4 : 3);
+  const visibleExercises = params.data.exercises.slice(0, isPostFormat ? 2 : 3);
   const remainingExercises = Math.max(params.data.exercises.length - visibleExercises.length, 0);
+  const summaryHeaderOffset = isPostFormat ? 110 : 124;
+  const exerciseRowStride = isPostFormat ? 72 : 96;
+  const exerciseCardHeight = isPostFormat ? 58 : 74;
   const photo = params.photoFile ? await loadImageSource(params.photoFile) : null;
 
   context.clearRect(0, 0, width, height);
@@ -471,12 +491,13 @@ export async function renderWorkoutShareImage(params: {
     const imageY = (heroHeight - renderedHeight) / 2;
     context.drawImage(photo, imageX, imageY, renderedWidth, renderedHeight);
 
-    const photoOverlay = context.createLinearGradient(0, 0, 0, heroHeight + 180);
-    photoOverlay.addColorStop(0, 'rgba(0, 0, 0, 0.16)');
-    photoOverlay.addColorStop(0.52, 'rgba(0, 0, 0, 0.64)');
+    const photoOverlay = context.createLinearGradient(0, 0, 0, heroHeight + 220);
+    photoOverlay.addColorStop(0, 'rgba(0, 0, 0, 0.1)');
+    photoOverlay.addColorStop(0.38, 'rgba(0, 0, 0, 0.42)');
+    photoOverlay.addColorStop(0.68, 'rgba(0, 0, 0, 0.78)');
     photoOverlay.addColorStop(1, 'rgba(5, 5, 5, 0.98)');
     context.fillStyle = photoOverlay;
-    context.fillRect(0, 0, width, heroHeight + 180);
+    context.fillRect(0, 0, width, heroHeight + 220);
   } else {
     const heroGradient = context.createLinearGradient(0, 0, width, heroHeight);
     heroGradient.addColorStop(0, '#090909');
@@ -532,18 +553,38 @@ export async function renderWorkoutShareImage(params: {
   context.font = "700 24px 'Arial', sans-serif";
   context.fillText(formatDatePtBr(params.data.completedOn), width - margin - 196, 118);
 
-  const headlineY = photo ? heroHeight - (params.format === 'post' ? 108 : 144) : heroHeight - 110;
+  const headlineY = photo ? heroHeight - (params.format === 'post' ? 172 : 224) : heroHeight - 172;
+  const headlineLineGap = params.format === 'post' ? 90 : 106;
+  const finalizadoY = headlineY + headlineLineGap;
+  context.shadowColor = 'rgba(0, 0, 0, 0.42)';
+  context.shadowBlur = 32;
+  context.shadowOffsetY = 8;
   context.fillStyle = '#ffffff';
   context.font = `${params.format === 'post' ? 92 : 106}px 'Space Grotesk', 'Arial Black', sans-serif`;
   context.fillText('TREINO', margin, headlineY);
-  const accentBarGradient = context.createLinearGradient(margin, headlineY + 24, margin + 180, headlineY + 24);
+  const finalizadoGradient = context.createLinearGradient(
+    margin,
+    finalizadoY - 48,
+    margin + 520,
+    finalizadoY + 24,
+  );
+  finalizadoGradient.addColorStop(0, '#ffb37f');
+  finalizadoGradient.addColorStop(0.42, '#ff7a1a');
+  finalizadoGradient.addColorStop(1, '#ffd7b7');
+  context.fillStyle = finalizadoGradient;
+  context.fillText('FINALIZADO', margin, finalizadoY);
+  context.shadowColor = 'transparent';
+  context.shadowBlur = 0;
+  context.shadowOffsetY = 0;
+
+  const accentBarGradient = context.createLinearGradient(margin, finalizadoY + 26, margin + 180, finalizadoY + 26);
   accentBarGradient.addColorStop(0, '#ff8a3d');
   accentBarGradient.addColorStop(0.7, '#ff7a1a');
   accentBarGradient.addColorStop(1, '#ffd7b7');
   fillRoundedRect(
     context,
     margin,
-    headlineY + (params.format === 'post' ? 24 : 28),
+    finalizadoY + (params.format === 'post' ? 22 : 26),
     164,
     12,
     6,
@@ -552,6 +593,7 @@ export async function renderWorkoutShareImage(params: {
 
   const cardBackground = 'rgba(10, 10, 10, 0.82)';
   fillRoundedRect(context, margin, statCardsY, smallCardWidth, statCardHeight, 32, cardBackground);
+  strokeRoundedRect(context, margin, statCardsY, smallCardWidth, statCardHeight, 32, 'rgba(255,255,255,0.06)', 2);
   fillRoundedRect(
     context,
     margin + smallCardWidth + cardsGap,
@@ -560,6 +602,16 @@ export async function renderWorkoutShareImage(params: {
     statCardHeight,
     32,
     cardBackground,
+  );
+  strokeRoundedRect(
+    context,
+    margin + smallCardWidth + cardsGap,
+    statCardsY,
+    smallCardWidth,
+    statCardHeight,
+    32,
+    'rgba(255,255,255,0.06)',
+    2,
   );
 
   const orangeGradient = context.createLinearGradient(
@@ -579,6 +631,16 @@ export async function renderWorkoutShareImage(params: {
     intensityCardHeight,
     34,
     params.data.intensity === 'alta' ? orangeGradient : cardBackground,
+  );
+  strokeRoundedRect(
+    context,
+    margin,
+    intensityCardY,
+    contentWidth,
+    intensityCardHeight,
+    34,
+    params.data.intensity === 'alta' ? 'rgba(255, 228, 201, 0.34)' : 'rgba(255,255,255,0.06)',
+    2,
   );
 
   context.fillStyle = '#8f8f8f';
@@ -607,25 +669,35 @@ export async function renderWorkoutShareImage(params: {
   context.fillStyle = params.data.intensity === 'alta' ? '#090909' : '#ffffff';
   context.font = "700 18px 'Arial', sans-serif";
   context.fillText('INTENSIDADE E RITMO', margin + 32, intensityCardY + 42);
-  context.font = "800 54px 'Space Grotesk', 'Arial Black', sans-serif";
-  context.fillText(params.data.intensity.toUpperCase(), margin + 32, intensityCardY + 102);
+  context.font = `800 ${isPostFormat ? 48 : 54}px 'Space Grotesk', 'Arial Black', sans-serif`;
+  context.fillText(params.data.intensity.toUpperCase(), margin + 32, intensityCardY + (isPostFormat ? 92 : 98));
 
-  context.font = "600 24px 'Arial', sans-serif";
+  context.font = `700 ${isPostFormat ? 19 : 21}px 'Arial', sans-serif`;
   context.fillText(
     `${params.data.exercisesCompleted}/${Math.max(params.data.exercises.length, params.data.exercisesCompleted)} exercicios concluidos`,
     margin + 32,
-    intensityCardY + 136,
+    intensityCardY + (isPostFormat ? 122 : 130),
   );
-  drawPowerGauge(context, margin + 32, intensityCardY + intensityCardHeight - 36, params.data.intensity, params.data.intensity === 'alta');
+  drawPowerGauge(
+    context,
+    margin + 32,
+    intensityCardY + intensityCardHeight - (isPostFormat ? 28 : 38),
+    params.data.intensity,
+    params.data.intensity === 'alta',
+  );
 
   fillRoundedRect(context, margin, summaryCardY, contentWidth, summaryCardHeight, 36, 'rgba(16, 16, 16, 0.88)');
+  strokeRoundedRect(context, margin, summaryCardY, contentWidth, summaryCardHeight, 36, 'rgba(255,255,255,0.05)', 2);
   context.fillStyle = '#ffffff';
   context.font = "700 18px 'Arial', sans-serif";
   context.fillText('RESUMO DO TREINO', margin + 32, summaryCardY + 48);
   context.fillStyle = '#d9d9d9';
-  context.font = "600 22px 'Arial', sans-serif";
-  const workoutNameLines = wrapText(context, params.data.treinoName, contentWidth - 220, 1);
+  context.font = `600 ${isPostFormat ? 20 : 22}px 'Arial', sans-serif`;
+  const workoutNameLines = wrapText(context, params.data.treinoName, contentWidth - 220, isPostFormat ? 2 : 1);
   context.fillText(workoutNameLines[0] || params.data.treinoName, margin + 32, summaryCardY + 84);
+  if (isPostFormat && workoutNameLines[1]) {
+    context.fillText(workoutNameLines[1], margin + 32, summaryCardY + 110);
+  }
   if (params.data.splitLabel) {
     fillRoundedRect(context, width - margin - 150, summaryCardY + 30, 118, 44, 22, 'rgba(255,122,26,0.1)');
     context.strokeStyle = 'rgba(255,122,26,0.18)';
@@ -638,13 +710,13 @@ export async function renderWorkoutShareImage(params: {
   }
 
   visibleExercises.forEach((exercise, index) => {
-    const itemY = summaryCardY + 124 + index * 96;
+    const itemY = summaryCardY + summaryHeaderOffset + index * exerciseRowStride;
     fillRoundedRect(
       context,
       margin + 28,
       itemY,
       contentWidth - 56,
-      74,
+      exerciseCardHeight,
       24,
       exercise.completed === false ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.06)',
     );
@@ -652,47 +724,55 @@ export async function renderWorkoutShareImage(params: {
     fillRoundedRect(
       context,
       margin + 48,
-      itemY + 19,
-      36,
-      36,
+      itemY + (isPostFormat ? 14 : 19),
+      isPostFormat ? 30 : 36,
+      isPostFormat ? 30 : 36,
       12,
       exercise.completed === false ? '#3a3a3a' : '#ff7a1a',
     );
 
     context.fillStyle = exercise.completed === false ? '#b1b1b1' : '#090909';
-    context.font = "700 18px 'Arial', sans-serif";
+    context.font = `700 ${isPostFormat ? 15 : 18}px 'Arial', sans-serif`;
     context.textAlign = 'center';
-    context.fillText(String(index + 1), margin + 66, itemY + 44);
+    context.fillText(String(index + 1), margin + 66, itemY + (isPostFormat ? 34 : 44));
     context.textAlign = 'left';
 
     context.fillStyle = '#ffffff';
-    context.font = "700 24px 'Arial', sans-serif";
+    context.font = `700 ${isPostFormat ? 20 : 24}px 'Arial', sans-serif`;
     const exerciseLines = wrapText(context, exercise.name.toUpperCase(), contentWidth - 220, 1);
-    context.fillText(exerciseLines[0] || exercise.name, margin + 108, itemY + 34);
+    context.fillText(exerciseLines[0] || exercise.name, margin + 100, itemY + (isPostFormat ? 27 : 34));
 
     context.fillStyle = '#8f8f8f';
-    context.font = "500 18px 'Arial', sans-serif";
+    context.font = `500 ${isPostFormat ? 15 : 18}px 'Arial', sans-serif`;
     const metaParts = [
       exercise.sets ? `${exercise.sets} series` : null,
       exercise.reps ? `${exercise.reps} reps` : null,
     ].filter(Boolean);
-    context.fillText(metaParts.join(' / ') || 'Execucao concluida', margin + 108, itemY + 58);
+    context.fillText(
+      metaParts.join(' / ') || 'Execucao concluida',
+      margin + 100,
+      itemY + (isPostFormat ? 46 : 58),
+    );
   });
 
   if (remainingExercises > 0) {
-    const itemY = summaryCardY + 124 + visibleExercises.length * 96;
+    const itemY = summaryCardY + summaryHeaderOffset + visibleExercises.length * exerciseRowStride;
     fillRoundedRect(
       context,
       margin + 28,
       itemY,
       contentWidth - 56,
-      68,
+      isPostFormat ? 56 : 68,
       24,
       'rgba(255,122,26,0.08)',
     );
     context.fillStyle = '#ffb37f';
-    context.font = "700 22px 'Arial', sans-serif";
-    context.fillText(`+ ${remainingExercises} exercicio(s) na sessao`, margin + 40, itemY + 42);
+    context.font = `700 ${isPostFormat ? 19 : 22}px 'Arial', sans-serif`;
+    context.fillText(
+      `+ ${remainingExercises} exercicio(s) na sessao`,
+      margin + 40,
+      itemY + (isPostFormat ? 35 : 42),
+    );
   }
 
   const footerBrandGradient = context.createLinearGradient(margin, footerY, margin + 260, footerY);

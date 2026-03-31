@@ -73,7 +73,8 @@ function WorkoutSharePreview(props: {
   data: WorkoutShareCardData;
 }) {
   const formatMeta = getWorkoutShareFormatMeta(props.format);
-  const visibleExercises = props.data.exercises.slice(0, props.format === 'post' ? 4 : 3);
+  const isPostFormat = props.format === 'post';
+  const visibleExercises = props.data.exercises.slice(0, isPostFormat ? 2 : 3);
   const remainingExercises = Math.max(props.data.exercises.length - visibleExercises.length, 0);
   const gaugeBlocks = props.data.intensity === 'alta' ? 12 : props.data.intensity === 'moderada' ? 8 : 5;
   const summaryTitle = props.data.treinoName;
@@ -119,7 +120,10 @@ function WorkoutSharePreview(props: {
             <p className="text-5xl font-black uppercase leading-none tracking-[-0.08em] text-white sm:text-6xl">
               Treino
             </p>
-            <div className="mt-3 h-1.5 w-24 rounded-full bg-gradient-to-r from-orange-400 via-orange-500 to-amber-200" />
+            <p className="mt-1 bg-gradient-to-r from-orange-300 via-orange-500 to-amber-200 bg-clip-text text-5xl font-black uppercase leading-none tracking-[-0.08em] text-transparent sm:text-6xl">
+              Finalizado
+            </p>
+            <div className="mt-4 h-1.5 w-28 rounded-full bg-gradient-to-r from-orange-400 via-orange-500 to-amber-200" />
           </div>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -153,13 +157,13 @@ function WorkoutSharePreview(props: {
                 </p>
               </div>
 
-              <p className="text-xs font-black uppercase tracking-[0.22em]">
+              <p className="text-xs font-black uppercase tracking-[0.18em]">
                 {props.data.exercisesCompleted}/
                 {Math.max(props.data.exercisesCompleted, props.data.exercises.length)} exercicios
               </p>
             </div>
 
-            <div className="mt-3 flex gap-2">
+            <div className="mt-4 flex gap-2">
               {Array.from({ length: 12 }).map((_, index) => (
                 <div
                   key={`gauge-${index}`}
