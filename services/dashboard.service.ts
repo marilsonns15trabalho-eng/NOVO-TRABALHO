@@ -1,6 +1,13 @@
 import { supabase } from '@/lib/supabase';
 import { TABLES } from '@/lib/constants';
 import { extractDateOnly, formatDatePtBr, getLocalDateInputValue } from '@/lib/date';
+import {
+  fetchPersistedNotifications,
+  markPersistedNotificationsAsRead,
+  subscribeToPersistedNotifications,
+  type PersistedNotificationItem,
+  type PersistedNotificationType,
+} from '@/services/app-notifications.service';
 
 export interface DashboardStats {
   totalAlunos: number;
@@ -30,7 +37,10 @@ export interface RecentActivity {
   type: 'payment' | 'new_user';
 }
 
-export type HeaderNotificationType = 'billing_late' | 'billing_due' | 'workout_completion' | 'training_update';
+export type HeaderNotificationType =
+  | 'billing_late'
+  | 'billing_due'
+  | PersistedNotificationType;
 
 export interface HeaderNotificationItem {
   id: string;
@@ -266,6 +276,26 @@ async function fetchReadNotificationIds(userId: string, notificationIds: string[
   return new Set((data || []).map((row: any) => row.notification_id).filter(Boolean));
 }
 
+function mapPersistedNotification(item: PersistedNotificationItem): HeaderNotificationItem {
+  const priorityMap: Record<PersistedNotificationType, number> = {
+    training_update: 2,
+    workout_completion: 3,
+    new_anamnese: 2,
+    new_avaliacao: 2,
+    avaliacao_evolution: 3,
+  };
+
+  return {
+    id: item.id,
+    type: item.type,
+    title: item.title,
+    description: item.description,
+    occurred_at: item.occurred_at,
+    route: item.route,
+    priority: priorityMap[item.type] ?? 1,
+  };
+}
+
 async function fetchBillingNotifications(): Promise<HeaderNotificationItem[]> {
   const today = getLocalDateInputValue();
   const dueWindowEnd = getLocalDateInputValue(addDays(new Date(), 3));
@@ -299,136 +329,12 @@ async function fetchBillingNotifications(): Promise<HeaderNotificationItem[]> {
     });
 }
 
-async function fetchWorkoutCompletionNotifications(): Promise<HeaderNotificationItem[]> {
-  const completionCutoff = addDays(new Date(), -7).toISOString();
-
-  const { data: logs, error } = await supabase
-    .from(TABLES.TREINO_COMPLETION_LOGS)
-    .select('id, student_id, treino_id, completed_on, completed_at')
-    .gte('completed_at', completionCutoff)
-    .order('completed_at', { ascending: false })
-    .limit(8);
-
-  assertNoQueryError('HeaderNotifications.completions', error);
-
-  const studentIds = Array.from(new Set((logs || []).map((item: any) => item.student_id).filter(Boolean)));
-  const treinoIds = Array.from(new Set((logs || []).map((item: any) => item.treino_id).filter(Boolean)));
-
-  const [studentsResult, treinosResult] = await Promise.all([
-    studentIds.length
-      ? supabase.from(TABLES.STUDENTS).select('id, name').in('id', studentIds)
-      : Promise.resolve({ data: [], error: null }),
-    treinoIds.length
-      ? supabase.from(TABLES.TREINOS).select('id, nome').in('id', treinoIds)
-      : Promise.resolve({ data: [], error: null }),
-  ]);
-
-  assertNoQueryError('HeaderNotifications.completionStudents', studentsResult.error);
-  assertNoQueryError('HeaderNotifications.completionTreinos', treinosResult.error);
-
-  const studentsMap = new Map((studentsResult.data || []).map((item: any) => [item.id, item.name || 'Aluno']));
-  const treinosMap = new Map((treinosResult.data || []).map((item: any) => [item.id, item.nome || 'Treino']));
-
-  return (logs || []).map((log: any) => ({
-    id: `completion-${log.id}`,
-    type: 'workout_completion',
-    title: 'Treino concluido',
-    description: `${studentsMap.get(log.student_id) || 'Aluno'} concluiu ${treinosMap.get(log.treino_id) || 'um treino'}.`,
-    occurred_at: log.completed_at || log.completed_on,
-    route: '/dashboard/treinos',
-    priority: 2,
-  }));
-}
-
-async function fetchTrainingUpdateNotifications(): Promise<HeaderNotificationItem[]> {
-  const updateCutoff = addDays(new Date(), -7).toISOString();
-
-  const { data: treinos, error } = await supabase
-    .from(TABLES.TREINOS)
-    .select('id, nome, created_at, updated_at, training_plan_id, student_id')
-    .gte('updated_at', updateCutoff)
-    .order('updated_at', { ascending: false })
-    .limit(8);
-
-  assertNoQueryError('HeaderNotifications.trainingUpdates', error);
-
-  const updatedTreinos = (treinos || []).filter((item: any) => {
-    if (!item.updated_at || !item.created_at) {
-      return false;
-    }
-
-    return new Date(item.updated_at).getTime() - new Date(item.created_at).getTime() > 60_000;
-  });
-
-  if (updatedTreinos.length === 0) {
-    return [];
-  }
-
-  const treinoIds = updatedTreinos.map((item: any) => item.id);
-  const trainingPlanIds = Array.from(
-    new Set(updatedTreinos.map((item: any) => item.training_plan_id).filter(Boolean)),
-  );
-
-  const [directAssignmentsResult, planAssignmentsResult] = await Promise.all([
-    supabase
-      .from(TABLES.TREINO_STUDENT_ASSIGNMENTS)
-      .select('treino_id, student_id')
-      .in('treino_id', treinoIds),
-    trainingPlanIds.length
-      ? supabase
-          .from(TABLES.STUDENT_TRAINING_PLANS)
-          .select('training_plan_id, student_id')
-          .in('training_plan_id', trainingPlanIds)
-          .eq('active', true)
-      : Promise.resolve({ data: [], error: null }),
-  ]);
-
-  assertNoQueryError('HeaderNotifications.directAssignments', directAssignmentsResult.error);
-  assertNoQueryError('HeaderNotifications.planAssignments', planAssignmentsResult.error);
-
-  const directAssignments = directAssignmentsResult.data || [];
-  const planAssignments = planAssignmentsResult.data || [];
-
-  return updatedTreinos
-    .map((treino: any) => {
-      const impactedStudents = new Set<string>();
-
-      if (treino.student_id) {
-        impactedStudents.add(treino.student_id);
-      }
-
-      directAssignments
-        .filter((assignment: any) => assignment.treino_id === treino.id)
-        .forEach((assignment: any) => impactedStudents.add(assignment.student_id));
-
-      if (treino.training_plan_id) {
-        planAssignments
-          .filter((assignment: any) => assignment.training_plan_id === treino.training_plan_id)
-          .forEach((assignment: any) => impactedStudents.add(assignment.student_id));
-      }
-
-      return {
-        id: `training-update-${treino.id}-${new Date(treino.updated_at).getTime()}`,
-        type: 'training_update' as const,
-        title: 'Treino atualizado',
-        description: `${treino.nome || 'Treino'} foi atualizado para ${impactedStudents.size} ${impactedStudents.size === 1 ? 'aluno' : 'alunos'}.`,
-        occurred_at: treino.updated_at,
-        route: '/dashboard/treinos',
-        priority: 1,
-        impactedCount: impactedStudents.size,
-      };
-    })
-    .filter((item) => item.impactedCount > 0)
-    .map(({ impactedCount: _impactedCount, ...item }) => item);
-}
-
 export async function fetchHeaderNotifications(
   userId: string,
-  role: 'admin' | 'professor',
+  role: 'admin' | 'professor' | 'aluno',
 ): Promise<HeaderNotificationItem[]> {
   const tasks: Array<Promise<HeaderNotificationItem[]>> = [
-    fetchWorkoutCompletionNotifications(),
-    fetchTrainingUpdateNotifications(),
+    fetchPersistedNotifications(userId).then((items) => items.map(mapPersistedNotification)),
   ];
 
   if (role === 'admin') {
@@ -454,7 +360,18 @@ export async function markHeaderNotificationsAsRead(
     return;
   }
 
-  const payload = uniqueIds.map((notificationId) => ({
+  const billingIds = uniqueIds.filter((notificationId) => notificationId.startsWith('bill-'));
+  const persistedIds = uniqueIds.filter((notificationId) => !notificationId.startsWith('bill-'));
+
+  if (persistedIds.length > 0) {
+    await markPersistedNotificationsAsRead(userId, persistedIds);
+  }
+
+  if (billingIds.length === 0) {
+    return;
+  }
+
+  const payload = billingIds.map((notificationId) => ({
     user_id: userId,
     notification_id: notificationId,
     read_at: new Date().toISOString(),
@@ -469,13 +386,11 @@ export async function markHeaderNotificationsAsRead(
 
 export function subscribeToHeaderNotifications(
   userId: string,
-  role: 'admin' | 'professor',
+  role: 'admin' | 'professor' | 'aluno',
   callback: () => void,
 ) {
-  const channel = supabase.channel(`header_notifications_${role}`);
-
-  channel.on('postgres_changes', { event: '*', schema: 'public', table: TABLES.TREINO_COMPLETION_LOGS }, callback);
-  channel.on('postgres_changes', { event: '*', schema: 'public', table: TABLES.TREINOS }, callback);
+  const unsubscribePersisted = subscribeToPersistedNotifications(userId, callback);
+  const channel = supabase.channel(`header_notifications_${role}_${userId}`);
 
   if (role === 'admin') {
     channel.on('postgres_changes', { event: '*', schema: 'public', table: TABLES.BILLS }, callback);
@@ -495,6 +410,7 @@ export function subscribeToHeaderNotifications(
   channel.subscribe();
 
   return () => {
+    unsubscribePersisted();
     supabase.removeChannel(channel);
   };
 }

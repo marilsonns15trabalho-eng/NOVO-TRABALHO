@@ -56,6 +56,7 @@ export const TABLES = {
   CONFIGURACOES: 'configuracoes',
   USER_PROFILES: 'user_profiles',
   USER_NOTIFICATION_READS: 'user_notification_reads',
+  APP_NOTIFICATIONS: 'app_notifications',
 } as const;
 
 /** Buckets de storage do Supabase */

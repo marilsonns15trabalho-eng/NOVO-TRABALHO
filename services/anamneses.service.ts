@@ -6,6 +6,7 @@ import { findStudentIdByLinkedAuthUserId, resolveStudentIdForWrite } from '@/lib
 import type { Anamnese, AnamneseFormData, AnamneseStudentContext } from '@/types/anamnese';
 import type { AlunoListItem } from '@/types/common';
 import { assertCanManageStudentDataForUserId } from '@/lib/authz';
+import { emitAnamneseCreatedNotification } from '@/services/app-notifications.service';
 
 function mapAnamneseRow(item: any): Anamnese {
   const student = normalizeStudentRelation(item.student ?? item.students);
@@ -189,7 +190,9 @@ export async function fetchStudentAnamneseContext(studentId: string): Promise<An
 }
 
 /** Cria uma nova anamnese */
-export async function createAnamnese(data: AnamneseFormData): Promise<void> {
+export async function createAnamnese(
+  data: AnamneseFormData,
+): Promise<{ id: string; student_id: string }> {
   const user = await getAuthenticatedUser();
   await assertCanManageStudentDataForUserId(user.id);
   const studentId = await resolveStudentIdForWrite(
@@ -202,7 +205,35 @@ export async function createAnamnese(data: AnamneseFormData): Promise<void> {
     .from(TABLES.ANAMNESES)
     .insert([payload]);
 
-  if (error) throw error;
+  if (error) {
+    throw error;
+  }
+
+  const { data: latestRow, error: latestError } = await supabase
+    .from(TABLES.ANAMNESES)
+    .select('id, student_id')
+    .eq('student_id', studentId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (latestError || !latestRow?.id) {
+    return {
+      id: '',
+      student_id: studentId,
+    };
+  }
+
+  await emitAnamneseCreatedNotification({
+    actorUserId: user.id,
+    anamneseId: latestRow.id,
+    studentId,
+  });
+
+  return {
+    id: latestRow.id,
+    student_id: latestRow.student_id,
+  };
 }
 
 export async function updateAnamnese(id: string, data: AnamneseFormData): Promise<void> {

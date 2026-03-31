@@ -4,6 +4,7 @@ import { STORAGE_BUCKETS, TABLES } from '@/lib/constants';
 import { normalizeStudentRelation } from '@/lib/mappers';
 import { getAuthenticatedUser, supabase } from '@/lib/supabase';
 import { assertCanManageStudentDataForUserId } from '@/lib/authz';
+import { emitAvaliacaoCreatedNotifications } from '@/services/app-notifications.service';
 import {
   findStudentIdByLinkedAuthUserId,
   resolveStudentIdForWrite,
@@ -337,7 +338,27 @@ export async function salvarAvaliacao(
     throw new Error(error.message || 'Nao foi possivel salvar a avaliacao.');
   }
 
-  return mapAvaliacaoRow(insertedRow);
+  const mappedRow = mapAvaliacaoRow(insertedRow);
+
+  const { data: previousRows, error: previousError } = await supabase
+    .from(TABLES.AVALIACOES)
+    .select('id, percentual_gordura, massa_magra, cintura, data')
+    .eq('student_id', studentId)
+    .lt('data', dataAvaliacao)
+    .order('data', { ascending: false })
+    .limit(1);
+
+  if (!previousError) {
+    await emitAvaliacaoCreatedNotifications({
+      actorUserId: user.id,
+      avaliacaoId: mappedRow.id,
+      studentId,
+      currentAvaliacao: mappedRow,
+      previousAvaliacao: (previousRows || [])[0] || null,
+    });
+  }
+
+  return mappedRow;
 }
 
 export async function syncAvaliacaoPhotos(params: {

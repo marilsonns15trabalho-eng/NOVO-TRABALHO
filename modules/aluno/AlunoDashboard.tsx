@@ -21,15 +21,18 @@ import {
   TrendingUp,
   XCircle,
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import AssessmentPhotoGallery from '@/components/avaliacao/AssessmentPhotoGallery';
+import AvaliacaoEvolutionBadge from '@/components/avaliacao/AvaliacaoEvolutionBadge';
 import AppBottomNav from '@/components/app/AppBottomNav';
 import AppDownloadButton from '@/components/app/AppDownloadButton';
 import AppPermissionsPanel from '@/components/app/AppPermissionsPanel';
+import AppNotificationBell from '@/components/notifications/AppNotificationBell';
 import ExerciseOfficialPreviewModal from '@/components/treinos/ExerciseOfficialPreviewModal';
 import { useMobileViewport } from '@/hooks/useMobileViewport';
 import { useNativeApp } from '@/hooks/useNativeApp';
+import { getAvaliacaoEvolutionMetrics } from '@/lib/avaliacao-evolution';
 import { formatDatePtBr } from '@/lib/date';
 import { exportAvaliacaoEvolutionPdf } from '@/lib/pdf/exportAvaliacaoEvolutionPdf';
 import { exportAvaliacaoPdf } from '@/lib/pdf/exportAvaliacaoPdf';
@@ -227,6 +230,7 @@ function StudentNavItem({
 export default function AlunoDashboard() {
   const { user, profile, signOut, isReady } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const nativeApp = useNativeApp();
   const mobileViewport = useMobileViewport();
   const appLikeShell = nativeApp || mobileViewport;
@@ -246,6 +250,13 @@ export default function AlunoDashboard() {
   const [selectedExercisePreview, setSelectedExercisePreview] = useState<ExerciseLibraryItem | null>(null);
   const [exercisePreviewLoadingKey, setExercisePreviewLoadingKey] = useState<string | null>(null);
   const [exercisePreviewError, setExercisePreviewError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const section = searchParams.get('section');
+    if (section === 'inicio' || section === 'treinos' || section === 'avaliacoes' || section === 'conta') {
+      setActiveSection(section);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const run = async () => {
@@ -366,6 +377,10 @@ export default function AlunoDashboard() {
       cintura: formatAvaliacaoDelta(latestAvaliacao.cintura, latestEvolutionBase.cintura, ' cm'),
     };
   }, [latestAvaliacao, latestEvolutionBase]);
+  const latestEvaluationBadges = useMemo(
+    () => getAvaliacaoEvolutionMetrics(latestAvaliacao, latestEvolutionBase),
+    [latestAvaliacao, latestEvolutionBase],
+  );
   const mustChangePassword = Boolean(profile?.must_change_password);
   const firstName = useMemo(() => {
     const baseName = profile?.display_name || user?.email?.split('@')[0] || 'Aluno';
@@ -671,6 +686,7 @@ export default function AlunoDashboard() {
           </div>
 
           <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
+            <AppNotificationBell compact />
             <AppDownloadButton />
             <button
               onClick={handleSignOut}
@@ -1320,6 +1336,18 @@ export default function AlunoDashboard() {
                     </div>
                   </div>
 
+                  {latestEvaluationBadges.length > 0 ? (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {latestEvaluationBadges.map((metric) => (
+                        <AvaliacaoEvolutionBadge
+                          key={metric.key}
+                          tone={metric.tone}
+                          label={metric.label}
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+
                   {(latestEvolutionBase?.photos?.length || latestAvaliacao?.photos?.length) ? (
                     <div className="mt-5 grid gap-4 xl:grid-cols-2">
                       <AssessmentPhotoGallery
@@ -1418,29 +1446,45 @@ export default function AlunoDashboard() {
                             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
                               Peso x anterior
                             </p>
-                            <p className="mt-2 text-base font-bold text-white">
-                              {formatAvaliacaoDelta(avaliacao.peso, comparisonBase.peso, ' kg')}
-                            </p>
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              <p className="text-base font-bold text-white">
+                                {formatAvaliacaoDelta(avaliacao.peso, comparisonBase.peso, ' kg')}
+                              </p>
+                            </div>
                           </div>
                           <div className="rounded-2xl border border-sky-500/12 bg-sky-500/5 p-4">
                             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
                               BF x anterior
                             </p>
-                            <p className="mt-2 text-base font-bold text-white">
-                              {formatAvaliacaoDelta(
-                                avaliacao.percentual_gordura,
-                                comparisonBase.percentual_gordura,
-                                '%',
-                              )}
-                            </p>
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              <p className="text-base font-bold text-white">
+                                {formatAvaliacaoDelta(
+                                  avaliacao.percentual_gordura,
+                                  comparisonBase.percentual_gordura,
+                                  '%',
+                                )}
+                              </p>
+                              {getAvaliacaoEvolutionMetrics(avaliacao, comparisonBase)
+                                .filter((item) => item.key === 'percentual_gordura')
+                                .map((item) => (
+                                  <AvaliacaoEvolutionBadge key={item.key} tone={item.tone} />
+                                ))}
+                            </div>
                           </div>
                           <div className="rounded-2xl border border-sky-500/12 bg-sky-500/5 p-4">
                             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
                               Cintura x anterior
                             </p>
-                            <p className="mt-2 text-base font-bold text-white">
-                              {formatAvaliacaoDelta(avaliacao.cintura, comparisonBase.cintura, ' cm')}
-                            </p>
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              <p className="text-base font-bold text-white">
+                                {formatAvaliacaoDelta(avaliacao.cintura, comparisonBase.cintura, ' cm')}
+                              </p>
+                              {getAvaliacaoEvolutionMetrics(avaliacao, comparisonBase)
+                                .filter((item) => item.key === 'cintura')
+                                .map((item) => (
+                                  <AvaliacaoEvolutionBadge key={item.key} tone={item.tone} />
+                                ))}
+                            </div>
                           </div>
                         </div>
                       ) : null}

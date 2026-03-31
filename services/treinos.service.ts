@@ -4,6 +4,10 @@ import { getLocalDateInputValue } from '@/lib/date';
 import { mapStudentToListItem } from '@/lib/mappers';
 import { findStudentIdByLinkedAuthUserId } from '@/lib/student-access';
 import { assertCanManageStudentDataForUserId } from '@/lib/authz';
+import {
+  emitTreinoCompletionNotifications,
+  emitTreinoUpdatedNotifications,
+} from '@/services/app-notifications.service';
 import type { StudentListItem } from '@/types/common';
 import type {
   StudentMonthlyTrainingProgress,
@@ -98,6 +102,33 @@ function assertNoTreinoError(label: string, error: { message?: string } | null) 
   if (error) {
     throw new Error(`${label}: ${error.message || 'erro desconhecido'}`);
   }
+}
+
+async function resolveTreinoImpactedStudentIds(
+  trainingPlanId: string | null,
+  assignedStudentIds: string[],
+): Promise<string[]> {
+  const impactedStudentIds = new Set<string>(assignedStudentIds.filter(Boolean));
+
+  if (!trainingPlanId) {
+    return Array.from(impactedStudentIds);
+  }
+
+  const { data, error } = await supabase
+    .from(TABLES.STUDENT_TRAINING_PLANS)
+    .select('student_id')
+    .eq('training_plan_id', trainingPlanId)
+    .eq('active', true);
+
+  assertNoTreinoError('Treinos.planNotificationStudents', error);
+
+  (data || []).forEach((row: any) => {
+    if (row?.student_id) {
+      impactedStudentIds.add(row.student_id);
+    }
+  });
+
+  return Array.from(impactedStudentIds);
 }
 
 function normalizeTrainingPlanVersion(
@@ -1145,6 +1176,16 @@ export async function saveTreino(treinoData: TreinoFormData, editingId?: string)
 
     assertNoTreinoError('Treinos.insertAssignments', insertAssignmentsError);
   }
+
+  const impactedStudentIds = await resolveTreinoImpactedStudentIds(trainingPlanId, assignedStudentIds);
+  if (impactedStudentIds.length > 0) {
+    await emitTreinoUpdatedNotifications({
+      actorUserId: user.id,
+      treinoId,
+      treinoName: nome,
+      studentIds: impactedStudentIds,
+    });
+  }
 }
 
 export async function startTreinoExecution(params: {
@@ -1424,6 +1465,16 @@ export async function setTreinoCompletion(params: {
 
   if (params.completed) {
     const completionSource = isOwnStudent === effectiveStudentId ? 'student' : 'staff';
+    const { data: existingLogRows, error: existingLogError } = await supabase
+      .from(TABLES.TREINO_COMPLETION_LOGS)
+      .select('id')
+      .eq('treino_id', params.treinoId)
+      .eq('student_id', effectiveStudentId)
+      .eq('completed_on', completedOn)
+      .limit(1);
+
+    assertNoTreinoError('Treinos.lookupExistingCompletionLog', existingLogError);
+    const alreadyCompleted = Boolean((existingLogRows || [])[0]?.id);
 
     const { data: sessionRows, error: sessionLookupError } = await supabase
       .from(TABLES.TREINO_EXECUTION_SESSIONS)
@@ -1489,6 +1540,27 @@ export async function setTreinoCompletion(params: {
     );
 
     assertNoTreinoError('Treinos.complete', error);
+
+    if (!alreadyCompleted) {
+      const { data: treinoRows, error: treinoLookupError } = await supabase
+        .from(TABLES.TREINOS)
+        .select('nome')
+        .eq('id', params.treinoId)
+        .limit(1);
+
+      assertNoTreinoError('Treinos.lookupTreinoNameForNotification', treinoLookupError);
+      const treinoName = (treinoRows || [])[0]?.nome || 'Treino';
+
+      await emitTreinoCompletionNotifications({
+        actorUserId: user.id,
+        treinoId: params.treinoId,
+        treinoName,
+        studentId: effectiveStudentId,
+        completedOn,
+        completionSource,
+      });
+    }
+
     return;
   }
 

@@ -130,6 +130,41 @@ export async function sendNotificationPreview() {
   });
 }
 
+export async function pushRuntimeNotification(params: {
+  title: string;
+  body: string;
+  route?: string;
+}) {
+  if (!isNativeApp()) {
+    return;
+  }
+
+  const permissions = await LocalNotifications.checkPermissions();
+  const status = normalizePermissionState(permissions.display);
+  if (status !== 'granted') {
+    return;
+  }
+
+  await ensureNotificationChannel();
+
+  await LocalNotifications.schedule({
+    notifications: [
+      {
+        id: Date.now() % 2147483000,
+        title: params.title,
+        body: params.body,
+        channelId: LIONESS_NOTIFICATION_CHANNEL_ID,
+        schedule: {
+          at: new Date(Date.now() + 300),
+        },
+        extra: {
+          route: params.route || '/dashboard',
+        },
+      },
+    ],
+  });
+}
+
 export async function captureAssessmentPhotoFile(position: string): Promise<File> {
   if (!isNativeApp()) {
     throw new Error('A captura pela camera esta disponivel apenas no aplicativo.');
