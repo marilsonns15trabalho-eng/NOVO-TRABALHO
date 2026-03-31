@@ -1,14 +1,18 @@
 'use client';
 
+import { useState } from 'react';
 import { Download, RefreshCcw, X } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { useAppUpdate } from '@/hooks/useAppUpdate';
 import { openExternalUrl } from '@/lib/external-links';
+import { startNativeAppUpdate } from '@/lib/native-app-updater';
 import { isNativeApp } from '@/lib/platform';
 
 export default function AppUpdatePrompt() {
   const pathname = usePathname();
   const { loading, installed, remote, updateAvailable, dismissed, dismiss } = useAppUpdate();
+  const [busy, setBusy] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   if (!isNativeApp() || loading || !installed || !remote || !updateAvailable || dismissed) {
     return null;
@@ -20,7 +24,29 @@ export default function AppUpdatePrompt() {
 
   const handleUpdate = async () => {
     const origin = window.location.origin;
-    await openExternalUrl(`${origin}${remote.downloadUrl}`);
+    const downloadUrl = `${origin}${remote.downloadUrl}`;
+
+    try {
+      setBusy(true);
+      setStatusMessage(null);
+
+      const result = await startNativeAppUpdate({
+        url: downloadUrl,
+        fileName: remote.apkFileName,
+      });
+
+      if (result.started) {
+        setStatusMessage('Download iniciado. O Android vai avisar quando a instalacao estiver pronta.');
+        window.setTimeout(() => dismiss(), 4000);
+        return;
+      }
+
+      await openExternalUrl(downloadUrl, { preferSystemBrowser: true });
+    } catch {
+      await openExternalUrl(downloadUrl, { preferSystemBrowser: true });
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -64,18 +90,26 @@ export default function AppUpdatePrompt() {
         </div>
       ) : null}
 
+      {statusMessage ? (
+        <div className="mt-4 rounded-[18px] border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-200">
+          {statusMessage}
+        </div>
+      ) : null}
+
       <div className="mt-4 flex flex-col gap-2 sm:flex-row">
         <button
           type="button"
           onClick={() => void handleUpdate()}
+          disabled={busy}
           className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-bold text-black transition-all hover:bg-orange-400"
         >
           <Download size={16} />
-          Atualizar app
+          {busy ? 'Iniciando download...' : 'Atualizar app'}
         </button>
         <button
           type="button"
           onClick={dismiss}
+          disabled={busy}
           className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-zinc-300 transition-all hover:border-zinc-700 hover:text-white"
         >
           <RefreshCcw size={16} />

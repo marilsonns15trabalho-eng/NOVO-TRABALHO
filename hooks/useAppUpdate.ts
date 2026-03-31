@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { isNativeApp } from '@/lib/platform';
 
 interface RemoteAppVersionPayload {
@@ -56,10 +57,20 @@ function compareVersionNames(installedVersion: string, remoteVersion: string) {
 }
 
 export function useAppUpdate() {
+  const { session } = useAuth();
   const [loading, setLoading] = useState(true);
   const [installed, setInstalled] = useState<InstalledAppInfo | null>(null);
   const [remote, setRemote] = useState<RemoteAppVersionPayload | null>(null);
   const [dismissed, setDismissed] = useState(false);
+
+  const loginSessionKey = useMemo(() => {
+    const userId = session?.user?.id;
+    if (!userId) {
+      return null;
+    }
+
+    return `${userId}:${session.user.last_sign_in_at ?? 'login'}`;
+  }, [session?.user?.id, session?.user?.last_sign_in_at]);
 
   useEffect(() => {
     if (!isNativeApp()) {
@@ -98,8 +109,6 @@ export function useAppUpdate() {
         setInstalled(installedInfo);
         setRemote(remoteInfo);
 
-        const dismissKey = `${DISMISS_PREFIX}${remoteInfo.versionCode}`;
-        setDismissed(localStorage.getItem(dismissKey) === '1');
       } catch {
         if (!cancelled) {
           setInstalled(null);
@@ -120,6 +129,16 @@ export function useAppUpdate() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!remote || !loginSessionKey) {
+      setDismissed(false);
+      return;
+    }
+
+    const dismissKey = `${DISMISS_PREFIX}${remote.versionCode}:${loginSessionKey}`;
+    setDismissed(sessionStorage.getItem(dismissKey) === '1');
+  }, [loginSessionKey, remote]);
+
   const updateAvailable = useMemo(() => {
     if (!installed || !remote) {
       return false;
@@ -134,12 +153,12 @@ export function useAppUpdate() {
   }, [installed, remote]);
 
   const dismiss = () => {
-    if (!remote) {
+    if (!remote || !loginSessionKey) {
       return;
     }
 
-    const dismissKey = `${DISMISS_PREFIX}${remote.versionCode}`;
-    localStorage.setItem(dismissKey, '1');
+    const dismissKey = `${DISMISS_PREFIX}${remote.versionCode}:${loginSessionKey}`;
+    sessionStorage.setItem(dismissKey, '1');
     setDismissed(true);
   };
 

@@ -4,19 +4,46 @@ import { Browser } from '@capacitor/browser';
 import { Share } from '@capacitor/share';
 import { isNativeApp } from '@/lib/platform';
 
-export async function openExternalUrl(url: string) {
+function openUrlWithAnchor(url: string, target: '_blank' | '_self' = '_blank') {
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.target = target;
+  anchor.rel = 'noopener noreferrer';
+  anchor.style.display = 'none';
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+}
+
+export async function openExternalUrl(
+  url: string,
+  options?: {
+    preferSystemBrowser?: boolean;
+  },
+) {
   if (typeof window === 'undefined') {
     return;
   }
 
   if (isNativeApp()) {
+    if (options?.preferSystemBrowser) {
+      try {
+        openUrlWithAnchor(url);
+        return;
+      } catch {}
+    }
+
     try {
       await Browser.open({ url });
       return;
     } catch {}
   }
 
-  window.open(url, '_blank', 'noopener,noreferrer');
+  try {
+    openUrlWithAnchor(url);
+  } catch {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
 }
 
 export async function shareContent(options: {

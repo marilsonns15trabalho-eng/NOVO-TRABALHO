@@ -17,8 +17,8 @@ function extractBuildValue(content: string, key: 'versionCode' | 'versionName') 
 export async function GET() {
   const projectRoot = process.cwd();
   const gradlePath = path.join(projectRoot, 'android', 'app', 'build.gradle');
-  const apkFileName = 'LIONESSFIT.apk';
-  const apkPath = path.join(projectRoot, 'android', apkFileName);
+  const sourceApkFileName = 'LIONESSFIT.apk';
+  const apkPath = path.join(projectRoot, 'android', sourceApkFileName);
 
   try {
     const [gradleContent, apkStats] = await Promise.all([
@@ -40,6 +40,8 @@ export async function GET() {
         },
       );
     }
+
+    const apkFileName = `LIONESSFIT-v${versionName}-b${versionCode}.apk`;
 
     return Response.json(
       {
