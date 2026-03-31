@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Resumo do Treino - Kinetic Precision</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&amp;family=Lexend:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#FF6B00",
+              "on-primary": "#FFFFFF",
+              "background": "#000000",
+              "surface": "#000000",
+              "surface-container": "#131313",
+              "surface-container-high": "#191a1a",
+              "surface-container-highest": "#262626",
+              "on-surface": "#FFFFFF",
+              "on-surface-variant": "#adaaaa",
+              "outline": "#484848"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Lexend"],
+              "label": ["Lexend"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .kinetic-gradient {
+            background: linear-gradient(135deg, #FF6B00 0%, #e66000 100%);
+        }
+        .text-shadow-brutal {
+            text-shadow: 2px 2px 0px #000000;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-primary selection:text-on-primary">
+<!-- TopAppBar from COMPONENTS_5 -->
+<nav class="fixed top-0 w-full z-50 rounded-none bg-[#0e0e0e] flex items-center justify-between px-6 h-16">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-[#ff9159] active:scale-95 transition-transform cursor-pointer" data-icon="arrow_back">arrow_back</span>
+<span class="font-['Space_Grotesk'] uppercase tracking-tighter font-bold text-xl text-[#ff9159]">Resumo do Treino</span>
+</div>
+<div class="flex items-center gap-4">
+<span class="text-[#ff9159] font-black italic text-xl">KP</span>
+<span class="material-symbols-outlined text-[#ff9159] active:scale-95 transition-transform cursor-pointer" data-icon="share">share</span>
+</div>
+</nav>
+<main class="pt-16 pb-32">
+<!-- Hero Section: Sweaty Selfie with Black Overlay -->
+<section class="relative w-full aspect-[4/5] overflow-hidden bg-surface-container">
+<img alt="Workout completion selfie" class="w-full h-full object-cover grayscale contrast-125 brightness-50" data-alt="Intense close-up portrait of a determined athlete with sweat glistening under dramatic high-contrast gym lighting, dark industrial background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCxehsc5540woOmPO1Qi2ueu7CTMUXmtYZaf6mzxfAtkTXRrLXErWMWXy_z1yH2oHgVDkJ4c23DPurxjq-AVfowhtyw5u4gyHQtCVin-2QSwtomL5gB3lUr4XFhpYcJ9SFl5Ath4wbTm1klWTFc9jedkhLbBi5lyGCGRccjIzDATBb6GsJAAMf6DgeKdOM--9xQSb0AHZYdr04duGQjcEklcw8lz7fOO0yTEl-butCKvXLACWqyMjrAAMEA9o5sRXCmOTaAoM6xOMSz"/>
+<!-- Motivational Header Overlap -->
+<div class="absolute top-8 left-6 right-6">
+<h1 class="font-headline font-black italic text-6xl tracking-tighter leading-none text-primary text-shadow-brutal">
+                TREINO<br/>FINALIZADO!
+            </h1>
+</div>
+<!-- Stats Overlay (Asymmetric Layout) -->
+<div class="absolute bottom-8 left-0 w-full px-6 flex flex-wrap gap-4 items-end">
+<div class="bg-black/80 backdrop-blur-xl p-4 border-l-4 border-primary flex-1 min-w-[140px]">
+<span class="block font-label text-[10px] uppercase tracking-widest text-on-surface-variant">TOTAL DE CALORIAS</span>
+<span class="block font-headline font-bold text-3xl text-primary">450 <span class="text-sm font-light text-white">KCAL</span></span>
+</div>
+<div class="bg-black/80 backdrop-blur-xl p-4 border-l-4 border-primary flex-1 min-w-[140px]">
+<span class="block font-label text-[10px] uppercase tracking-widest text-on-surface-variant">DURAÇÃO</span>
+<span class="block font-headline font-bold text-3xl text-primary">55 <span class="text-sm font-light text-white">MIN</span></span>
+</div>
+<div class="bg-primary p-4 flex-none w-full md:w-auto self-stretch flex flex-col justify-center">
+<span class="block font-label text-[10px] uppercase tracking-widest text-black font-black">INTENSIDADE</span>
+<span class="block font-headline font-black text-2xl text-black italic">ALTA</span>
+</div>
+</div>
+</section>
+<!-- Exercise Details Section -->
+<section class="px-6 mt-12">
+<div class="flex items-baseline justify-between mb-8">
+<h2 class="font-headline font-bold text-2xl uppercase tracking-tight">RESUMO DO TREINO</h2>
+<span class="h-[2px] flex-grow ml-4 bg-surface-container-highest"></span>
+</div>
+<div class="space-y-6">
+<!-- Exercise Card 1 -->
+<div class="group relative bg-surface-container p-6 transition-all hover:bg-surface-container-highest">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="font-headline font-bold text-xl uppercase text-on-surface">SUPINO RETO</h3>
+<p class="font-label text-sm text-on-surface-variant mt-1">Foco Força • 4 Séries</p>
+</div>
+<div class="text-right">
+<span class="block font-headline font-black text-2xl text-primary">100<span class="text-xs ml-1 text-white">KG</span></span>
+<span class="block font-label text-[10px] text-on-surface-variant uppercase">Peso Máximo</span>
+</div>
+</div>
+</div>
+<!-- Exercise Card 2 -->
+<div class="group relative bg-surface-container p-6 transition-all hover:bg-surface-container-highest">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="font-headline font-bold text-xl uppercase text-on-surface">AGACHAMENTO</h3>
+<p class="font-label text-sm text-on-surface-variant mt-1">Hipertrofia • 3 Séries</p>
+</div>
+<div class="text-right">
+<span class="block font-headline font-black text-2xl text-primary">120<span class="text-xs ml-1 text-white">KG</span></span>
+<span class="block font-label text-[10px] text-on-surface-variant uppercase">PR de Volume</span>
+</div>
+</div>
+<!-- Overlapping PR Badge -->
+<div class="absolute -top-3 -right-2 bg-primary px-2 py-1 rotate-6">
+<span class="font-headline font-black text-[10px] text-black uppercase tracking-widest">Novo PR</span>
+</div>
+</div>
+<!-- Exercise Card 3 -->
+<div class="group relative bg-surface-container p-6 transition-all hover:bg-surface-container-highest border-l-4 border-white">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="font-headline font-bold text-xl uppercase text-on-surface">HIIT FINAL</h3>
+<p class="font-label text-sm text-on-surface-variant mt-1">Stress Metabólico • 10 Mins</p>
+</div>
+<div class="text-right">
+<span class="block font-headline font-black text-2xl text-white">182<span class="text-xs ml-1">BPM</span></span>
+<span class="block font-label text-[10px] text-on-surface-variant uppercase">Pico FC</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Sharing CTA Section -->
+<section class="px-6 mt-16 mb-8">
+<h4 class="font-label text-[12px] uppercase tracking-[0.3em] text-center text-on-surface-variant mb-6">COMPARTILHE SEUS GANHOS</h4>
+<div class="grid grid-cols-2 gap-4">
+<button class="bg-surface-container-highest py-4 flex items-center justify-center gap-2 active:scale-95 transition-transform duration-150 border-b-2 border-primary">
+<span class="material-symbols-outlined text-primary" data-icon="photo_camera">photo_camera</span>
+<span class="font-headline font-bold text-sm tracking-widest uppercase">Instagram</span>
+</button>
+<button class="bg-surface-container-highest py-4 flex items-center justify-center gap-2 active:scale-95 transition-transform duration-150 border-b-2 border-white">
+<span class="material-symbols-outlined text-white" data-icon="chat">chat</span>
+<span class="font-headline font-bold text-sm tracking-widest uppercase">WhatsApp</span>
+</button>
+</div>
+<button class="w-full mt-4 kinetic-gradient py-5 font-headline font-black text-black tracking-widest uppercase active:scale-[0.98] transition-transform flex items-center justify-center gap-3">
+<span class="material-symbols-outlined" data-icon="ios_share">ios_share</span>
+            COMPARTILHAR RESUMO
+        </button>
+</section>
+</main>
+<!-- BottomNavBar from COMPONENTS_5 -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center h-20 px-2 pb-safe bg-[#262626]/70 backdrop-blur-xl z-50">
+<div class="flex flex-col items-center justify-center text-[#ff9159] border-t-2 border-[#ff9159] pt-2 min-w-[64px] active:opacity-80 transition-all">
+<span class="material-symbols-outlined" data-icon="fitness_center">fitness_center</span>
+<span class="font-['Manrope'] font-bold text-[10px] uppercase tracking-widest">Treinar</span>
+</div>
+<div class="flex flex-col items-center justify-center text-white/50 pt-2 hover:text-white transition-all active:opacity-80">
+<span class="material-symbols-outlined" data-icon="leaderboard">leaderboard</span>
+<span class="font-['Manrope'] font-bold text-[10px] uppercase tracking-widest">Stats</span>
+</div>
+<div class="flex flex-col items-center justify-center text-white/50 pt-2 hover:text-white transition-all active:opacity-80">
+<span class="material-symbols-outlined" data-icon="groups">groups</span>
+<span class="font-['Manrope'] font-bold text-[10px] uppercase tracking-widest">Comunidade</span>
+</div>
+<div class="flex flex-col items-center justify-center text-white/50 pt-2 hover:text-white transition-all active:opacity-80">
+<span class="material-symbols-outlined" data-icon="dynamic_feed">dynamic_feed</span>
+<span class="font-['Manrope'] font-bold text-[10px] uppercase tracking-widest">Feed</span>
+</div>
+<div class="flex flex-col items-center justify-center text-white/50 pt-2 hover:text-white transition-all active:opacity-80">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-['Manrope'] font-bold text-[10px] uppercase tracking-widest">Perfil</span>
+</div>
+</nav>
+</body></html>

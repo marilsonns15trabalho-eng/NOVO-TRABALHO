@@ -62,6 +62,7 @@ export const TABLES = {
 /** Buckets de storage do Supabase */
 export const STORAGE_BUCKETS = {
   AVALIACAO_PHOTOS: 'avaliacao-photos',
+  PROFILE_PHOTOS: 'profile-photos',
 } as const;
 
 /** Super admin protegido contra alteracoes */

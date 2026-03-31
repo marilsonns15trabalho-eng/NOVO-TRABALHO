@@ -199,3 +199,73 @@ export async function captureAssessmentPhotoFile(position: string): Promise<File
     lastModified: Date.now(),
   });
 }
+
+export async function captureWorkoutSharePhotoFile(): Promise<File> {
+  if (!isNativeApp()) {
+    throw new Error('A captura pela camera esta disponivel apenas no aplicativo.');
+  }
+
+  const permission = await requestCameraAccess();
+  if (permission !== 'granted' && permission !== 'limited') {
+    throw new Error('Permita o uso da camera para tirar a foto do compartilhamento.');
+  }
+
+  const photo = await Camera.getPhoto({
+    source: CameraSource.Camera,
+    resultType: CameraResultType.Uri,
+    quality: 92,
+    correctOrientation: true,
+    saveToGallery: false,
+    presentationStyle: 'fullscreen',
+  });
+
+  if (!photo.webPath) {
+    throw new Error('Nao foi possivel ler a foto capturada.');
+  }
+
+  const response = await fetch(photo.webPath);
+  const blob = await response.blob();
+  const normalizedFormat = photo.format === 'png' || photo.format === 'webp' ? photo.format : 'jpeg';
+  const extension = normalizedFormat === 'jpeg' ? 'jpg' : normalizedFormat;
+  const mimeType = blob.type || `image/${normalizedFormat}`;
+
+  return new File([blob], `treino-compartilhar-${Date.now()}.${extension}`, {
+    type: mimeType,
+    lastModified: Date.now(),
+  });
+}
+
+export async function captureProfileAvatarFile(): Promise<File> {
+  if (!isNativeApp()) {
+    throw new Error('A captura pela camera esta disponivel apenas no aplicativo.');
+  }
+
+  const permission = await requestCameraAccess();
+  if (permission !== 'granted' && permission !== 'limited') {
+    throw new Error('Permita o uso da camera para tirar a foto de perfil.');
+  }
+
+  const photo = await Camera.getPhoto({
+    source: CameraSource.Camera,
+    resultType: CameraResultType.Uri,
+    quality: 92,
+    correctOrientation: true,
+    saveToGallery: false,
+    presentationStyle: 'fullscreen',
+  });
+
+  if (!photo.webPath) {
+    throw new Error('Nao foi possivel ler a foto capturada.');
+  }
+
+  const response = await fetch(photo.webPath);
+  const blob = await response.blob();
+  const normalizedFormat = photo.format === 'png' || photo.format === 'webp' ? photo.format : 'jpeg';
+  const extension = normalizedFormat === 'jpeg' ? 'jpg' : normalizedFormat;
+  const mimeType = blob.type || `image/${normalizedFormat}`;
+
+  return new File([blob], `avatar-${Date.now()}.${extension}`, {
+    type: mimeType,
+    lastModified: Date.now(),
+  });
+}

@@ -212,7 +212,7 @@ export default function AppNotificationBell({ compact = false }: AppNotification
   }
 
   return (
-    <div ref={notificationsRef} className="relative">
+    <div ref={notificationsRef} className="relative z-[90]">
       <button
         onClick={() => setIsNotificationsOpen((current) => !current)}
         className={`relative rounded-2xl border border-zinc-800 bg-zinc-900/80 text-zinc-400 transition-colors hover:text-orange-400 ${
@@ -230,7 +230,7 @@ export default function AppNotificationBell({ compact = false }: AppNotification
       </button>
 
       {isNotificationsOpen ? (
-        <div className="absolute right-0 top-[calc(100%+12px)] z-50 w-[min(360px,calc(100vw-2rem))] rounded-[28px] border border-zinc-800 bg-zinc-950/95 p-3 shadow-[0_36px_120px_-64px_rgba(0,0,0,0.95)] backdrop-blur-xl">
+        <div className="absolute right-0 top-[calc(100%+12px)] z-[120] w-[min(360px,calc(100vw-2rem))] rounded-[28px] border border-zinc-800 bg-zinc-950/95 p-3 shadow-[0_36px_120px_-64px_rgba(0,0,0,0.95)] backdrop-blur-xl">
           <div className="flex items-center justify-between border-b border-zinc-800 px-3 pb-3">
             <div>
               <div className="flex items-center gap-2">

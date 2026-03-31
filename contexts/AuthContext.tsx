@@ -31,6 +31,8 @@ export interface UserProfile {
   must_change_password?: boolean;
   secret_question?: string | null;
   password_recovery_enabled?: boolean;
+  avatar_path?: string | null;
+  avatar_updated_at?: string | null;
 }
 
 interface AuthContextType {
@@ -88,6 +90,14 @@ function normalizeProfile(raw: unknown): UserProfile | null {
         ? candidate.secret_question
         : null,
     password_recovery_enabled: Boolean(candidate.password_recovery_enabled),
+    avatar_path:
+      typeof candidate.avatar_path === 'string' || candidate.avatar_path === null
+        ? candidate.avatar_path
+        : null,
+    avatar_updated_at:
+      typeof candidate.avatar_updated_at === 'string' || candidate.avatar_updated_at === null
+        ? candidate.avatar_updated_at
+        : null,
   };
 }
 

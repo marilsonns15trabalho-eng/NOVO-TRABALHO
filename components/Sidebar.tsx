@@ -4,6 +4,7 @@ import React, { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronRight, LogOut, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
+import ProfileAvatar from '@/components/account/ProfileAvatar';
 import { useAuth } from '@/hooks/useAuth';
 import { getMenuItemsForRole } from '@/lib/navigation';
 import type { UserRole } from '@/hooks/useAuth';
@@ -46,16 +47,6 @@ export default function Sidebar({ activeTab, setActiveTab, userRole }: SidebarPr
   const accent = useMemo(() => getRoleAccent(userRole), [userRole]);
 
   const displayName = profile?.display_name || user?.email?.split('@')[0] || 'Usuario';
-  const initials = useMemo(
-    () =>
-      displayName
-        .split(' ')
-        .map((part) => part[0])
-        .slice(0, 2)
-        .join('')
-        .toUpperCase(),
-    [displayName]
-  );
 
   const handleSignOut = async () => {
     await signOut();
@@ -143,9 +134,11 @@ export default function Sidebar({ activeTab, setActiveTab, userRole }: SidebarPr
         {user && (
           <div className="rounded-[26px] border border-zinc-800 bg-zinc-950/80 p-4">
             <div className="flex items-center gap-3">
-              <div className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${accent.icon} text-sm font-black text-black`}>
-                {initials}
-              </div>
+              <ProfileAvatar
+                displayName={displayName}
+                className="h-12 w-12 rounded-2xl border border-zinc-800"
+                textClassName="text-sm"
+              />
 
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-bold text-white">{displayName}</p>

@@ -17,6 +17,20 @@ export async function authorizedApiJson<T>(
   input: string,
   init: RequestInit = {}
 ): Promise<T> {
+  const response = await authorizedApiFetch(input, init);
+  const payload = await parseResponsePayload<{ error?: string } & T>(response);
+
+  if (!response.ok) {
+    throw new Error(payload?.error || 'Nao foi possivel concluir a operacao.');
+  }
+
+  return (payload || {}) as T;
+}
+
+export async function authorizedApiFetch(
+  input: string,
+  init: RequestInit = {}
+): Promise<Response> {
   const session = await getSafeSession();
 
   if (!session?.access_token) {
@@ -27,22 +41,17 @@ export async function authorizedApiJson<T>(
   headers.set('Authorization', `Bearer ${session.access_token}`);
 
   if (!headers.has('Content-Type') && init.body) {
-    headers.set('Content-Type', 'application/json');
+    const isFormData = typeof FormData !== 'undefined' && init.body instanceof FormData;
+    if (!isFormData) {
+      headers.set('Content-Type', 'application/json');
+    }
   }
 
-  const response = await fetch(input, {
+  return fetch(input, {
     ...init,
     headers,
     cache: 'no-store',
   });
-
-  const payload = await parseResponsePayload<{ error?: string } & T>(response);
-
-  if (!response.ok) {
-    throw new Error(payload?.error || 'Nao foi possivel concluir a operacao.');
-  }
-
-  return (payload || {}) as T;
 }
 
 export async function publicApiJson<T>(

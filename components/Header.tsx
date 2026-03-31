@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CalendarDays, LogOut, Menu, Sparkles } from 'lucide-react';
+import ProfileAvatar from '@/components/account/ProfileAvatar';
+import ProfileAvatarManager from '@/components/account/ProfileAvatarManager';
 import AppDownloadButton from '@/components/app/AppDownloadButton';
 import AppNotificationBell from '@/components/notifications/AppNotificationBell';
 import { useAuth } from '@/hooks/useAuth';
@@ -29,6 +31,7 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
   const { user, profile, role, signOut } = useAuth();
   const router = useRouter();
   const nativeApp = useNativeApp();
+  const [avatarManagerOpen, setAvatarManagerOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -37,17 +40,6 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
 
   const displayName = profile?.display_name || user?.email?.split('@')[0] || 'Usuario';
   const firstName = displayName.split(' ')[0];
-  const initials = useMemo(
-    () =>
-      displayName
-        .split(' ')
-        .map((part) => part[0])
-        .slice(0, 2)
-        .join('')
-        .toUpperCase(),
-    [displayName]
-  );
-
   const todayLabel = useMemo(
     () =>
       new Intl.DateTimeFormat('pt-BR', {
@@ -96,15 +88,36 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
 
           <AppNotificationBell />
 
+          <button
+            type="button"
+            onClick={() => setAvatarManagerOpen(true)}
+            className="lg:hidden"
+            aria-label="Gerenciar foto de perfil"
+          >
+            <ProfileAvatar
+              displayName={displayName}
+              className="h-10 w-10 rounded-2xl border border-zinc-800"
+              textClassName="text-sm"
+            />
+          </button>
+
           <div className="hidden items-center gap-3 rounded-[24px] border border-zinc-800 bg-zinc-950/85 px-3 py-2 lg:flex">
             <div className="text-right">
               <p className="text-sm font-bold text-white">Ola, {firstName}</p>
               <p className="text-xs text-zinc-500">{user?.email}</p>
             </div>
 
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 text-sm font-black text-black">
-              {initials}
-            </div>
+            <button
+              type="button"
+              onClick={() => setAvatarManagerOpen(true)}
+              aria-label="Gerenciar foto de perfil"
+            >
+              <ProfileAvatar
+                displayName={displayName}
+                className="h-11 w-11 rounded-2xl border border-zinc-800"
+                textClassName="text-sm"
+              />
+            </button>
 
             <button
               onClick={handleSignOut}
@@ -116,6 +129,11 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
           </div>
         </div>
       </div>
+
+      <ProfileAvatarManager
+        open={avatarManagerOpen}
+        onClose={() => setAvatarManagerOpen(false)}
+      />
     </header>
   );
 }

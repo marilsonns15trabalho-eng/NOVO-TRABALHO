@@ -6,6 +6,7 @@ import {
   Activity,
   AlertTriangle,
   ArrowRight,
+  Camera,
   Calendar,
   CheckCircle2,
   ClipboardList,
@@ -28,12 +29,15 @@ import AvaliacaoEvolutionBadge from '@/components/avaliacao/AvaliacaoEvolutionBa
 import AppBottomNav from '@/components/app/AppBottomNav';
 import AppDownloadButton from '@/components/app/AppDownloadButton';
 import AppPermissionsPanel from '@/components/app/AppPermissionsPanel';
+import ProfileAvatar from '@/components/account/ProfileAvatar';
+import ProfileAvatarManager from '@/components/account/ProfileAvatarManager';
 import AppNotificationBell from '@/components/notifications/AppNotificationBell';
 import ExerciseOfficialPreviewModal from '@/components/treinos/ExerciseOfficialPreviewModal';
+import WorkoutShareComposer from '@/components/treinos/WorkoutShareComposer';
 import { useMobileViewport } from '@/hooks/useMobileViewport';
 import { useNativeApp } from '@/hooks/useNativeApp';
 import { getAvaliacaoEvolutionMetrics } from '@/lib/avaliacao-evolution';
-import { formatDatePtBr } from '@/lib/date';
+import { formatDatePtBr, getLocalDateInputValue } from '@/lib/date';
 import { exportAvaliacaoEvolutionPdf } from '@/lib/pdf/exportAvaliacaoEvolutionPdf';
 import { exportAvaliacaoPdf } from '@/lib/pdf/exportAvaliacaoPdf';
 import { supabase } from '@/lib/supabase';
@@ -250,6 +254,12 @@ export default function AlunoDashboard() {
   const [selectedExercisePreview, setSelectedExercisePreview] = useState<ExerciseLibraryItem | null>(null);
   const [exercisePreviewLoadingKey, setExercisePreviewLoadingKey] = useState<string | null>(null);
   const [exercisePreviewError, setExercisePreviewError] = useState<string | null>(null);
+  const [shareComposerState, setShareComposerState] = useState<{
+    treino: Treino;
+    completedOn: string;
+    completedExercises: number;
+  } | null>(null);
+  const [avatarManagerOpen, setAvatarManagerOpen] = useState(false);
 
   useEffect(() => {
     const section = searchParams.get('section');
@@ -625,6 +635,14 @@ export default function AlunoDashboard() {
       await refreshStudentTrainingState();
 
       if (markCompleted) {
+        if (executionTreino) {
+          setShareComposerState({
+            treino: executionTreino,
+            completedOn: saved.execution_date,
+            completedExercises:
+              saved.items.filter((item) => item.completed).length || saved.items.length,
+          });
+        }
         setExecutionSession(null);
         setExecutionTreino(null);
       }
@@ -640,14 +658,23 @@ export default function AlunoDashboard() {
       return;
     }
 
+    const nextCompleted = !treino.completed_today;
+
     try {
       setCompletingTreinoId(treino.id);
       await treinosService.setTreinoCompletion({
         treinoId: treino.id,
-        completed: !treino.completed_today,
+        completed: nextCompleted,
       });
 
       await refreshStudentTrainingState();
+      if (nextCompleted) {
+        setShareComposerState({
+          treino,
+          completedOn: getLocalDateInputValue(),
+          completedExercises: treino.exercicios?.length || 0,
+        });
+      }
     } catch (error) {
       console.error('Erro ao atualizar conclusao do treino:', error);
     } finally {
@@ -676,7 +703,7 @@ export default function AlunoDashboard() {
       data-lioness-shell
       className="min-h-screen bg-black text-white"
     >
-      <div className="border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-xl">
+      <div className="relative z-40 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl flex-wrap items-start justify-between gap-3 px-4 py-4 sm:px-6 sm:py-5">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.3em] text-orange-500">
@@ -704,9 +731,11 @@ export default function AlunoDashboard() {
           <div className="sticky top-6 space-y-4">
             <div className="rounded-[30px] border border-zinc-800 bg-zinc-950/90 p-5 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)]">
               <div className="flex items-start gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-[22px] bg-gradient-to-br from-orange-400 to-orange-600 text-3xl font-black text-black">
-                  L
-                </div>
+                <ProfileAvatar
+                  displayName={profile?.display_name || user?.email?.split('@')[0] || 'Aluno'}
+                  className="h-14 w-14 rounded-[22px] border border-zinc-800"
+                  textClassName="text-3xl"
+                />
                 <div className="min-w-0 flex-1">
                   <h2 className="truncate text-lg font-bold text-white">LIONESS</h2>
                   <p className="mt-1 text-[11px] uppercase tracking-[0.28em] text-zinc-500">
@@ -1064,6 +1093,20 @@ export default function AlunoDashboard() {
                   >
                     {todayWorkout.completed_today ? 'Remover conclusao' : 'Concluir direto'}
                   </button>
+                  {todayWorkout.completed_today ? (
+                    <button
+                      onClick={() =>
+                        setShareComposerState({
+                          treino: todayWorkout,
+                          completedOn: getLocalDateInputValue(),
+                          completedExercises: todayWorkout.exercicios?.length || 0,
+                        })
+                      }
+                      className="rounded-2xl border border-fuchsia-500/20 bg-fuchsia-500/10 px-4 py-3 text-sm font-bold text-fuchsia-300 transition-all hover:bg-fuchsia-500 hover:text-white sm:col-span-2"
+                    >
+                      Compartilhar resumo
+                    </button>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -1190,6 +1233,22 @@ export default function AlunoDashboard() {
                         )}
                         {treino.completed_today ? 'Remover' : 'Concluir'}
                       </button>
+                      {treino.completed_today ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setShareComposerState({
+                              treino,
+                              completedOn: getLocalDateInputValue(),
+                              completedExercises: treino.exercicios?.length || 0,
+                            })
+                          }
+                          className="inline-flex items-center gap-2 rounded-2xl border border-fuchsia-500/20 bg-fuchsia-500/10 px-4 py-3 text-sm font-bold text-fuchsia-300 transition-all hover:bg-fuchsia-500 hover:text-white"
+                        >
+                          <Download size={16} />
+                          Compartilhar
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -1574,9 +1633,20 @@ export default function AlunoDashboard() {
                 </p>
               </div>
 
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-emerald-300">
-                <ShieldCheck size={14} />
-                Protecao ativa
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => setAvatarManagerOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-orange-300 transition-all hover:bg-orange-500 hover:text-black"
+                >
+                  <Camera size={14} />
+                  Foto de perfil
+                </button>
+
+                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-emerald-300">
+                  <ShieldCheck size={14} />
+                  Protecao ativa
+                </div>
               </div>
             </div>
 
@@ -1758,6 +1828,23 @@ export default function AlunoDashboard() {
           onClose={closeExercisePreviewModal}
         />
       ) : null}
+
+      {shareComposerState ? (
+        <WorkoutShareComposer
+          open={Boolean(shareComposerState)}
+          onClose={() => setShareComposerState(null)}
+          studentName={firstName}
+          completedOn={shareComposerState.completedOn}
+          treino={shareComposerState.treino}
+          completedExercises={shareComposerState.completedExercises}
+          weightKg={latestAvaliacao?.peso ?? null}
+        />
+      ) : null}
+
+      <ProfileAvatarManager
+        open={avatarManagerOpen}
+        onClose={() => setAvatarManagerOpen(false)}
+      />
 
       {mustChangePassword && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/92 px-3 py-3 backdrop-blur-md sm:px-4 sm:py-4 md:flex md:items-center md:justify-center md:px-6 md:py-8">

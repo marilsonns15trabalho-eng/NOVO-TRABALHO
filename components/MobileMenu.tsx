@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'motion/react';
 import { LogOut, Sparkles, X } from 'lucide-react';
+import ProfileAvatar from '@/components/account/ProfileAvatar';
 import { useAuth } from '@/hooks/useAuth';
 import { useNativeApp } from '@/hooks/useNativeApp';
 import { getMenuItemsForRole } from '@/lib/navigation';
@@ -170,8 +171,18 @@ export default function MobileMenu({
             <div className="border-t border-zinc-800/80 p-4">
               {user && (
                 <div className="rounded-[24px] border border-zinc-800 bg-zinc-950/80 p-4">
-                  <p className="truncate text-sm font-bold text-white">{displayName}</p>
-                  <p className="truncate text-xs text-zinc-500">{user.email}</p>
+                  <div className="flex items-center gap-3">
+                    <ProfileAvatar
+                      displayName={displayName}
+                      className="h-12 w-12 rounded-2xl border border-zinc-800"
+                      textClassName="text-sm"
+                    />
+
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold text-white">{displayName}</p>
+                      <p className="truncate text-xs text-zinc-500">{user.email}</p>
+                    </div>
+                  </div>
 
                   <button
                     onClick={handleSignOut}
