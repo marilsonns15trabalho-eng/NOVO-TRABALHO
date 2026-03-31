@@ -28,6 +28,7 @@ import AppBottomNav from '@/components/app/AppBottomNav';
 import AppDownloadButton from '@/components/app/AppDownloadButton';
 import AppPermissionsPanel from '@/components/app/AppPermissionsPanel';
 import ExerciseOfficialPreviewModal from '@/components/treinos/ExerciseOfficialPreviewModal';
+import { useMobileViewport } from '@/hooks/useMobileViewport';
 import { useNativeApp } from '@/hooks/useNativeApp';
 import { formatDatePtBr } from '@/lib/date';
 import { exportAvaliacaoEvolutionPdf } from '@/lib/pdf/exportAvaliacaoEvolutionPdf';
@@ -227,6 +228,8 @@ export default function AlunoDashboard() {
   const { user, profile, signOut, isReady } = useAuth();
   const router = useRouter();
   const nativeApp = useNativeApp();
+  const mobileViewport = useMobileViewport();
+  const appLikeShell = nativeApp || mobileViewport;
 
   const [loading, setLoading] = useState(true);
   const [studentId, setStudentId] = useState<string | null>(null);
@@ -680,8 +683,8 @@ export default function AlunoDashboard() {
         </div>
       </div>
 
-      <div className={`mx-auto flex max-w-7xl gap-6 px-4 py-6 md:px-6 md:py-8 ${nativeApp ? 'pb-28 md:pb-8' : ''}`}>
-        <aside className="hidden w-[290px] shrink-0 md:block">
+      <div className={`mx-auto flex max-w-7xl gap-6 px-4 py-6 md:px-6 md:py-8 ${appLikeShell ? 'pb-28 md:pb-8' : ''}`}>
+        <aside className="hidden w-[290px] shrink-0 lg:block">
           <div className="sticky top-6 space-y-4">
             <div className="rounded-[30px] border border-zinc-800 bg-zinc-950/90 p-5 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)]">
               <div className="flex items-start gap-4">
@@ -778,7 +781,7 @@ export default function AlunoDashboard() {
           </div>
         </section>
 
-        <section className={`rounded-[28px] border border-zinc-800 bg-zinc-950/85 p-3 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)] md:hidden ${nativeApp ? 'hidden' : ''}`}>
+        <section className={`rounded-[28px] border border-zinc-800 bg-zinc-950/85 p-3 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)] lg:hidden ${appLikeShell ? 'hidden' : ''}`}>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {sectionItems.map((item) => {
               return (
@@ -1745,7 +1748,7 @@ export default function AlunoDashboard() {
         </div>
       )}
 
-      {nativeApp ? <AppBottomNav items={appBottomNavItems} /> : null}
+      {appLikeShell ? <AppBottomNav items={appBottomNavItems} /> : null}
     </motion.div>
   );
 }

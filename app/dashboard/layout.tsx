@@ -9,6 +9,7 @@ import Header from '@/components/Header';
 import MobileMenu from '@/components/MobileMenu';
 import AccountSecurityForm from '@/components/account/AccountSecurityForm';
 import { useAuth } from '@/hooks/useAuth';
+import { useMobileViewport } from '@/hooks/useMobileViewport';
 import { useNativeApp } from '@/hooks/useNativeApp';
 import { getActiveIdFromPath, getDefaultRouteForRole, getMenuItemsForRole, ROLE_ACCESS } from '@/lib/navigation';
 
@@ -30,6 +31,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const nativeApp = useNativeApp();
+  const mobileViewport = useMobileViewport();
+  const appLikeShell = nativeApp || mobileViewport;
 
   const activeId = useMemo(() => getActiveIdFromPath(pathname), [pathname]);
   const title = TITLES[activeId] || 'Painel de Controle';
@@ -102,7 +105,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   const bottomNavItems = useMemo(() => {
-    if (!nativeApp || !role) {
+    if (!role) {
       return [];
     }
 
@@ -132,11 +135,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         onClick: () => setMobileMenuOpen(true),
       },
     ];
-  }, [activeId, nativeApp, role]);
+  }, [activeId, role]);
 
   return (
     <div className="flex min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.08),_transparent_22%),linear-gradient(180deg,#09090b_0%,#000_100%)] font-sans text-white selection:bg-orange-500 selection:text-black">
-      <div className="hidden md:block">
+      <div className="hidden lg:block">
         <Sidebar activeTab={activeId} setActiveTab={handleNavigate} userRole={role} />
       </div>
 
@@ -148,12 +151,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         userRole={role}
       />
 
-      <main className={`flex flex-1 flex-col overflow-hidden ${nativeApp ? 'pb-24 md:pb-0' : ''}`}>
+      <main className={`flex flex-1 flex-col overflow-hidden ${appLikeShell ? 'pb-24 md:pb-0' : ''}`}>
         <Header title={title} onMenuToggle={() => setMobileMenuOpen(true)} />
         <div className="flex-1 overflow-y-auto">{children}</div>
       </main>
 
-      {nativeApp && bottomNavItems.length > 0 ? <AppBottomNav items={bottomNavItems} /> : null}
+      {appLikeShell && bottomNavItems.length > 0 ? <AppBottomNav items={bottomNavItems} /> : null}
 
       {Boolean(profile?.must_change_password) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/92 px-6 py-10 backdrop-blur-md">

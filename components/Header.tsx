@@ -198,7 +198,7 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
           {onMenuToggle && (
             <button
               onClick={onMenuToggle}
-              className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-2 text-zinc-400 transition-colors hover:text-orange-400 md:hidden"
+              className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-2 text-zinc-400 transition-colors hover:text-orange-400 lg:hidden"
               aria-label="Abrir menu"
             >
               <Menu size={22} />
@@ -308,7 +308,7 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
             </div>
           )}
 
-          <div className={`hidden items-center gap-3 rounded-[24px] border border-zinc-800 bg-zinc-950/85 px-3 py-2 ${nativeApp ? 'lg:flex' : 'md:flex'}`}>
+          <div className="hidden items-center gap-3 rounded-[24px] border border-zinc-800 bg-zinc-950/85 px-3 py-2 lg:flex">
             <div className="text-right">
               <p className="text-sm font-bold text-white">Ola, {firstName}</p>
               <p className="text-xs text-zinc-500">{user?.email}</p>

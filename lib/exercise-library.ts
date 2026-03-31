@@ -35,6 +35,39 @@ const SEARCH_TERM_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bbarra\b/gi, 'barbell'],
 ];
 
+const EXACT_SEARCH_ALIASES = new Map<string, string[]>([
+  ['flexao nordica inversa', ['reverse nordic curl']],
+  ['flexao nordica inversa joao bobo', ['reverse nordic curl']],
+  ['joao bobo', ['reverse nordic curl']],
+  ['cadeira extensora', ['leg extension']],
+  ['cadeira extensora unilateral', ['single leg extension', 'leg extension']],
+  ['flexora deitada com a bola', ['leg curl']],
+  ['flexora deitada com bola', ['leg curl']],
+  ['cadeira flexora unilateral', ['single leg curl', 'leg curl']],
+  ['flexao de joelhos com caneleira em pe', ['standing leg curl']],
+  ['flexao de joelhos em pe', ['standing leg curl']],
+  ['elevacao de quadril', ['hip thrust']],
+  ['elevacao de quadril com crucifixo', ['hip thrust', 'dumbbell fly']],
+  ['agachamento com desenvolvimento', ['thruster']],
+  ['agachamento sumo', ['sumo squat']],
+  ['agachamento abre fecha', ['sumo squat']],
+  ['aducao deitada com caneleira', ['hip adduction']],
+  ['abducao coice', ['hip abduction', 'glute kickback']],
+  ['caneleira abducao coice', ['hip abduction', 'glute kickback']],
+  ['remada serrote', ['one arm dumbbell row', 'dumbbell row']],
+  ['triceps frances', ['overhead triceps extension']],
+  ['triceps frances unilateral', ['overhead triceps extension']],
+  ['panturrilha em pe', ['standing calf raise', 'calf raise']],
+  ['abs canivete', ['jackknife sit up', 'jackknife']],
+  ['abs canivete unilateral', ['jackknife sit up', 'jackknife']],
+  ['abs extendendo e flexionando as pernas', ['lying leg raise', 'leg raise']],
+  ['leg press triceps frances', ['leg press', 'overhead triceps extension']],
+  ['afundo com desenvolvimento', ['lunge', 'shoulder press']],
+  ['agachamento biceps', ['squat', 'barbell curl']],
+  ['crucifixo', ['dumbbell fly', 'chest fly']],
+  ['elevacao frontal lateral robozinho', ['front raise', 'lateral raise']],
+]);
+
 const EXACT_EXERCISE_NAME_MAP = new Map<string, string>([
   ['seated hip adduction', 'Aducao de quadril na maquina'],
   ['barbell lunges standing', 'Afundo com barra'],
@@ -356,12 +389,21 @@ export function buildExerciseSearchCandidates(query: string) {
     return [];
   }
 
+  const normalizedRaw = normalizeLooseText(raw);
   let translated = raw;
   for (const [pattern, replacement] of SEARCH_TERM_REPLACEMENTS) {
     translated = translated.replace(pattern, replacement);
   }
 
-  return Array.from(new Set([translated.replace(/\s+/g, ' ').trim(), raw].filter(Boolean)));
+  const exactAliases = EXACT_SEARCH_ALIASES.get(normalizedRaw) || [];
+
+  return Array.from(
+    new Set(
+      [translated.replace(/\s+/g, ' ').trim(), raw, ...exactAliases]
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  );
 }
 
 export function getWgerApiBase() {

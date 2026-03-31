@@ -34,6 +34,7 @@ export interface FinanceiroStudent {
   name: string;
   due_day?: number;
   plan_id?: string;
+  linked_auth_user_id?: string | null;
   plans?: {
     price: number;
   };

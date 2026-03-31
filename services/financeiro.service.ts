@@ -10,6 +10,78 @@ import type {
 } from '@/types/financeiro';
 import { assertAdmin } from '@/lib/authz';
 
+type RoleProtectedStudent = {
+  id: string;
+  linked_auth_user_id?: string | null;
+};
+
+async function fetchBillingProtectedStudentIds(
+  students: RoleProtectedStudent[],
+): Promise<Set<string>> {
+  const linkedAuthUserIds = Array.from(
+    new Set(
+      students
+        .map((student) => student.linked_auth_user_id?.trim() || '')
+        .filter(Boolean),
+    ),
+  );
+
+  if (linkedAuthUserIds.length === 0) {
+    return new Set();
+  }
+
+  const { data, error } = await supabase
+    .from(TABLES.USER_PROFILES)
+    .select('id, role')
+    .in('id', linkedAuthUserIds);
+
+  if (error) {
+    throw new Error(`Financeiro.rolesProtegidas: ${error.message}`);
+  }
+
+  const protectedAuthUserIds = new Set(
+    (data || [])
+      .filter((profile: any) => profile?.role === 'admin' || profile?.role === 'professor')
+      .map((profile: any) => profile.id),
+  );
+
+  return new Set(
+    students
+      .filter((student) => {
+        const authUserId = student.linked_auth_user_id?.trim() || '';
+        return authUserId && protectedAuthUserIds.has(authUserId);
+      })
+      .map((student) => student.id),
+  );
+}
+
+async function assertStudentCanReceiveBills(studentId: string): Promise<void> {
+  const { data, error } = await supabase
+    .from(TABLES.STUDENTS)
+    .select('id, linked_auth_user_id, name')
+    .eq('id', studentId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Financeiro.studentLookup: ${error.message}`);
+  }
+
+  if (!data?.id) {
+    throw new Error('Aluno nao encontrado para gerar boleto.');
+  }
+
+  const protectedStudentIds = await fetchBillingProtectedStudentIds([
+    {
+      id: data.id,
+      linked_auth_user_id: data.linked_auth_user_id,
+    },
+  ]);
+
+  if (protectedStudentIds.has(data.id)) {
+    throw new Error('Usuarios com role admin ou professor nao podem receber boletos.');
+  }
+}
+
 export async function fetchFinanceiroData() {
   const [pagamentosRes, boletosRes, alunosRes, planosRes] = await Promise.all([
     supabase
@@ -20,7 +92,7 @@ export async function fetchFinanceiroData() {
       .from(TABLES.BILLS)
       .select('id, student_id, amount, due_date, status, code, students(name)')
       .order('due_date', { ascending: false }),
-    supabase.from(TABLES.STUDENTS).select('id, name, due_day, plan_id'),
+    supabase.from(TABLES.STUDENTS).select('id, name, due_day, plan_id, linked_auth_user_id'),
     supabase.from(TABLES.PLANS).select('id, price'),
   ]);
 
@@ -41,11 +113,6 @@ export async function fetchFinanceiroData() {
   }
 
   const pagamentos: Pagamento[] = pagamentosRes.data || [];
-  const boletos: Boleto[] = (boletosRes.data as any[]).map((b) => ({
-    ...b,
-    students: b.students ? { name: b.students.name } : null,
-  }));
-
   const planPriceById = new Map<string, number>();
   (planosRes.data || []).forEach((plan: any) => {
     if (plan?.id) {
@@ -53,11 +120,28 @@ export async function fetchFinanceiroData() {
     }
   });
 
-  const alunos: FinanceiroStudent[] = (alunosRes.data as any[]).map((a: any) => ({
+  const billingProtectedStudentIds = await fetchBillingProtectedStudentIds(
+    ((alunosRes.data as any[]) || []).map((a: any) => ({
+      id: a.id,
+      linked_auth_user_id: a.linked_auth_user_id ?? null,
+    })),
+  );
+
+  const boletos: Boleto[] = ((boletosRes.data as any[]) || [])
+    .filter((b: any) => !billingProtectedStudentIds.has(b.student_id))
+    .map((b) => ({
+      ...b,
+      students: b.students ? { name: b.students.name } : null,
+    }));
+
+  const alunos: FinanceiroStudent[] = ((alunosRes.data as any[]) || [])
+    .filter((a: any) => !billingProtectedStudentIds.has(a.id))
+    .map((a: any) => ({
     id: a.id,
     name: a.name,
     due_day: a.due_day,
     plan_id: a.plan_id || undefined,
+    linked_auth_user_id: a.linked_auth_user_id ?? null,
     plans: a.plan_id ? { price: planPriceById.get(a.plan_id) || 0 } : undefined,
   }));
 
@@ -80,6 +164,7 @@ export async function createTransacao(data: PagamentoFormData): Promise<void> {
 
 export async function gerarBoleto(data: BoletoFormData): Promise<void> {
   await assertAdmin();
+  await assertStudentCanReceiveBills(data.student_id);
 
   const { error } = await supabase
     .from(TABLES.BILLS)
@@ -101,6 +186,7 @@ export async function gerar3Boletos(
   boletos: Boleto[]
 ): Promise<number> {
   await assertAdmin();
+  await assertStudentCanReceiveBills(studentId);
 
   const student = alunos.find((a) => a.id === studentId);
   if (!student) return 0;
@@ -150,6 +236,15 @@ export async function gerar3Boletos(
 export async function gerarBoletosEmLote(alunos: FinanceiroStudent[]): Promise<number> {
   await assertAdmin();
 
+  const billingProtectedStudentIds = await fetchBillingProtectedStudentIds(
+    alunos.map((student) => ({
+      id: student.id,
+      linked_auth_user_id: student.linked_auth_user_id ?? null,
+    })),
+  );
+
+  const billableStudents = alunos.filter((student) => !billingProtectedStudentIds.has(student.id));
+
   const now = new Date();
   const firstDayOfMonth = getLocalDateInputValue(new Date(now.getFullYear(), now.getMonth(), 1));
   const lastDayOfMonth = getLocalDateInputValue(new Date(now.getFullYear(), now.getMonth() + 1, 0));
@@ -165,7 +260,7 @@ export async function gerarBoletosEmLote(alunos: FinanceiroStudent[]): Promise<n
   }
 
   const studentsWithBills = new Set(existingBills?.map((b) => b.student_id) || []);
-  const studentsToBill = alunos.filter((a) => !studentsWithBills.has(a.id));
+  const studentsToBill = billableStudents.filter((a) => !studentsWithBills.has(a.id));
 
   if (studentsToBill.length === 0) return 0;
 
