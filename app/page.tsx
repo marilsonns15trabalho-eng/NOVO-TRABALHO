@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
 import { Activity, ArrowRight, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { useNativeApp } from '@/hooks/useNativeApp';
 import { openExternalUrl } from '@/lib/external-links';
 import { getDefaultRouteForRole } from '@/lib/navigation';
 
@@ -69,7 +69,6 @@ function LandingVisualPanel() {
 export default function LandingPage() {
   const { user, role, isReady } = useAuth();
   const router = useRouter();
-  const isNativeApp = useNativeApp();
 
   useEffect(() => {
     if (isReady && user && role) {
@@ -85,16 +84,7 @@ export default function LandingPage() {
     await openExternalUrl(INSTAGRAM_URL);
   };
 
-  const handleOpenLogin = () => {
-    if (isNativeApp && typeof window !== 'undefined') {
-      window.location.assign('/auth');
-      return;
-    }
-
-    router.push('/auth');
-  };
-
-  if (isNativeApp && !isReady) {
+  if (user && !isReady) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black text-white">
         <div className="flex flex-col items-center gap-4 rounded-[28px] border border-zinc-800 bg-zinc-950/90 px-6 py-8 shadow-[0_36px_120px_-70px_rgba(0,0,0,0.95)]">
@@ -120,19 +110,19 @@ export default function LandingPage() {
 
       <header className="sticky top-0 z-50 border-b border-white/5 bg-black/60 backdrop-blur-2xl">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-4 md:px-6">
-          <a href="/" className="text-left">
+          <Link href="/" className="text-left">
             <p className="text-2xl font-black uppercase tracking-[-0.04em] text-[#ff5a1f]">
               LIONESS
             </p>
-          </a>
+          </Link>
 
           <div className="flex w-full flex-wrap items-center justify-end gap-3 sm:w-auto">
-            <button
-              onClick={handleOpenLogin}
+            <Link
+              href="/auth"
               className="rounded-sm border border-white/12 px-5 py-3 text-xs font-bold uppercase tracking-[0.18em] text-white transition-all hover:border-white/20 hover:bg-white/5"
             >
               Fazer login
-            </button>
+            </Link>
             <a
               href={WHATSAPP_URL}
               target="_blank"
@@ -195,15 +185,6 @@ export default function LandingPage() {
               >
                 Conhecer o estudio
               </button>
-              {isNativeApp ? (
-                <button
-                  type="button"
-                  onClick={handleOpenLogin}
-                  className="inline-flex items-center justify-center rounded-sm border border-orange-500/20 bg-orange-500/10 px-8 py-4 text-sm font-black uppercase tracking-[0.08em] text-orange-200 transition-all hover:bg-orange-500 hover:text-black sm:hidden"
-                >
-                  Fazer login
-                </button>
-              ) : null}
             </div>
           </motion.div>
 
