@@ -1,29 +1,104 @@
 'use client';
-import React, { useState, useMemo } from 'react';
-import { 
-  DollarSign, 
-  TrendingUp, 
-  TrendingDown, 
-  Plus, 
-  Loader2,
-  CheckCircle2,
-  Clock,
+
+import React, { useMemo, useState } from 'react';
+import {
   AlertCircle,
+  CheckCircle2,
+  DollarSign,
   Download,
+  FileText,
+  Loader2,
+  Plus,
   RefreshCw,
-  FileText
+  TrendingDown,
+  TrendingUp,
+  Wallet,
+  X,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { jsPDF } from 'jspdf';
+import { Toast } from '@/components/ui';
 import { useFinanceiro } from '@/hooks/useFinanceiro';
 import { compareDateOnly, formatDatePtBr } from '@/lib/date';
-import type { Boleto } from '@/types/financeiro';
+import type { AlunoBoletos, Boleto } from '@/types/financeiro';
 import {
+  ModuleEmptyState,
   ModuleHero,
   ModuleHeroAction,
+  ModuleSectionHeading,
   ModuleShell,
   ModuleStatCard,
+  ModuleSurface,
 } from '@/components/dashboard/ModulePrimitives';
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(value);
+}
+
+function StatusBadge({ status }: { status: Boleto['status'] }) {
+  const styles =
+    status === 'paid'
+      ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
+      : status === 'late'
+        ? 'border-rose-500/20 bg-rose-500/10 text-rose-300'
+        : 'border-amber-500/20 bg-amber-500/10 text-amber-300';
+
+  const label = status === 'paid' ? 'Pago' : status === 'late' ? 'Atrasado' : 'Pendente';
+
+  return (
+    <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] ${styles}`}>
+      {label}
+    </span>
+  );
+}
+
+function ModalFrame({
+  title,
+  onClose,
+  children,
+  widthClass = 'max-w-2xl',
+}: {
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+  widthClass?: string;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+      />
+      <motion.div
+        initial={{ scale: 0.96, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.96, opacity: 0, y: 20 }}
+        className={`relative max-h-[94vh] w-full ${widthClass} overflow-y-auto rounded-[30px] border border-zinc-800 bg-zinc-950 p-4 shadow-2xl sm:p-5 md:p-8`}
+      >
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 flex-1">
+            <h3 className="text-2xl font-bold text-white">{title}</h3>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900 p-3 text-zinc-400 transition-all hover:border-zinc-700 hover:bg-zinc-800 hover:text-white"
+            aria-label="Fechar"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <div className="mt-5 sm:mt-6">{children}</div>
+      </motion.div>
+    </div>
+  );
+}
 
 export default function FinanceiroModule() {
   const {
@@ -53,24 +128,30 @@ export default function FinanceiroModule() {
     clearNotification,
   } = useFinanceiro();
 
-  // Estado local de UI (não afeta dados)
   const [activeTab, setActiveTab] = useState<'geral' | 'alunos'>('geral');
   const [batchLoading, setBatchLoading] = useState(false);
   const [showConfirmLote, setShowConfirmLote] = useState(false);
   const [boletoToPay, setBoletoToPay] = useState<Boleto | null>(null);
-  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [selectedStudent, setSelectedStudent] = useState<AlunoBoletos | null>(null);
 
-  // Agrupar boletos por aluno
-  const boletosPorAluno = useMemo(() => alunos.map(aluno => {
-    const studentBoletos = boletos.filter(b => b.student_id === aluno.id);
-    const sorted = [...studentBoletos].sort((a, b) => compareDateOnly(a.due_date, b.due_date));
-    const pendingOrLate = sorted.find(b => b.status === 'pending' || b.status === 'late');
-    const displayBoleto = pendingOrLate || sorted[sorted.length - 1];
-    return { ...aluno, boletos: studentBoletos, displayBoleto };
-  }), [alunos, boletos]);
+  const boletosPorAluno = useMemo<AlunoBoletos[]>(
+    () =>
+      alunos.map((aluno) => {
+        const studentBoletos = boletos.filter((boleto) => boleto.student_id === aluno.id);
+        const sorted = [...studentBoletos].sort((a, b) => compareDateOnly(a.due_date, b.due_date));
+        const pendingOrLate = sorted.find((boleto) => boleto.status === 'pending' || boleto.status === 'late');
+        const displayBoleto = pendingOrLate || sorted[sorted.length - 1];
+        return { ...aluno, boletos: studentBoletos, displayBoleto };
+      }),
+    [alunos, boletos],
+  );
 
-  const totalReceitas = pagamentos.filter(p => p.tipo === 'receita' && p.status === 'pago').reduce((acc, curr) => acc + curr.valor, 0);
-  const totalDespesas = pagamentos.filter(p => p.tipo === 'despesa' && p.status === 'pago').reduce((acc, curr) => acc + curr.valor, 0);
+  const totalReceitas = pagamentos
+    .filter((pagamento) => pagamento.tipo === 'receita' && pagamento.status === 'pago')
+    .reduce((acc, current) => acc + current.valor, 0);
+  const totalDespesas = pagamentos
+    .filter((pagamento) => pagamento.tipo === 'despesa' && pagamento.status === 'pago')
+    .reduce((acc, current) => acc + current.valor, 0);
   const saldo = totalReceitas - totalDespesas;
 
   const generatePDF = (boleto: Boleto) => {
@@ -79,9 +160,9 @@ export default function FinanceiroModule() {
     doc.text('Boleto de Pagamento', 20, 20);
     doc.setFontSize(12);
     doc.text(`Aluno: ${boleto.students?.name || 'N/A'}`, 20, 40);
-    doc.text(`Valor: R$ ${boleto.amount.toFixed(2)}`, 20, 50);
+    doc.text(`Valor: ${formatCurrency(boleto.amount)}`, 20, 50);
     doc.text(`Vencimento: ${formatDatePtBr(boleto.due_date)}`, 20, 60);
-    doc.text(`Código: ${boleto.code}`, 20, 70);
+    doc.text(`Codigo: ${boleto.code}`, 20, 70);
     doc.save(`boleto_${boleto.code}.pdf`);
   };
 
@@ -93,14 +174,16 @@ export default function FinanceiroModule() {
   };
 
   const onDarBaixa = async () => {
-    if (!boletoToPay) return;
+    if (!boletoToPay) {
+      return;
+    }
     await handleDarBaixa(boletoToPay);
     setBoletoToPay(null);
   };
 
   if (loading) {
     return (
-      <div className="p-8 flex items-center justify-center min-h-screen bg-black">
+      <div className="flex min-h-screen items-center justify-center bg-black p-8">
         <Loader2 className="animate-spin text-emerald-500" size={40} />
       </div>
     );
@@ -125,10 +208,10 @@ export default function FinanceiroModule() {
 
   return (
     <ModuleShell>
-      {error && (
-        <div className="flex items-center justify-between gap-4 rounded-3xl border border-rose-500/20 bg-rose-500/10 p-5">
+      {error ? (
+        <div className="flex flex-col gap-3 rounded-3xl border border-rose-500/20 bg-rose-500/10 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="font-bold text-rose-400">Falha ao carregar o financeiro</p>
+            <p className="font-bold text-rose-400">Falha ao atualizar o financeiro</p>
             <p className="text-sm text-zinc-300">{error}</p>
           </div>
           <button
@@ -138,42 +221,17 @@ export default function FinanceiroModule() {
             Tentar novamente
           </button>
         </div>
-      )}
-
-      <div className="lioness-toolbar flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Financeiro Completo</h2>
-          <p className="text-zinc-500">Gestão de transações e boletos.</p>
-        </div>
-        <div className="lioness-toolbar flex gap-3">
-          <button 
-            onClick={() => setShowConfirmLote(true)} 
-            disabled={batchLoading}
-            className="flex items-center gap-2 rounded-2xl bg-zinc-800 px-4 py-2.5 text-sm font-bold text-white transition-all hover:bg-zinc-700 disabled:opacity-50"
-          >
-            {batchLoading ? <Loader2 className="animate-spin" size={20} /> : <RefreshCw size={20} />}
-            Gerar em Lote
-          </button>
-          <button onClick={() => setShowBoletoModal(true)} className="flex items-center gap-2 rounded-2xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-black transition-all hover:bg-amber-600">
-            <FileText size={20} />
-            Gerar Boleto
-          </button>
-          <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 rounded-2xl bg-emerald-500 px-4 py-2.5 text-sm font-bold text-black transition-all hover:bg-emerald-600">
-            <Plus size={20} />
-            Nova Transação
-          </button>
-        </div>
-      </div>
+      ) : null}
 
       <ModuleHero
         badge="Operacao financeira"
         title="Receitas, despesas e cobrancas"
-        description="Visao do caixa, lancamentos e boletos do periodo."
+        description="Acompanhe o caixa, os boletos e a situacao financeira das alunas sem espalhar informacoes pela tela."
         accent="emerald"
         chips={[
-          { label: 'Receitas', value: `R$ ${totalReceitas.toFixed(2)}` },
-          { label: 'Despesas', value: `R$ ${totalDespesas.toFixed(2)}` },
-          { label: 'Saldo', value: `R$ ${saldo.toFixed(2)}` },
+          { label: 'Receitas', value: formatCurrency(totalReceitas) },
+          { label: 'Despesas', value: formatCurrency(totalDespesas) },
+          { label: 'Saldo', value: formatCurrency(saldo) },
           { label: 'Boletos', value: String(boletos.length) },
         ]}
         actions={
@@ -188,7 +246,7 @@ export default function FinanceiroModule() {
             />
             <ModuleHeroAction
               label="Gerar boleto"
-              subtitle="Abrir cobranca individual para um aluno."
+              subtitle="Abrir cobranca individual para uma aluna."
               icon={FileText}
               accent="amber"
               filled
@@ -196,7 +254,7 @@ export default function FinanceiroModule() {
             />
             <ModuleHeroAction
               label="Nova transacao"
-              subtitle="Registrar uma nova entrada ou saida."
+              subtitle="Registrar entrada ou saida manual."
               icon={Plus}
               accent="emerald"
               filled
@@ -209,392 +267,504 @@ export default function FinanceiroModule() {
       <div className="grid gap-4 lg:grid-cols-3">
         <ModuleStatCard
           label="Receitas pagas"
-          value={`R$ ${totalReceitas.toFixed(2)}`}
+          value={formatCurrency(totalReceitas)}
           detail="Entradas liquidadas consideradas no consolidado atual."
           icon={TrendingUp}
           accent="emerald"
         />
         <ModuleStatCard
           label="Despesas pagas"
-          value={`R$ ${totalDespesas.toFixed(2)}`}
+          value={formatCurrency(totalDespesas)}
           detail="Saidas pagas consideradas no fechamento do periodo."
           icon={TrendingDown}
           accent="rose"
         />
         <ModuleStatCard
           label="Saldo atual"
-          value={`R$ ${saldo.toFixed(2)}`}
+          value={formatCurrency(saldo)}
           detail="Resultado liquido entre receitas e despesas registradas."
-          icon={DollarSign}
+          icon={Wallet}
           accent="amber"
         />
       </div>
 
-      {/* Modal de Boleto */}
-      <AnimatePresence>
-        {showBoletoModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setShowBoletoModal(false)}
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative bg-zinc-900 border border-zinc-800 rounded-3xl p-8 w-full max-w-2xl shadow-2xl"
-            >
-              <h3 className="text-2xl font-bold mb-6">Gerar Novo Boleto</h3>
-              <form onSubmit={(e) => { e.preventDefault(); handleGerarBoleto(); }} className="space-y-6">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Aluno *</label>
-                  <select 
-                    required 
-                    value={newBoleto.student_id} 
-                    onChange={(e) => setNewBoleto({ ...newBoleto, student_id: e.target.value })}
-                    className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 outline-none transition-all"
-                  >
-                    <option value="">Selecione um aluno...</option>
-                    {alunos.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Valor (R$) *</label>
-                    <input required type="number" step="0.01" value={newBoleto.amount || ''} onChange={(e) => setNewBoleto({...newBoleto, amount: parseFloat(e.target.value)})} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 outline-none transition-all" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Vencimento *</label>
-                    <input required type="date" value={newBoleto.due_date || ''} onChange={(e) => setNewBoleto({...newBoleto, due_date: e.target.value})} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 outline-none transition-all [color-scheme:dark]" />
-                  </div>
-                </div>
-                <div className="flex gap-3 pt-4">
-                  <button type="button" onClick={() => setShowBoletoModal(false)} className="flex-1 py-4 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-2xl transition-all">Cancelar</button>
-                  <button type="submit" className="flex-1 py-4 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-2xl transition-all shadow-lg shadow-amber-500/20">Gerar Boleto</button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <ModuleSurface className="space-y-5">
+        <ModuleSectionHeading
+          eyebrow="Controle financeiro"
+          title="Lancamentos e cobrancas"
+          description="Alterne entre a visao geral e a leitura por aluna sem repetir blocos ou ocupar a tela com informacoes duplicadas."
+        />
 
-      {/* Cabeçalho e Abas */}
-      <div className="flex items-center justify-between mb-8">
-        <h2 className="text-3xl font-bold">Financeiro</h2>
-        <div className="flex bg-zinc-900 border border-zinc-800 rounded-2xl p-1">
-          <button onClick={() => setActiveTab('geral')} className={`px-6 py-2 rounded-xl font-bold transition-all ${activeTab === 'geral' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white'}`}>Geral</button>
-          <button onClick={() => setActiveTab('alunos')} className={`px-6 py-2 rounded-xl font-bold transition-all ${activeTab === 'alunos' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white'}`}>Por Aluno</button>
-        </div>
-      </div>
-
-      {activeTab === 'geral' ? (
-        <>
-          {/* Cards de Resumo */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl">
-              <p className="text-zinc-500 text-sm font-medium mb-1">Receitas (Pagas)</p>
-              <h3 className="text-3xl font-bold text-emerald-500">R$ {totalReceitas.toFixed(2)}</h3>
-            </div>
-            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl">
-              <p className="text-zinc-500 text-sm font-medium mb-1">Despesas (Pagas)</p>
-              <h3 className="text-3xl font-bold text-rose-500">R$ {totalDespesas.toFixed(2)}</h3>
-            </div>
-            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl">
-              <p className="text-zinc-500 text-sm font-medium mb-1">Saldo Atual</p>
-              <h3 className="text-3xl font-bold text-white">R$ {saldo.toFixed(2)}</h3>
-            </div>
-          </div>
-
-          {/* Tabelas */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Transações */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden">
-              <h3 className="p-6 text-xl font-bold border-b border-zinc-800">Transações</h3>
-              <table className="w-full text-left">
-                <tbody className="divide-y divide-zinc-800">
-                  {pagamentos.map(p => (
-                    <tr key={p.id}>
-                      <td className="px-6 py-4">{p.descricao}</td>
-                      <td className="px-6 py-4 font-mono">R$ {p.valor.toFixed(2)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {/* Boletos */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden">
-              <h3 className="p-6 text-xl font-bold border-b border-zinc-800">Boletos</h3>
-              <table className="w-full text-left">
-                <tbody className="divide-y divide-zinc-800">
-                  {boletos.map(b => (
-                    <tr key={b.id} className="group hover:bg-zinc-800/30 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col">
-                          <span className="font-bold">{b.students?.name || 'N/A'}</span>
-                          <span className="text-[10px] text-zinc-500 uppercase tracking-tighter">Venc: {formatDatePtBr(b.due_date)}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col">
-                          <span className="font-mono font-bold">R$ {b.amount.toFixed(2)}</span>
-                          <span className={`text-[10px] font-bold uppercase ${
-                            b.status === 'paid' ? 'text-emerald-500' : 
-                            b.status === 'late' ? 'text-rose-500' : 'text-amber-500'
-                          }`}>
-                            {b.status === 'paid' ? 'Pago' : b.status === 'late' ? 'Atrasado' : 'Pendente'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {b.status !== 'paid' && (
-                            <button 
-                              onClick={() => setBoletoToPay(b)}
-                              className="p-2 text-zinc-500 hover:text-emerald-500 transition-colors"
-                              title="Dar Baixa (Pago)"
-                            >
-                              <CheckCircle2 size={18} />
-                            </button>
-                          )}
-                          <button onClick={() => generatePDF(b)} className="p-2 text-zinc-500 hover:text-white transition-colors" title="Download PDF">
-                            <Download size={18} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </>
-      ) : (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden">
-          <h3 className="p-6 text-xl font-bold border-b border-zinc-800">Financeiro por Aluno</h3>
-          <table className="w-full text-left">
-            <thead className="bg-zinc-950 text-zinc-500 text-xs uppercase tracking-widest">
-              <tr>
-                <th className="px-6 py-4">Aluno</th>
-                <th className="px-6 py-4">Boletos</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-800">
-              {boletosPorAluno.map(aluno => (
-                <tr key={aluno.id}>
-                  <td className="px-6 py-4 font-bold cursor-pointer hover:text-amber-500 transition-colors" onClick={() => setSelectedStudent(aluno)}>{aluno.name}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-wrap gap-2">
-                      {aluno.displayBoleto ? (
-                        <div className="bg-zinc-800 px-3 py-1 rounded-lg flex items-center gap-2 text-xs">
-                          <span className="font-mono">R$ {aluno.displayBoleto.amount.toFixed(2)}</span>
-                          <span className={`font-bold uppercase ${
-                            aluno.displayBoleto.status === 'paid' ? 'text-emerald-500' : 
-                            aluno.displayBoleto.status === 'late' ? 'text-rose-500' : 'text-amber-500'
-                          }`}>
-                            {aluno.displayBoleto.status === 'paid' ? 'Pago' : aluno.displayBoleto.status === 'late' ? 'Atrasado' : 'Pendente'}
-                          </span>
-                        </div>
-                      ) : <span className="text-zinc-600 text-xs">Sem boletos</span>}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      
-      {/* Modal de Detalhes do Aluno */}
-      <AnimatePresence>
-        {selectedStudent && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setSelectedStudent(null)}
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative bg-zinc-900 border border-zinc-800 rounded-3xl p-8 w-full max-w-4xl shadow-2xl max-h-[90vh] overflow-y-auto"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-2xl font-bold">{selectedStudent.name}</h3>
-                <button onClick={() => handleGerar3Boletos(selectedStudent.id)} className="bg-amber-500 hover:bg-amber-600 text-black font-bold py-2 px-4 rounded-xl transition-all">Gerar 3 Boletos</button>
-              </div>
-              
-              <table className="w-full text-left">
-                <thead className="bg-zinc-950 text-zinc-500 text-xs uppercase tracking-widest">
-                  <tr>
-                    <th className="px-4 py-3">Vencimento</th>
-                    <th className="px-4 py-3">Valor</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-800">
-                  {selectedStudent.boletos.map((b: any) => (
-                    <tr key={b.id}>
-                      <td className="px-4 py-3 font-mono">{formatDatePtBr(b.due_date)}</td>
-                      <td className="px-4 py-3 font-mono">R$ {b.amount.toFixed(2)}</td>
-                      <td className="px-4 py-3">
-                        <span className={`font-bold uppercase text-xs ${
-                          b.status === 'paid' ? 'text-emerald-500' : 
-                          b.status === 'late' ? 'text-rose-500' : 'text-amber-500'
-                        }`}>
-                          {b.status === 'paid' ? 'Pago' : b.status === 'late' ? 'Atrasado' : 'Pendente'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 flex gap-2">
-                        {b.status !== 'paid' && (
-                          <button onClick={() => setBoletoToPay(b)} className="text-emerald-500 hover:text-emerald-400 font-bold text-xs">Dar Baixa</button>
-                        )}
-                        <button onClick={() => setDeleteConfirmation(b.id)} className="text-rose-500 hover:text-rose-400 font-bold text-xs">Excluir</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="mt-6">
-                <button onClick={() => setSelectedStudent(null)} className="w-full py-4 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-2xl transition-all">Fechar</button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Modal de Transação */}
-      <AnimatePresence>
-        {showAddModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setShowAddModal(false)}
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative bg-zinc-900 border border-zinc-800 rounded-3xl p-8 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto"
-            >
-              <h3 className="text-2xl font-bold mb-6">Nova Transação</h3>
-              <form onSubmit={(e) => { e.preventDefault(); handleCreateTransacao(); }} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1.5 md:col-span-2">
-                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Descrição *</label>
-                    <input required type="text" value={newPagamento.descricao || ''} onChange={(e) => setNewPagamento({...newPagamento, descricao: e.target.value})} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Valor (R$) *</label>
-                    <input required type="number" step="0.01" value={newPagamento.valor || ''} onChange={(e) => setNewPagamento({...newPagamento, valor: parseFloat(e.target.value)})} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Vencimento *</label>
-                    <input required type="date" value={newPagamento.data_vencimento || ''} onChange={(e) => setNewPagamento({...newPagamento, data_vencimento: e.target.value})} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all [color-scheme:dark]" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Tipo *</label>
-                    <select value={newPagamento.tipo || 'receita'} onChange={(e) => setNewPagamento({...newPagamento, tipo: e.target.value as any})} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all">
-                      <option value="receita">Receita</option>
-                      <option value="despesa">Despesa</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Status *</label>
-                    <select value={newPagamento.status || 'pendente'} onChange={(e) => setNewPagamento({...newPagamento, status: e.target.value as any})} className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all">
-                      <option value="pendente">Pendente</option>
-                      <option value="pago">Pago</option>
-                      <option value="vencido">Vencido</option>
-                      <option value="atrasado">Atrasado</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="flex gap-3 pt-4">
-                  <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-4 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-2xl transition-all">Cancelar</button>
-                  <button type="submit" className="flex-1 py-4 bg-emerald-500 hover:bg-emerald-600 text-black font-bold rounded-2xl transition-all shadow-lg shadow-emerald-500/20">Salvar</button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Modal de Confirmação Lote */}
-      <AnimatePresence>
-        {showConfirmLote && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowConfirmLote(false)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-zinc-900 border border-zinc-800 rounded-3xl p-8 w-full max-w-md shadow-2xl text-center">
-              <div className="w-16 h-16 bg-amber-500/10 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                <RefreshCw size={32} />
-              </div>
-              <h3 className="text-2xl font-bold mb-2">Gerar em Lote?</h3>
-              <p className="text-zinc-400 mb-8">O sistema irá gerar boletos para todos os alunos que ainda não possuem cobrança neste mês.</p>
-              <div className="flex gap-3">
-                <button onClick={() => setShowConfirmLote(false)} className="flex-1 py-4 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-2xl transition-all">Cancelar</button>
-                <button onClick={onGerarLote} className="flex-1 py-4 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-2xl transition-all">Confirmar</button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Modal de Baixa Manual */}
-      <AnimatePresence>
-        {boletoToPay && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setBoletoToPay(null)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-zinc-900 border border-zinc-800 rounded-3xl p-8 w-full max-w-md shadow-2xl text-center">
-              <div className="w-16 h-16 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                <CheckCircle2 size={32} />
-              </div>
-              <h3 className="text-2xl font-bold mb-2">Confirmar Baixa?</h3>
-              <p className="text-zinc-400 mb-1">Deseja confirmar o recebimento de:</p>
-              <p className="text-xl font-bold text-white mb-8">R$ {boletoToPay.amount.toFixed(2)} - {boletoToPay.students?.name}</p>
-              <div className="flex gap-3">
-                <button onClick={() => setBoletoToPay(null)} className="flex-1 py-4 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-2xl transition-all">Cancelar</button>
-                <button onClick={onDarBaixa} className="flex-1 py-4 bg-emerald-500 hover:bg-emerald-600 text-black font-bold rounded-2xl transition-all">Confirmar</button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Notificações (Toast) — posição original: bottom-right */}
-      <AnimatePresence>
-        {notification && (
-          <motion.div 
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 50 }}
-            className={`fixed bottom-8 right-8 z-[100] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border ${
-              notification.type === 'success' 
-                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' 
-                : 'bg-rose-500/10 border-rose-500/20 text-rose-500'
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={() => setActiveTab('geral')}
+            className={`rounded-2xl px-5 py-3 text-sm font-bold transition-all ${
+              activeTab === 'geral'
+                ? 'bg-zinc-100 text-zinc-950'
+                : 'border border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-700 hover:text-white'
             }`}
           >
-            {notification.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
-            <span className="font-bold">{notification.message}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            Visao geral
+          </button>
+          <button
+            onClick={() => setActiveTab('alunos')}
+            className={`rounded-2xl px-5 py-3 text-sm font-bold transition-all ${
+              activeTab === 'alunos'
+                ? 'bg-zinc-100 text-zinc-950'
+                : 'border border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-700 hover:text-white'
+            }`}
+          >
+            Por aluna
+          </button>
+        </div>
 
-      {/* Modal de Confirmação Exclusão */}
-      <AnimatePresence>
-        {deleteConfirmation && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setDeleteConfirmation(null)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-zinc-900 border border-zinc-800 rounded-3xl p-8 w-full max-w-md shadow-2xl text-center">
-              <div className="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                <AlertCircle size={32} />
+        {activeTab === 'geral' ? (
+          <div className="grid gap-6 xl:grid-cols-2">
+            <div className="overflow-hidden rounded-[26px] border border-zinc-800 bg-zinc-950/70">
+              <div className="border-b border-zinc-800 px-5 py-4">
+                <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-500">Lancamentos</p>
+                <h3 className="mt-2 text-lg font-bold text-white">Transacoes registradas</h3>
               </div>
-              <h3 className="text-2xl font-bold mb-2">Excluir Boleto?</h3>
-              <p className="text-zinc-400 mb-8">Esta ação não pode ser desfeita. Deseja realmente excluir este boleto?</p>
-              <div className="flex gap-3">
-                <button onClick={() => setDeleteConfirmation(null)} className="flex-1 py-4 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-2xl transition-all">Cancelar</button>
-                <button onClick={handleExcluirBoleto} className="flex-1 py-4 bg-rose-500 hover:bg-rose-600 text-black font-bold rounded-2xl transition-all">Excluir</button>
+              {pagamentos.length > 0 ? (
+                <div className="divide-y divide-zinc-800">
+                  {pagamentos.map((pagamento) => (
+                    <div key={pagamento.id} className="grid gap-3 px-5 py-4 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center">
+                      <div className="min-w-0">
+                        <p className="truncate font-bold text-white">{pagamento.descricao}</p>
+                        <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">
+                          {formatDatePtBr(pagamento.data_vencimento)} • {pagamento.tipo}
+                        </p>
+                      </div>
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] ${
+                          pagamento.status === 'pago'
+                            ? 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
+                            : 'border border-zinc-800 bg-zinc-900 text-zinc-400'
+                        }`}
+                      >
+                        {pagamento.status}
+                      </span>
+                      <p className="font-mono text-sm font-bold text-white">{formatCurrency(pagamento.valor)}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <ModuleEmptyState
+                  icon={DollarSign}
+                  title="Nenhuma transacao registrada"
+                  description="Use nova transacao para registrar uma entrada ou uma despesa manual."
+                />
+              )}
+            </div>
+
+            <div className="overflow-hidden rounded-[26px] border border-zinc-800 bg-zinc-950/70">
+              <div className="border-b border-zinc-800 px-5 py-4">
+                <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-500">Cobrancas</p>
+                <h3 className="mt-2 text-lg font-bold text-white">Boletos emitidos</h3>
               </div>
-            </motion.div>
+              {boletos.length > 0 ? (
+                <div className="divide-y divide-zinc-800">
+                  {boletos.map((boleto) => (
+                    <div key={boleto.id} className="grid gap-3 px-5 py-4 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center">
+                      <div className="min-w-0">
+                        <p className="truncate font-bold text-white">{boleto.students?.name || 'Sem nome'}</p>
+                        <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">
+                          Vence em {formatDatePtBr(boleto.due_date)}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <StatusBadge status={boleto.status} />
+                        <span className="font-mono text-sm font-bold text-white">{formatCurrency(boleto.amount)}</span>
+                      </div>
+                      <div className="flex items-center gap-2 sm:justify-end">
+                        {boleto.status !== 'paid' ? (
+                          <button
+                            onClick={() => setBoletoToPay(boleto)}
+                            className="inline-flex items-center gap-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-300 transition-all hover:bg-emerald-500 hover:text-black"
+                          >
+                            <CheckCircle2 size={15} />
+                            Dar baixa
+                          </button>
+                        ) : null}
+                        <button
+                          onClick={() => generatePDF(boleto)}
+                          className="inline-flex items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs font-bold text-white transition-all hover:border-zinc-700"
+                        >
+                          <Download size={15} />
+                          PDF
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <ModuleEmptyState
+                  icon={FileText}
+                  title="Nenhum boleto emitido"
+                  description="Gere um boleto individual ou em lote para começar a acompanhar as cobrancas."
+                />
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-[26px] border border-zinc-800 bg-zinc-950/70">
+            <div className="border-b border-zinc-800 px-5 py-4">
+              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-500">Leitura por aluna</p>
+              <h3 className="mt-2 text-lg font-bold text-white">Financeiro individual</h3>
+            </div>
+            {boletosPorAluno.length > 0 ? (
+              <div className="divide-y divide-zinc-800">
+                {boletosPorAluno.map((aluno) => (
+                  <button
+                    key={aluno.id}
+                    type="button"
+                    onClick={() => setSelectedStudent(aluno)}
+                    className="grid w-full gap-3 px-5 py-4 text-left transition-all hover:bg-zinc-900/70 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-bold text-white">{aluno.name}</p>
+                      <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">
+                        {aluno.boletos.length > 0 ? `${aluno.boletos.length} boletos no historico` : 'Sem boletos'}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                      {aluno.displayBoleto ? (
+                        <>
+                          <StatusBadge status={aluno.displayBoleto.status} />
+                          <span className="font-mono text-sm font-bold text-white">
+                            {formatCurrency(aluno.displayBoleto.amount)}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-sm text-zinc-500">Sem cobranca ativa</span>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <ModuleEmptyState
+                icon={Wallet}
+                title="Nenhuma aluna encontrada"
+                description="Ainda nao ha dados financeiros suficientes para montar a visao individual."
+              />
+            )}
           </div>
         )}
+      </ModuleSurface>
+
+      <AnimatePresence>
+        {showBoletoModal ? (
+          <ModalFrame title="Gerar boleto" onClose={() => setShowBoletoModal(false)}>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleGerarBoleto();
+              }}
+              className="space-y-6"
+            >
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Aluna *</label>
+                <select
+                  required
+                  value={newBoleto.student_id}
+                  onChange={(e) => setNewBoleto({ ...newBoleto, student_id: e.target.value })}
+                  className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-amber-500 focus:ring-2 focus:ring-amber-500/30"
+                >
+                  <option value="">Selecione uma aluna...</option>
+                  {alunos.map((aluna) => (
+                    <option key={aluna.id} value={aluna.id}>
+                      {aluna.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Valor (R$) *</label>
+                  <input
+                    required
+                    type="number"
+                    step="0.01"
+                    value={newBoleto.amount || ''}
+                    onChange={(e) => setNewBoleto({ ...newBoleto, amount: parseFloat(e.target.value) })}
+                    className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-amber-500 focus:ring-2 focus:ring-amber-500/30"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Vencimento *</label>
+                  <input
+                    required
+                    type="date"
+                    value={newBoleto.due_date || ''}
+                    onChange={(e) => setNewBoleto({ ...newBoleto, due_date: e.target.value })}
+                    className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-amber-500 focus:ring-2 focus:ring-amber-500/30 [color-scheme:dark]"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col-reverse gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => setShowBoletoModal(false)}
+                  className="w-full flex-1 rounded-2xl bg-zinc-800 py-4 font-bold text-white transition-all hover:bg-zinc-700"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="w-full flex-1 rounded-2xl bg-amber-500 py-4 font-bold text-black transition-all hover:bg-amber-400"
+                >
+                  Gerar boleto
+                </button>
+              </div>
+            </form>
+          </ModalFrame>
+        ) : null}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {selectedStudent ? (
+          <ModalFrame title={selectedStudent.name} onClose={() => setSelectedStudent(null)} widthClass="max-w-4xl">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-zinc-500">
+                Consulte os boletos da aluna e gere novas cobrancas quando precisar.
+              </p>
+              <button
+                onClick={() => handleGerar3Boletos(selectedStudent.id)}
+                className="inline-flex items-center justify-center rounded-2xl bg-amber-500 px-4 py-3 text-sm font-bold text-black transition-all hover:bg-amber-400"
+              >
+                Gerar 3 boletos
+              </button>
+            </div>
+
+            <div className="mt-6 overflow-hidden rounded-[24px] border border-zinc-800">
+              <div className="hidden grid-cols-[130px_120px_120px_auto] gap-3 border-b border-zinc-800 bg-zinc-950 px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500 md:grid">
+                <span>Vencimento</span>
+                <span>Valor</span>
+                <span>Status</span>
+                <span>Acoes</span>
+              </div>
+              {selectedStudent.boletos.length > 0 ? (
+                <div className="divide-y divide-zinc-800">
+                  {selectedStudent.boletos.map((boleto) => (
+                    <div key={boleto.id} className="grid gap-3 px-4 py-4 md:grid-cols-[130px_120px_120px_auto] md:items-center">
+                      <div className="font-mono text-sm text-white">{formatDatePtBr(boleto.due_date)}</div>
+                      <div className="font-mono text-sm text-white">{formatCurrency(boleto.amount)}</div>
+                      <div>
+                        <StatusBadge status={boleto.status} />
+                      </div>
+                      <div className="flex flex-wrap gap-2 md:justify-end">
+                        {boleto.status !== 'paid' ? (
+                          <button
+                            onClick={() => setBoletoToPay(boleto)}
+                            className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-300 transition-all hover:bg-emerald-500 hover:text-black"
+                          >
+                            Dar baixa
+                          </button>
+                        ) : null}
+                        <button
+                          onClick={() => setDeleteConfirmation(boleto.id)}
+                          className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs font-bold text-rose-300 transition-all hover:bg-rose-500 hover:text-white"
+                        >
+                          Excluir
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <ModuleEmptyState
+                  icon={FileText}
+                  title="Sem boletos para esta aluna"
+                  description="Gere uma cobranca individual ou um pacote de boletos para iniciar o historico."
+                />
+              )}
+            </div>
+          </ModalFrame>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showAddModal ? (
+          <ModalFrame title="Nova transacao" onClose={() => setShowAddModal(false)}>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleCreateTransacao();
+              }}
+              className="space-y-6"
+            >
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Descricao *</label>
+                  <input
+                    required
+                    type="text"
+                    value={newPagamento.descricao || ''}
+                    onChange={(e) => setNewPagamento({ ...newPagamento, descricao: e.target.value })}
+                    className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Valor (R$) *</label>
+                  <input
+                    required
+                    type="number"
+                    step="0.01"
+                    value={newPagamento.valor || ''}
+                    onChange={(e) => setNewPagamento({ ...newPagamento, valor: parseFloat(e.target.value) })}
+                    className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Vencimento *</label>
+                  <input
+                    required
+                    type="date"
+                    value={newPagamento.data_vencimento || ''}
+                    onChange={(e) => setNewPagamento({ ...newPagamento, data_vencimento: e.target.value })}
+                    className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30 [color-scheme:dark]"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Tipo *</label>
+                  <select
+                    value={newPagamento.tipo || 'receita'}
+                    onChange={(e) => setNewPagamento({ ...newPagamento, tipo: e.target.value as typeof newPagamento.tipo })}
+                    className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30"
+                  >
+                    <option value="receita">Receita</option>
+                    <option value="despesa">Despesa</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Status *</label>
+                  <select
+                    value={newPagamento.status || 'pendente'}
+                    onChange={(e) => setNewPagamento({ ...newPagamento, status: e.target.value as typeof newPagamento.status })}
+                    className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30"
+                  >
+                    <option value="pendente">Pendente</option>
+                    <option value="pago">Pago</option>
+                    <option value="vencido">Vencido</option>
+                    <option value="atrasado">Atrasado</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex flex-col-reverse gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="w-full flex-1 rounded-2xl bg-zinc-800 py-4 font-bold text-white transition-all hover:bg-zinc-700"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="w-full flex-1 rounded-2xl bg-emerald-500 py-4 font-bold text-black transition-all hover:bg-emerald-400"
+                >
+                  Salvar transacao
+                </button>
+              </div>
+            </form>
+          </ModalFrame>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showConfirmLote ? (
+          <ModalFrame title="Gerar em lote" onClose={() => setShowConfirmLote(false)} widthClass="max-w-md">
+            <div className="space-y-6 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-500/10 text-amber-400">
+                <RefreshCw size={30} />
+              </div>
+              <p className="text-sm leading-7 text-zinc-400">
+                O sistema vai gerar boletos para as alunas que ainda nao possuem cobranca neste mes.
+              </p>
+              <div className="flex flex-col-reverse gap-3 sm:flex-row">
+                <button
+                  onClick={() => setShowConfirmLote(false)}
+                  className="w-full flex-1 rounded-2xl bg-zinc-800 py-4 font-bold text-white transition-all hover:bg-zinc-700"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={onGerarLote}
+                  className="w-full flex-1 rounded-2xl bg-amber-500 py-4 font-bold text-black transition-all hover:bg-amber-400"
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          </ModalFrame>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {boletoToPay ? (
+          <ModalFrame title="Confirmar baixa" onClose={() => setBoletoToPay(null)} widthClass="max-w-md">
+            <div className="space-y-6 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400">
+                <CheckCircle2 size={30} />
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm leading-7 text-zinc-400">Confirme o recebimento deste boleto.</p>
+                <p className="text-xl font-bold text-white">
+                  {formatCurrency(boletoToPay.amount)} • {boletoToPay.students?.name}
+                </p>
+              </div>
+              <div className="flex flex-col-reverse gap-3 sm:flex-row">
+                <button
+                  onClick={() => setBoletoToPay(null)}
+                  className="w-full flex-1 rounded-2xl bg-zinc-800 py-4 font-bold text-white transition-all hover:bg-zinc-700"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={onDarBaixa}
+                  className="w-full flex-1 rounded-2xl bg-emerald-500 py-4 font-bold text-black transition-all hover:bg-emerald-400"
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          </ModalFrame>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {deleteConfirmation ? (
+          <ModalFrame title="Excluir boleto" onClose={() => setDeleteConfirmation(null)} widthClass="max-w-md">
+            <div className="space-y-6 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-500/10 text-rose-400">
+                <AlertCircle size={30} />
+              </div>
+              <p className="text-sm leading-7 text-zinc-400">
+                Esta acao nao pode ser desfeita. Deseja realmente excluir este boleto?
+              </p>
+              <div className="flex flex-col-reverse gap-3 sm:flex-row">
+                <button
+                  onClick={() => setDeleteConfirmation(null)}
+                  className="w-full flex-1 rounded-2xl bg-zinc-800 py-4 font-bold text-white transition-all hover:bg-zinc-700"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleExcluirBoleto}
+                  className="w-full flex-1 rounded-2xl bg-rose-500 py-4 font-bold text-white transition-all hover:bg-rose-400"
+                >
+                  Excluir
+                </button>
+              </div>
+            </div>
+          </ModalFrame>
+        ) : null}
+      </AnimatePresence>
+
+      <Toast notification={notification} onClose={clearNotification} />
     </ModuleShell>
   );
 }

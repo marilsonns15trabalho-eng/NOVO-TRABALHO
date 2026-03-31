@@ -95,14 +95,13 @@ export default function LandingPage() {
 
             <div className="mt-6">
               <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-orange-300">
-                App do estudio
+                Acesso mobile
               </p>
               <h1 className="mt-3 text-4xl font-bold leading-tight text-white">
-                Lioness Prime
+                LIONESS
               </h1>
               <p className="mt-4 text-sm leading-7 text-zinc-300">
-                Acesso rapido para administracao, professor e aluno com treino, avaliacoes,
-                financeiro e acompanhamento do estudio no mesmo app.
+                Login direto para administracao, professor e aluno no mesmo ambiente do estudio.
               </p>
             </div>
 
@@ -145,7 +144,7 @@ export default function LandingPage() {
               onClick={() => router.push('/auth')}
               className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 px-6 py-4 text-sm font-bold text-black transition-all hover:bg-orange-400"
             >
-              Entrar no app
+              Entrar
               <ArrowRight size={18} />
             </button>
             <a
@@ -190,7 +189,7 @@ export default function LandingPage() {
               rel="noreferrer"
               className="rounded-sm bg-[#ff5a1f] px-5 py-3 text-xs font-bold uppercase tracking-[0.18em] text-black transition-all hover:bg-[#ff7a2c]"
             >
-              Comecar agora
+              Agendar aula experimental
             </a>
           </div>
         </div>

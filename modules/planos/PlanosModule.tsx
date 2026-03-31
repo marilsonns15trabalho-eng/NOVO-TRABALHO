@@ -225,9 +225,9 @@ export default function PlanosModule() {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-md rounded-[30px] border border-zinc-800 bg-zinc-950 p-8 shadow-[0_36px_120px_-70px_rgba(99,102,241,0.5)]"
+              className="relative max-h-[94vh] w-full max-w-md overflow-y-auto rounded-[30px] border border-zinc-800 bg-zinc-950 p-4 shadow-[0_36px_120px_-70px_rgba(99,102,241,0.5)] sm:p-5 md:p-8"
             >
-              <h3 className="text-2xl font-bold mb-6">{editingPlano ? 'Editar plano' : 'Novo plano'}</h3>
+              <h3 className="mb-5 text-2xl font-bold md:mb-6">{editingPlano ? 'Editar plano' : 'Novo plano'}</h3>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -247,7 +247,7 @@ export default function PlanosModule() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">Valor total</label>
                     <input
@@ -296,17 +296,17 @@ export default function PlanosModule() {
                   </label>
                 </div>
 
-                <div className="flex gap-3 pt-4">
+                <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
                   <button
                     type="button"
                     onClick={() => setShowAddModal(false)}
-                    className="flex-1 rounded-2xl bg-zinc-800 py-4 font-bold text-white transition-all hover:bg-zinc-700"
+                    className="w-full flex-1 rounded-2xl bg-zinc-800 py-4 font-bold text-white transition-all hover:bg-zinc-700"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 rounded-2xl bg-indigo-500 py-4 font-bold text-white transition-all hover:bg-indigo-400"
+                    className="w-full flex-1 rounded-2xl bg-indigo-500 py-4 font-bold text-white transition-all hover:bg-indigo-400"
                   >
                     Salvar plano
                   </button>
@@ -331,23 +331,23 @@ export default function PlanosModule() {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-sm rounded-[30px] border border-zinc-800 bg-zinc-950 p-8 shadow-[0_36px_120px_-70px_rgba(0,0,0,0.75)]"
+              className="relative w-full max-w-sm rounded-[30px] border border-zinc-800 bg-zinc-950 p-4 shadow-[0_36px_120px_-70px_rgba(0,0,0,0.75)] sm:p-5 md:p-8"
             >
               <h3 className="mb-4 text-xl font-bold">Confirmar exclusao</h3>
               <p className="mb-6 text-zinc-400">
                 Tem certeza que deseja excluir este plano? Se ele estiver ativo, sera desativado. Se ja estiver
                 desativado, sera excluido permanentemente.
               </p>
-              <div className="flex gap-3">
+              <div className="flex flex-col-reverse gap-3 sm:flex-row">
                 <button
                   onClick={() => setDeleteConfirmation(null)}
-                  className="flex-1 rounded-xl bg-zinc-800 py-3 font-bold text-white transition-all hover:bg-zinc-700"
+                  className="w-full flex-1 rounded-xl bg-zinc-800 py-3 font-bold text-white transition-all hover:bg-zinc-700"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleConfirmDelete}
-                  className="flex-1 rounded-xl bg-rose-500 py-3 font-bold text-white transition-all hover:bg-rose-400"
+                  className="w-full flex-1 rounded-xl bg-rose-500 py-3 font-bold text-white transition-all hover:bg-rose-400"
                 >
                   Excluir
                 </button>
