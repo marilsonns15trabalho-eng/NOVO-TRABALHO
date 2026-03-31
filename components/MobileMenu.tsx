@@ -110,11 +110,17 @@ export default function MobileMenu({
             <div className="border-b border-zinc-800/80 p-5">
               <div className="flex items-start justify-between gap-4 rounded-[28px] border border-zinc-800 bg-zinc-950/90 p-5">
                 <div className="flex items-start gap-3">
-                  <div
-                    className={`flex h-12 w-12 items-center justify-center rounded-[18px] bg-gradient-to-br ${accent.icon} text-2xl font-black text-black`}
+                  <button
+                    type="button"
+                    onClick={handleOpenAvatar}
+                    aria-label="Abrir configuracoes da foto de perfil"
                   >
-                    L
-                  </div>
+                    <ProfileAvatar
+                      displayName={displayName}
+                      className="h-12 w-12 rounded-[18px] border border-zinc-800"
+                      textClassName="text-2xl"
+                    />
+                  </button>
                     <div>
                       <div className="flex items-center gap-2">
                       <h1 className="text-base font-bold text-white">LIONESS</h1>

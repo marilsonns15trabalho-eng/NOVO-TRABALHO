@@ -62,11 +62,17 @@ export default function Sidebar({ activeTab, setActiveTab, userRole }: SidebarPr
       <div className="border-b border-zinc-800/80 px-5 py-6">
         <div className={`rounded-[28px] border border-zinc-800 bg-zinc-950/90 p-5 ${accent.glow}`}>
           <div className="flex items-start gap-4">
-            <div
-              className={`flex h-14 w-14 items-center justify-center rounded-[22px] bg-gradient-to-br ${accent.icon} text-3xl font-black text-black`}
+            <button
+              type="button"
+              onClick={handleOpenAvatar}
+              aria-label="Abrir configuracoes da foto de perfil"
             >
-              L
-            </div>
+              <ProfileAvatar
+                displayName={displayName}
+                className="h-14 w-14 rounded-[22px] border border-zinc-800"
+                textClassName="text-3xl"
+              />
+            </button>
 
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
