@@ -25,7 +25,7 @@ export default function AppPermissionsPrompt() {
     return null;
   }
 
-  if (pathname === '/' || pathname.startsWith('/auth')) {
+  if (pathname === '/' || pathname === '/mobile' || pathname.startsWith('/auth')) {
     return null;
   }
 

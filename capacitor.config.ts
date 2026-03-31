@@ -6,7 +6,7 @@ const config: CapacitorConfig = {
   webDir: 'out',
 
   server: {
-    url: 'https://lioness-personal-estudio.vercel.app',
+    url: 'https://lioness-personal-estudio.vercel.app/mobile',
     cleartext: false,
   },
 
