@@ -79,6 +79,11 @@ export default function MobileMenu({
     router.push('/');
   };
 
+  const handleOpenAvatar = () => {
+    onClose();
+    router.push('/dashboard/avatar');
+  };
+
   const displayName = profile?.display_name || user?.email?.split('@')[0] || 'Usuario';
 
   return (
@@ -172,11 +177,17 @@ export default function MobileMenu({
               {user && (
                 <div className="rounded-[24px] border border-zinc-800 bg-zinc-950/80 p-4">
                   <div className="flex items-center gap-3">
-                    <ProfileAvatar
-                      displayName={displayName}
-                      className="h-12 w-12 rounded-2xl border border-zinc-800"
-                      textClassName="text-sm"
-                    />
+                    <button
+                      type="button"
+                      onClick={handleOpenAvatar}
+                      aria-label="Abrir configuracoes da foto de perfil"
+                    >
+                      <ProfileAvatar
+                        displayName={displayName}
+                        className="h-12 w-12 rounded-2xl border border-zinc-800"
+                        textClassName="text-sm"
+                      />
+                    </button>
 
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-bold text-white">{displayName}</p>

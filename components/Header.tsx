@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { CalendarDays, LogOut, Menu, Sparkles } from 'lucide-react';
 import ProfileAvatar from '@/components/account/ProfileAvatar';
-import ProfileAvatarManager from '@/components/account/ProfileAvatarManager';
 import AppDownloadButton from '@/components/app/AppDownloadButton';
 import AppNotificationBell from '@/components/notifications/AppNotificationBell';
 import { useAuth } from '@/hooks/useAuth';
@@ -31,11 +30,14 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
   const { user, profile, role, signOut } = useAuth();
   const router = useRouter();
   const nativeApp = useNativeApp();
-  const [avatarManagerOpen, setAvatarManagerOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
     router.push('/');
+  };
+
+  const handleAvatarClick = () => {
+    router.push('/dashboard/avatar');
   };
 
   const displayName = profile?.display_name || user?.email?.split('@')[0] || 'Usuario';
@@ -90,7 +92,7 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
 
           <button
             type="button"
-            onClick={() => setAvatarManagerOpen(true)}
+            onClick={handleAvatarClick}
             className="lg:hidden"
             aria-label="Gerenciar foto de perfil"
           >
@@ -109,7 +111,7 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
 
             <button
               type="button"
-              onClick={() => setAvatarManagerOpen(true)}
+              onClick={handleAvatarClick}
               aria-label="Gerenciar foto de perfil"
             >
               <ProfileAvatar
@@ -129,11 +131,6 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
           </div>
         </div>
       </div>
-
-      <ProfileAvatarManager
-        open={avatarManagerOpen}
-        onClose={() => setAvatarManagerOpen(false)}
-      />
     </header>
   );
 }

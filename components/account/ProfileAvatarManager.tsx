@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { Camera, ImagePlus, Loader2, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Camera, ImagePlus, Loader2, Trash2, X } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNativeApp } from '@/hooks/useNativeApp';
 import ProfileAvatar from '@/components/account/ProfileAvatar';
@@ -14,13 +14,15 @@ import {
 } from '@/services/profile-avatar.service';
 
 interface ProfileAvatarManagerProps {
-  open: boolean;
+  open?: boolean;
   onClose: () => void;
+  standalone?: boolean;
 }
 
 export default function ProfileAvatarManager({
   open,
   onClose,
+  standalone = false,
 }: ProfileAvatarManagerProps) {
   const { profile, user, patchProfile } = useAuth();
   const nativeApp = useNativeApp();
@@ -30,7 +32,7 @@ export default function ProfileAvatarManager({
     null,
   );
 
-  if (!open) {
+  if (!standalone && !open) {
     return null;
   }
 
@@ -113,8 +115,30 @@ export default function ProfileAvatarManager({
   };
 
   return (
-    <div className="fixed inset-0 z-[130] overflow-y-auto bg-black/92 px-3 py-3 backdrop-blur-md sm:px-4 sm:py-4 md:px-6 md:py-8">
-      <div className="mx-auto w-full max-w-3xl border border-zinc-800 bg-zinc-950/96 shadow-[0_36px_120px_-64px_rgba(0,0,0,0.95)]">
+    <div
+      className={
+        standalone
+          ? 'min-h-full px-4 py-4 md:px-6 md:py-6'
+          : 'fixed inset-0 z-[130] overflow-y-auto bg-black/92 px-3 py-3 backdrop-blur-md sm:px-4 sm:py-4 md:px-6 md:py-8'
+      }
+    >
+      <div
+        className={`mx-auto w-full ${standalone ? 'max-w-4xl' : 'max-w-3xl border border-zinc-800 bg-zinc-950/96 shadow-[0_36px_120px_-64px_rgba(0,0,0,0.95)]'}`}
+      >
+        {standalone ? (
+          <div className="mb-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm font-bold text-zinc-300 transition-all hover:border-zinc-700 hover:bg-zinc-900 hover:text-white"
+            >
+              <ArrowLeft size={16} />
+              Voltar
+            </button>
+          </div>
+        ) : null}
+
+        <div className={`${standalone ? 'border border-zinc-800 bg-zinc-950/96 shadow-[0_36px_120px_-64px_rgba(0,0,0,0.95)]' : ''}`}>
         <div className="flex items-start justify-between gap-4 border-b border-zinc-800 px-4 py-4 sm:px-6">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-zinc-500">
@@ -233,6 +257,7 @@ export default function ProfileAvatarManager({
               </button>
             </div>
           </div>
+        </div>
         </div>
       </div>
     </div>

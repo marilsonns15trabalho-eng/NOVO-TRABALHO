@@ -20,8 +20,8 @@ export interface MenuItem {
 }
 
 export const ROLE_ACCESS: Record<UserRole, string[]> = {
-  admin: ['home', 'alunos', 'financeiro', 'planos', 'treinos', 'anamnese', 'avaliacao', 'relatorios', 'configuracoes'],
-  professor: ['home', 'alunos', 'treinos', 'avaliacao', 'anamnese'],
+  admin: ['home', 'alunos', 'financeiro', 'planos', 'treinos', 'anamnese', 'avaliacao', 'relatorios', 'configuracoes', 'avatar'],
+  professor: ['home', 'alunos', 'treinos', 'avaliacao', 'anamnese', 'avatar'],
   aluno: [],
 };
 

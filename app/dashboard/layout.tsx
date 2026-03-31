@@ -23,6 +23,7 @@ const TITLES: Record<string, string> = {
   avaliacao: 'Avaliacao Fisica',
   relatorios: 'Relatorios e Estatisticas',
   configuracoes: 'Configuracoes do Sistema',
+  avatar: 'Foto de Perfil',
 };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

@@ -30,7 +30,6 @@ import AppBottomNav from '@/components/app/AppBottomNav';
 import AppDownloadButton from '@/components/app/AppDownloadButton';
 import AppPermissionsPanel from '@/components/app/AppPermissionsPanel';
 import ProfileAvatar from '@/components/account/ProfileAvatar';
-import ProfileAvatarManager from '@/components/account/ProfileAvatarManager';
 import AppNotificationBell from '@/components/notifications/AppNotificationBell';
 import ExerciseOfficialPreviewModal from '@/components/treinos/ExerciseOfficialPreviewModal';
 import WorkoutShareComposer from '@/components/treinos/WorkoutShareComposer';
@@ -259,7 +258,6 @@ export default function AlunoDashboard() {
     completedOn: string;
     completedExercises: number;
   } | null>(null);
-  const [avatarManagerOpen, setAvatarManagerOpen] = useState(false);
 
   useEffect(() => {
     const section = searchParams.get('section');
@@ -730,12 +728,18 @@ export default function AlunoDashboard() {
         <aside className="hidden w-[290px] shrink-0 lg:block">
           <div className="sticky top-6 space-y-4">
             <div className="rounded-[30px] border border-zinc-800 bg-zinc-950/90 p-5 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)]">
-              <div className="flex items-start gap-4">
-                <ProfileAvatar
-                  displayName={profile?.display_name || user?.email?.split('@')[0] || 'Aluno'}
-                  className="h-14 w-14 rounded-[22px] border border-zinc-800"
-                  textClassName="text-3xl"
-                />
+                <div className="flex items-start gap-4">
+                  <button
+                    type="button"
+                    onClick={() => router.push('/aluno/avatar')}
+                    aria-label="Abrir configuracoes da foto de perfil"
+                  >
+                    <ProfileAvatar
+                      displayName={profile?.display_name || user?.email?.split('@')[0] || 'Aluno'}
+                      className="h-14 w-14 rounded-[22px] border border-zinc-800"
+                      textClassName="text-3xl"
+                    />
+                  </button>
                 <div className="min-w-0 flex-1">
                   <h2 className="truncate text-lg font-bold text-white">LIONESS</h2>
                   <p className="mt-1 text-[11px] uppercase tracking-[0.28em] text-zinc-500">
@@ -1634,13 +1638,13 @@ export default function AlunoDashboard() {
               </div>
 
               <div className="flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={() => setAvatarManagerOpen(true)}
-                  className="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-orange-300 transition-all hover:bg-orange-500 hover:text-black"
-                >
-                  <Camera size={14} />
-                  Foto de perfil
+                  <button
+                    type="button"
+                    onClick={() => router.push('/aluno/avatar')}
+                    className="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-orange-300 transition-all hover:bg-orange-500 hover:text-black"
+                  >
+                    <Camera size={14} />
+                    Foto de perfil
                 </button>
 
                 <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-emerald-300">
@@ -1840,11 +1844,6 @@ export default function AlunoDashboard() {
           weightKg={latestAvaliacao?.peso ?? null}
         />
       ) : null}
-
-      <ProfileAvatarManager
-        open={avatarManagerOpen}
-        onClose={() => setAvatarManagerOpen(false)}
-      />
 
       {mustChangePassword && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/92 px-3 py-3 backdrop-blur-md sm:px-4 sm:py-4 md:flex md:items-center md:justify-center md:px-6 md:py-8">

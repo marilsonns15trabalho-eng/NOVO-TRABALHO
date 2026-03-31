@@ -53,6 +53,10 @@ export default function Sidebar({ activeTab, setActiveTab, userRole }: SidebarPr
     router.push('/');
   };
 
+  const handleOpenAvatar = () => {
+    router.push('/dashboard/avatar');
+  };
+
   return (
     <aside className="sticky top-0 flex h-screen w-[290px] flex-col border-r border-zinc-800/80 bg-[linear-gradient(180deg,rgba(17,17,19,0.98),rgba(5,5,6,0.98))] backdrop-blur-xl">
       <div className="border-b border-zinc-800/80 px-5 py-6">
@@ -134,11 +138,17 @@ export default function Sidebar({ activeTab, setActiveTab, userRole }: SidebarPr
         {user && (
           <div className="rounded-[26px] border border-zinc-800 bg-zinc-950/80 p-4">
             <div className="flex items-center gap-3">
-              <ProfileAvatar
-                displayName={displayName}
-                className="h-12 w-12 rounded-2xl border border-zinc-800"
-                textClassName="text-sm"
-              />
+              <button
+                type="button"
+                onClick={handleOpenAvatar}
+                aria-label="Abrir configuracoes da foto de perfil"
+              >
+                <ProfileAvatar
+                  displayName={displayName}
+                  className="h-12 w-12 rounded-2xl border border-zinc-800"
+                  textClassName="text-sm"
+                />
+              </button>
 
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-bold text-white">{displayName}</p>
