@@ -76,6 +76,7 @@ function WorkoutSharePreview(props: {
   const visibleExercises = props.data.exercises.slice(0, props.format === 'post' ? 4 : 3);
   const remainingExercises = Math.max(props.data.exercises.length - visibleExercises.length, 0);
   const gaugeBlocks = props.data.intensity === 'alta' ? 12 : props.data.intensity === 'moderada' ? 8 : 5;
+  const summaryTitle = props.data.treinoName;
 
   return (
     <div className="mx-auto w-full max-w-[680px]">
@@ -89,49 +90,36 @@ function WorkoutSharePreview(props: {
             className="absolute inset-0 h-full w-full object-cover opacity-60"
           />
         ) : (
-          <div
-            aria-hidden="true"
-            className="absolute -right-5 top-8 text-[10rem] font-black leading-none text-orange-500/10 sm:text-[13rem]"
-          >
-            L
+          <div aria-hidden="true" className="absolute inset-0 overflow-hidden">
+            <div className="absolute -right-10 top-6 h-48 w-48 rounded-full bg-orange-500/18 blur-3xl sm:h-64 sm:w-64" />
+            <div className="absolute left-4 top-12 h-28 w-28 rounded-full bg-amber-100/8 blur-3xl sm:h-36 sm:w-36" />
+            <div className="absolute inset-x-0 bottom-16 h-28 bg-gradient-to-r from-transparent via-orange-500/10 to-transparent blur-2xl" />
+            <div className="absolute right-5 top-12 text-[2rem] font-black uppercase tracking-[0.34em] text-orange-200/8 sm:text-[2.8rem]">
+              Lioness Fit
+            </div>
           </div>
         )}
 
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.26),_transparent_34%),linear-gradient(180deg,rgba(0,0,0,0.18),rgba(0,0,0,0.72)_42%,rgba(0,0,0,0.98))]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.28),_transparent_34%),radial-gradient(circle_at_top_right,_rgba(255,210,170,0.12),_transparent_28%),linear-gradient(180deg,rgba(0,0,0,0.14),rgba(0,0,0,0.72)_42%,rgba(0,0,0,0.98))]" />
 
         <div className="relative flex h-full flex-col p-4 sm:p-5 md:p-6">
           <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-orange-500 text-xl font-black text-black">
-                L
-              </div>
-              <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.28em] text-orange-200">
-                Acesso mobile
+            <div className="rounded-[20px] border border-orange-500/15 bg-black/50 px-4 py-3 backdrop-blur-md">
+              <p className="bg-gradient-to-r from-orange-200 via-orange-400 to-amber-200 bg-clip-text text-[11px] font-black uppercase tracking-[0.32em] text-transparent sm:text-[12px]">
+                Lioness Fit
               </p>
             </div>
 
-            <div className="rounded-[18px] bg-black/55 px-3 py-2 text-right backdrop-blur-sm">
-              <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-500">
-                {formatMeta.label}
-              </p>
-              <p className="mt-1 text-xs font-semibold text-white">
-                {formatDatePtBr(props.data.completedOn)}
-              </p>
+            <div className="rounded-[18px] border border-white/8 bg-black/55 px-4 py-2.5 text-right backdrop-blur-sm">
+              <p className="text-xs font-semibold text-white sm:text-sm">{formatDatePtBr(props.data.completedOn)}</p>
             </div>
           </div>
 
-          <div className="mt-6">
-            <p className="text-4xl font-black uppercase leading-none tracking-[-0.06em] text-white sm:text-5xl">
+          <div className="mt-8">
+            <p className="text-5xl font-black uppercase leading-none tracking-[-0.08em] text-white sm:text-6xl">
               Treino
             </p>
-            <p className="text-4xl font-black uppercase leading-none tracking-[-0.06em] text-orange-400 sm:text-5xl">
-              Finalizado
-            </p>
-            <p className="mt-3 max-w-[20rem] text-sm leading-6 text-zinc-200 sm:max-w-[24rem]">
-              {props.data.studentName
-                ? `${props.data.studentName} concluiu ${props.data.treinoName}.`
-                : `${props.data.treinoName} concluido com sucesso.`}
-            </p>
+            <div className="mt-3 h-1.5 w-24 rounded-full bg-gradient-to-r from-orange-400 via-orange-500 to-amber-200" />
           </div>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -156,10 +144,10 @@ function WorkoutSharePreview(props: {
             </div>
           </div>
 
-          <div className="mt-3 rounded-[24px] bg-orange-500 px-4 py-4 text-black">
+          <div className="mt-3 rounded-[24px] bg-gradient-to-r from-orange-400 via-orange-500 to-amber-300 px-4 py-4 text-black shadow-[0_24px_60px_-34px_rgba(255,122,26,0.7)]">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.24em]">Intensidade</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.24em]">Intensidade e ritmo</p>
                 <p className="mt-1 text-2xl font-black uppercase tracking-[-0.04em]">
                   {props.data.intensity}
                 </p>
@@ -183,11 +171,28 @@ function WorkoutSharePreview(props: {
             </div>
           </div>
 
-          <div className="mt-4 space-y-2">
+          <div className="mt-4 rounded-[28px] border border-white/6 bg-black/60 p-3 backdrop-blur-md sm:p-4">
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-white">
+                  Resumo do treino
+                </p>
+                <p className="mt-1 truncate text-sm font-semibold text-zinc-300">
+                  {summaryTitle}
+                </p>
+              </div>
+              {props.data.splitLabel ? (
+                <div className="shrink-0 rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-orange-200">
+                  Split {props.data.splitLabel}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="space-y-2">
             {visibleExercises.map((exercise, index) => (
               <div
                 key={`${exercise.name}-${index}`}
-                className="flex items-center gap-3 rounded-[20px] bg-black/60 px-3 py-3 backdrop-blur-sm"
+                className="flex items-center gap-3 rounded-[20px] bg-white/[0.04] px-3 py-3 backdrop-blur-sm"
               >
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-black ${
@@ -220,10 +225,11 @@ function WorkoutSharePreview(props: {
               </div>
             ) : null}
           </div>
+          </div>
 
           <div className="mt-auto pt-4">
-            <p className="text-[11px] uppercase tracking-[0.28em] text-zinc-500">
-              Lioness Personal Estudio
+            <p className="bg-gradient-to-r from-orange-200 via-orange-400 to-amber-200 bg-clip-text text-[11px] font-black uppercase tracking-[0.34em] text-transparent">
+              Lioness Fit
             </p>
           </div>
         </div>

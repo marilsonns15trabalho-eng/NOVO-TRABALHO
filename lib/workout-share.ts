@@ -485,49 +485,70 @@ export async function renderWorkoutShareImage(params: {
     context.fillStyle = heroGradient;
     context.fillRect(0, 0, width, heroHeight);
 
+    const rightGlow = context.createRadialGradient(
+      width * 0.84,
+      heroHeight * 0.18,
+      20,
+      width * 0.84,
+      heroHeight * 0.18,
+      width * 0.34,
+    );
+    rightGlow.addColorStop(0, 'rgba(255, 139, 64, 0.34)');
+    rightGlow.addColorStop(0.52, 'rgba(255, 122, 26, 0.12)');
+    rightGlow.addColorStop(1, 'rgba(255, 122, 26, 0)');
+    context.fillStyle = rightGlow;
+    context.fillRect(0, 0, width, heroHeight);
+
     context.save();
-    context.globalAlpha = 0.1;
-    context.fillStyle = '#ff7a1a';
-    context.font = `${params.format === 'post' ? 520 : 620}px 'Arial Black', sans-serif`;
-    context.textAlign = 'center';
-    context.fillText('L', width * 0.64, heroHeight * 0.88);
+    context.globalAlpha = 0.08;
+    context.fillStyle = '#ffd7b7';
+    context.font = `${params.format === 'post' ? 94 : 112}px 'Arial Black', sans-serif`;
+    context.textAlign = 'right';
+    context.fillText('LIONESS FIT', width - margin, heroHeight * 0.34);
     context.restore();
   }
 
-  fillRoundedRect(context, margin, 56, 120, 120, 28, '#ff7a1a');
-  context.fillStyle = '#090909';
-  context.font = "800 54px 'Space Grotesk', 'Arial', sans-serif";
-  context.textAlign = 'center';
-  context.fillText('L', margin + 60, 128);
+  const brandBadgeWidth = 300;
+  const brandGradient = context.createLinearGradient(margin, 56, margin + brandBadgeWidth, 140);
+  brandGradient.addColorStop(0, 'rgba(255, 122, 26, 0.16)');
+  brandGradient.addColorStop(0.55, 'rgba(255, 122, 26, 0.08)');
+  brandGradient.addColorStop(1, 'rgba(255, 214, 177, 0.08)');
+  fillRoundedRect(context, margin, 56, brandBadgeWidth, 84, 26, brandGradient);
+  context.strokeStyle = 'rgba(255, 122, 26, 0.18)';
+  context.lineWidth = 2;
+  roundRect(context, margin, 56, brandBadgeWidth, 84, 26);
+  context.stroke();
+  const brandTextGradient = context.createLinearGradient(margin, 56, margin + brandBadgeWidth, 56);
+  brandTextGradient.addColorStop(0, '#ffe0c3');
+  brandTextGradient.addColorStop(0.5, '#ff9a57');
+  brandTextGradient.addColorStop(1, '#ffd7b7');
+  context.fillStyle = brandTextGradient;
+  context.font = "800 30px 'Space Grotesk', 'Arial Black', sans-serif";
   context.textAlign = 'left';
-  context.fillStyle = '#ffb37f';
-  context.font = "700 18px 'Arial', sans-serif";
-  context.fillText('ACESSO MOBILE', margin, 212);
+  context.fillText('LIONESS FIT', margin + 24, 109);
 
-  fillRoundedRect(context, width - margin - 240, 64, 240, 84, 22, 'rgba(0,0,0,0.56)');
-  context.fillStyle = '#8f8f8f';
-  context.font = "700 16px 'Arial', sans-serif";
-  context.fillText(getWorkoutShareFormatMeta(params.format).label.toUpperCase(), width - margin - 208, 100);
+  fillRoundedRect(context, width - margin - 228, 64, 228, 84, 22, 'rgba(0,0,0,0.56)');
   context.fillStyle = '#ffffff';
   context.font = "700 24px 'Arial', sans-serif";
-  context.fillText(formatDatePtBr(params.data.completedOn), width - margin - 208, 134);
+  context.fillText(formatDatePtBr(params.data.completedOn), width - margin - 196, 118);
 
   const headlineY = photo ? heroHeight - (params.format === 'post' ? 108 : 144) : heroHeight - 110;
   context.fillStyle = '#ffffff';
-  context.font = `${params.format === 'post' ? 86 : 98}px 'Space Grotesk', 'Arial Black', sans-serif`;
+  context.font = `${params.format === 'post' ? 92 : 106}px 'Space Grotesk', 'Arial Black', sans-serif`;
   context.fillText('TREINO', margin, headlineY);
-  context.fillStyle = '#ff7a1a';
-  context.fillText('FINALIZADO', margin, headlineY + (params.format === 'post' ? 94 : 108));
-
-  const subtitle = params.data.studentName
-    ? `${params.data.studentName} concluiu ${params.data.treinoName}`
-    : `${params.data.treinoName} concluido com sucesso`;
-  context.fillStyle = '#d2d2d2';
-  context.font = "500 28px 'Arial', sans-serif";
-  const subtitleLines = wrapText(context, subtitle, contentWidth - 60, 2);
-  subtitleLines.forEach((line, index) => {
-    context.fillText(line, margin, headlineY + (params.format === 'post' ? 144 : 166) + index * 36);
-  });
+  const accentBarGradient = context.createLinearGradient(margin, headlineY + 24, margin + 180, headlineY + 24);
+  accentBarGradient.addColorStop(0, '#ff8a3d');
+  accentBarGradient.addColorStop(0.7, '#ff7a1a');
+  accentBarGradient.addColorStop(1, '#ffd7b7');
+  fillRoundedRect(
+    context,
+    margin,
+    headlineY + (params.format === 'post' ? 24 : 28),
+    164,
+    12,
+    6,
+    accentBarGradient,
+  );
 
   const cardBackground = 'rgba(10, 10, 10, 0.82)';
   fillRoundedRect(context, margin, statCardsY, smallCardWidth, statCardHeight, 32, cardBackground);
@@ -547,8 +568,9 @@ export async function renderWorkoutShareImage(params: {
     margin + contentWidth,
     intensityCardY + intensityCardHeight,
   );
-  orangeGradient.addColorStop(0, '#ff7a1a');
-  orangeGradient.addColorStop(1, '#ff9a57');
+  orangeGradient.addColorStop(0, '#ff8a3d');
+  orangeGradient.addColorStop(0.55, '#ff7a1a');
+  orangeGradient.addColorStop(1, '#ffc48e');
   fillRoundedRect(
     context,
     margin,
@@ -584,7 +606,7 @@ export async function renderWorkoutShareImage(params: {
 
   context.fillStyle = params.data.intensity === 'alta' ? '#090909' : '#ffffff';
   context.font = "700 18px 'Arial', sans-serif";
-  context.fillText('INTENSIDADE E PROGRESSO', margin + 32, intensityCardY + 42);
+  context.fillText('INTENSIDADE E RITMO', margin + 32, intensityCardY + 42);
   context.font = "800 54px 'Space Grotesk', 'Arial Black', sans-serif";
   context.fillText(params.data.intensity.toUpperCase(), margin + 32, intensityCardY + 102);
 
@@ -600,12 +622,20 @@ export async function renderWorkoutShareImage(params: {
   context.fillStyle = '#ffffff';
   context.font = "700 18px 'Arial', sans-serif";
   context.fillText('RESUMO DO TREINO', margin + 32, summaryCardY + 48);
-  context.fillStyle = '#8f8f8f';
-  context.font = "500 20px 'Arial', sans-serif";
-  const splitOrDateLabel = params.data.splitLabel
-    ? `Split ${params.data.splitLabel}`
-    : `Concluido em ${formatDatePtBr(params.data.completedOn)}`;
-  context.fillText(splitOrDateLabel, margin + 32, summaryCardY + 84);
+  context.fillStyle = '#d9d9d9';
+  context.font = "600 22px 'Arial', sans-serif";
+  const workoutNameLines = wrapText(context, params.data.treinoName, contentWidth - 220, 1);
+  context.fillText(workoutNameLines[0] || params.data.treinoName, margin + 32, summaryCardY + 84);
+  if (params.data.splitLabel) {
+    fillRoundedRect(context, width - margin - 150, summaryCardY + 30, 118, 44, 22, 'rgba(255,122,26,0.1)');
+    context.strokeStyle = 'rgba(255,122,26,0.18)';
+    context.lineWidth = 1.5;
+    roundRect(context, width - margin - 150, summaryCardY + 30, 118, 44, 22);
+    context.stroke();
+    context.fillStyle = '#ffb37f';
+    context.font = "700 16px 'Arial', sans-serif";
+    context.fillText(`SPLIT ${params.data.splitLabel}`, width - margin - 126, summaryCardY + 58);
+  }
 
   visibleExercises.forEach((exercise, index) => {
     const itemY = summaryCardY + 124 + index * 96;
@@ -665,12 +695,13 @@ export async function renderWorkoutShareImage(params: {
     context.fillText(`+ ${remainingExercises} exercicio(s) na sessao`, margin + 40, itemY + 42);
   }
 
-  context.fillStyle = '#7e7e7e';
-  context.font = "600 18px 'Arial', sans-serif";
-  context.fillText('Compartilhe no WhatsApp, Instagram ou salve para postar depois.', margin, footerY);
-  context.fillStyle = '#ff7a1a';
-  context.font = "700 20px 'Arial', sans-serif";
-  context.fillText('LIONESS PERSONAL ESTUDIO', margin, footerY + 34);
+  const footerBrandGradient = context.createLinearGradient(margin, footerY, margin + 260, footerY);
+  footerBrandGradient.addColorStop(0, '#ffe0c3');
+  footerBrandGradient.addColorStop(0.5, '#ff9a57');
+  footerBrandGradient.addColorStop(1, '#ffd7b7');
+  context.fillStyle = footerBrandGradient;
+  context.font = "800 24px 'Space Grotesk', 'Arial Black', sans-serif";
+  context.fillText('LIONESS FIT', margin, footerY + 18);
 
   const blob = await new Promise<Blob | null>((resolve) => {
     canvas.toBlob(resolve, 'image/jpeg', 0.92);

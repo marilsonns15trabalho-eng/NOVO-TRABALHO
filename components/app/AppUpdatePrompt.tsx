@@ -48,6 +48,22 @@ export default function AppUpdatePrompt() {
         </button>
       </div>
 
+      {remote.releaseNotes?.highlights?.length ? (
+        <div className="mt-4 rounded-[20px] border border-zinc-800 bg-black/30 p-4">
+          <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-orange-300">
+            {remote.releaseNotes.title}
+          </p>
+          <div className="mt-3 space-y-2">
+            {remote.releaseNotes.highlights.map((item) => (
+              <div key={item} className="flex items-start gap-2 text-sm leading-5 text-zinc-300">
+                <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-orange-400" />
+                <span>{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       <div className="mt-4 flex flex-col gap-2 sm:flex-row">
         <button
           type="button"

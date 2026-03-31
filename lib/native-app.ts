@@ -1,6 +1,7 @@
 'use client';
 
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { Filesystem } from '@capacitor/filesystem';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { isNativeApp } from '@/lib/platform';
 
@@ -15,6 +16,7 @@ export type NativePermissionState =
 export interface NativePermissionSnapshot {
   camera: NativePermissionState;
   notifications: NativePermissionState;
+  storage: NativePermissionState;
 }
 
 export const LIONESS_NOTIFICATION_CHANNEL_ID = 'lioness-general';
@@ -60,23 +62,27 @@ export async function checkNativePermissions(): Promise<NativePermissionSnapshot
     return {
       camera: 'unavailable',
       notifications: 'unavailable',
+      storage: 'unavailable',
     };
   }
 
   try {
-    const [cameraPermissions, notificationPermissions] = await Promise.all([
+    const [cameraPermissions, notificationPermissions, filesystemPermissions] = await Promise.all([
       Camera.checkPermissions(),
       LocalNotifications.checkPermissions(),
+      Filesystem.checkPermissions().catch(() => ({ publicStorage: 'unavailable' })),
     ]);
 
     return {
       camera: normalizePermissionState(cameraPermissions.camera),
       notifications: normalizePermissionState(notificationPermissions.display),
+      storage: normalizePermissionState(filesystemPermissions.publicStorage),
     };
   } catch {
     return {
       camera: 'unavailable',
       notifications: 'unavailable',
+      storage: 'unavailable',
     };
   }
 }
@@ -103,6 +109,15 @@ export async function requestNotificationAccess(): Promise<NativePermissionState
   }
 
   return status;
+}
+
+export async function requestStorageAccess(): Promise<NativePermissionState> {
+  if (!isNativeApp()) {
+    return 'unavailable';
+  }
+
+  const result = await Filesystem.requestPermissions().catch(() => ({ publicStorage: 'unavailable' }));
+  return normalizePermissionState(result.publicStorage);
 }
 
 export async function sendNotificationPreview() {

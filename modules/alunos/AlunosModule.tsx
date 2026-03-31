@@ -14,6 +14,7 @@ import {
   Shield,
   KeyRound,
   Loader2,
+  ChevronRight,
 } from 'lucide-react';
 import { useAlunos } from '@/hooks/useAlunos';
 import { useAuth } from '@/hooks/useAuth';
@@ -57,6 +58,7 @@ export default function AlunosModule() {
   const [roleNotification, setRoleNotification] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [resetPasswordTarget, setResetPasswordTarget] = useState<Aluno | null>(null);
   const [resettingPasswordForId, setResettingPasswordForId] = useState<string | null>(null);
+  const [mobileAlunoMenuId, setMobileAlunoMenuId] = useState<string | null>(null);
 
   const loadProfiles = useCallback(async () => {
     if (!isAdmin) return;
@@ -130,6 +132,14 @@ export default function AlunosModule() {
   const handleOpenAdd = () => {
     setFormData({ ...EMPTY_ALUNO_FORM });
     openAddModal();
+  };
+
+  const openMobileAlunoMenu = (alunoId: string) => {
+    setMobileAlunoMenuId(alunoId);
+  };
+
+  const closeMobileAlunoMenu = () => {
+    setMobileAlunoMenuId(null);
   };
 
   const handleCloseAlunoModal = () => {
@@ -236,6 +246,9 @@ export default function AlunosModule() {
   const alunosAtivos = alunos.filter((aluno) => aluno.status === 'ativo').length;
   const alunosComAcesso = alunos.filter((aluno) => Boolean(aluno.linked_auth_user_id)).length;
   const planosAtivos = planos.length;
+  const selectedMobileAluno = mobileAlunoMenuId
+    ? alunos.find((aluno) => aluno.id === mobileAlunoMenuId) ?? null
+    : null;
 
   return (
     <ModuleShell>
@@ -341,105 +354,26 @@ export default function AlunosModule() {
           <>
             <div className="divide-y divide-zinc-800/60 md:hidden">
               {alunos.map((aluno) => {
-                const isResettingThisAluno = resettingPasswordForId === aluno.id;
-
                 return (
-                  <div key={aluno.id} className="space-y-4 px-5 py-5">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <ProfileAvatar
-                          displayName={aluno.nome}
-                          avatarUrl={aluno.avatar_url}
-                          className="h-10 w-10 rounded-full border border-zinc-700"
-                          textClassName="text-sm"
-                        />
-                        <div className="min-w-0">
-                          <p className="truncate text-base font-bold text-white">{aluno.nome}</p>
-                          <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">
-                            {aluno.created_at ? `Cadastro em ${formatDatePtBr(aluno.created_at)}` : 'Cadastro sem data'}
-                          </p>
-                        </div>
+                  <button
+                    key={aluno.id}
+                    type="button"
+                    onClick={() => openMobileAlunoMenu(aluno.id)}
+                    className="flex w-full items-center justify-between gap-3 px-5 py-5 text-left transition-colors hover:bg-zinc-900/50"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <ProfileAvatar
+                        displayName={aluno.nome}
+                        avatarUrl={aluno.avatar_url}
+                        className="h-10 w-10 rounded-full border border-zinc-700"
+                        textClassName="text-sm"
+                      />
+                      <div className="min-w-0">
+                        <p className="truncate text-base font-bold text-white">{aluno.nome}</p>
                       </div>
-
-                      <button
-                        onClick={() => handleToggleStatus(aluno.id, aluno.status)}
-                        disabled={isReadOnly}
-                        className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wider transition-all ${
-                          aluno.status === 'ativo'
-                            ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400'
-                            : 'border-rose-500/20 bg-rose-500/10 text-rose-400'
-                        } disabled:cursor-not-allowed disabled:opacity-50`}
-                      >
-                        {aluno.status === 'ativo' ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
-                        {aluno.status}
-                      </button>
                     </div>
-
-                    <div className="space-y-2 rounded-2xl border border-zinc-800 bg-black/20 p-4">
-                      {aluno.email ? (
-                        <div className="flex items-center gap-2 text-sm text-zinc-300">
-                          <Mail size={14} className="text-zinc-500" />
-                          <span className="truncate">{aluno.email}</span>
-                        </div>
-                      ) : null}
-
-                      {aluno.telefone ? (
-                        <div className="flex items-center gap-2 text-sm text-zinc-300">
-                          <Phone size={14} className="text-zinc-500" />
-                          <span>{aluno.telefone}</span>
-                        </div>
-                      ) : null}
-
-                      {!aluno.email && !aluno.telefone ? (
-                        <p className="text-sm text-zinc-500">Sem contato cadastrado.</p>
-                      ) : null}
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        onClick={() => sendWhatsApp(aluno)}
-                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition-all hover:border-emerald-500/20 hover:bg-emerald-500/10 hover:text-emerald-300"
-                      >
-                        <MessageCircle size={16} />
-                        WhatsApp
-                      </button>
-
-                      {!isReadOnly ? (
-                        <button
-                          onClick={() => handleStartEdit(aluno)}
-                          className="inline-flex items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition-all hover:border-orange-500/20 hover:bg-orange-500/10 hover:text-orange-300"
-                        >
-                          Editar
-                        </button>
-                      ) : (
-                        <div />
-                      )}
-
-                      {isAdmin ? (
-                        <button
-                          onClick={() => openResetPasswordDialog(aluno)}
-                          disabled={!aluno.linked_auth_user_id || !!resettingPasswordForId}
-                          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition-all hover:border-amber-500/20 hover:bg-amber-500/10 hover:text-amber-300 disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                          {isResettingThisAluno ? <Loader2 size={16} className="animate-spin" /> : <KeyRound size={16} />}
-                          Senha
-                        </button>
-                      ) : (
-                        <div />
-                      )}
-
-                      {!isReadOnly ? (
-                        <button
-                          onClick={() => setDeleteConfirmation(aluno.id)}
-                          className="inline-flex items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition-all hover:border-rose-500/20 hover:bg-rose-500/10 hover:text-rose-300"
-                        >
-                          Excluir
-                        </button>
-                      ) : (
-                        <div />
-                      )}
-                    </div>
-                  </div>
+                    <ChevronRight size={18} className="shrink-0 text-zinc-500" />
+                  </button>
                 );
               })}
             </div>
@@ -604,6 +538,121 @@ export default function AlunosModule() {
           />
         </Modal>
       )}
+
+      <Modal
+        isOpen={!!selectedMobileAluno}
+        onClose={closeMobileAlunoMenu}
+        title={selectedMobileAluno ? selectedMobileAluno.nome : 'Ficha da aluna'}
+        subtitle="Contato, status e acoes da ficha no app."
+        maxWidth="max-w-xl"
+      >
+        {selectedMobileAluno ? (
+          <div className="space-y-5">
+            <div className="flex items-center gap-4 rounded-3xl border border-zinc-800 bg-black/30 p-4">
+              <ProfileAvatar
+                displayName={selectedMobileAluno.nome}
+                avatarUrl={selectedMobileAluno.avatar_url}
+                className="h-14 w-14 rounded-full border border-zinc-700"
+                textClassName="text-lg"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-lg font-bold text-white">{selectedMobileAluno.nome}</p>
+                <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">
+                  {selectedMobileAluno.created_at
+                    ? `Cadastro em ${formatDatePtBr(selectedMobileAluno.created_at)}`
+                    : 'Cadastro sem data'}
+                </p>
+              </div>
+              <button
+                onClick={() => handleToggleStatus(selectedMobileAluno.id, selectedMobileAluno.status)}
+                disabled={isReadOnly}
+                className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wider transition-all ${
+                  selectedMobileAluno.status === 'ativo'
+                    ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400'
+                    : 'border-rose-500/20 bg-rose-500/10 text-rose-400'
+                } disabled:cursor-not-allowed disabled:opacity-50`}
+              >
+                {selectedMobileAluno.status === 'ativo' ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+                {selectedMobileAluno.status}
+              </button>
+            </div>
+
+            <div className="space-y-3 rounded-3xl border border-zinc-800 bg-black/20 p-4">
+              {selectedMobileAluno.email ? (
+                <div className="flex items-center gap-2 text-sm text-zinc-300">
+                  <Mail size={14} className="text-zinc-500" />
+                  <span className="truncate">{selectedMobileAluno.email}</span>
+                </div>
+              ) : null}
+
+              {selectedMobileAluno.telefone ? (
+                <div className="flex items-center gap-2 text-sm text-zinc-300">
+                  <Phone size={14} className="text-zinc-500" />
+                  <span>{selectedMobileAluno.telefone}</span>
+                </div>
+              ) : null}
+
+              {!selectedMobileAluno.email && !selectedMobileAluno.telefone ? (
+                <p className="text-sm text-zinc-500">Sem contato cadastrado.</p>
+              ) : null}
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button
+                onClick={() => {
+                  sendWhatsApp(selectedMobileAluno);
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition-all hover:border-emerald-500/20 hover:bg-emerald-500/10 hover:text-emerald-300"
+              >
+                <MessageCircle size={16} />
+                WhatsApp
+              </button>
+
+              {!isReadOnly ? (
+                <button
+                  onClick={() => {
+                    closeMobileAlunoMenu();
+                    handleStartEdit(selectedMobileAluno);
+                  }}
+                  className="inline-flex items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition-all hover:border-orange-500/20 hover:bg-orange-500/10 hover:text-orange-300"
+                >
+                  Editar
+                </button>
+              ) : null}
+
+              {isAdmin ? (
+                <button
+                  onClick={() => {
+                    closeMobileAlunoMenu();
+                    openResetPasswordDialog(selectedMobileAluno);
+                  }}
+                  disabled={!selectedMobileAluno.linked_auth_user_id || !!resettingPasswordForId}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition-all hover:border-amber-500/20 hover:bg-amber-500/10 hover:text-amber-300 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {resettingPasswordForId === selectedMobileAluno.id ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <KeyRound size={16} />
+                  )}
+                  Resetar senha
+                </button>
+              ) : null}
+
+              {!isReadOnly ? (
+                <button
+                  onClick={() => {
+                    closeMobileAlunoMenu();
+                    setDeleteConfirmation(selectedMobileAluno.id);
+                  }}
+                  className="inline-flex items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition-all hover:border-rose-500/20 hover:bg-rose-500/10 hover:text-rose-300"
+                >
+                  Excluir
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+      </Modal>
 
       <ConfirmDialog
         isOpen={!!deleteConfirmation}

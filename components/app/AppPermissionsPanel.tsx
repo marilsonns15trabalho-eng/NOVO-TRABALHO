@@ -1,6 +1,6 @@
 'use client';
 
-import { BellRing, Camera, CheckCircle2, Loader2, ShieldAlert } from 'lucide-react';
+import { BellRing, Camera, CheckCircle2, FolderOpen, Loader2, ShieldAlert } from 'lucide-react';
 import { useNativePermissions } from '@/hooks/useNativePermissions';
 import type { NativePermissionState } from '@/lib/native-app';
 
@@ -44,6 +44,7 @@ export default function AppPermissionsPanel({ compact = false }: AppPermissionsP
     busyKey,
     requestCameraPermission,
     requestNotificationPermission,
+    requestStoragePermission,
     sendTestNotification,
   } = useNativePermissions();
 
@@ -69,9 +70,9 @@ export default function AppPermissionsPanel({ compact = false }: AppPermissionsP
             <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-zinc-500">
               Permissoes do app
             </p>
-            <h3 className="mt-2 text-xl font-bold text-white">Camera e notificacoes</h3>
+            <h3 className="mt-2 text-xl font-bold text-white">Camera, arquivos e notificacoes</h3>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
-              O aplicativo pede acesso so ao que for necessario no celular: tirar fotos de avaliacao e mostrar avisos do app.
+              O aplicativo pede acesso so ao que for necessario no celular: tirar fotos, salvar artes e mostrar avisos do app.
             </p>
           </div>
 
@@ -82,7 +83,7 @@ export default function AppPermissionsPanel({ compact = false }: AppPermissionsP
         </div>
       )}
 
-      <div className={`mt-5 grid gap-4 ${compact ? '' : 'md:grid-cols-2'}`}>
+      <div className={`mt-5 grid gap-4 ${compact ? '' : 'md:grid-cols-3'}`}>
         <div className={`rounded-[24px] border p-4 ${permissionTone(permissions.camera)}`}>
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -107,6 +108,38 @@ export default function AppPermissionsPanel({ compact = false }: AppPermissionsP
               className="rounded-2xl border border-white/10 bg-black/20 px-4 py-2 text-sm font-bold text-white transition-all hover:border-white/20 hover:bg-black/35 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {busyKey === 'camera' ? 'Solicitando...' : permissions.camera === 'granted' ? 'Revisar permissao' : 'Permitir camera'}
+            </button>
+          </div>
+        </div>
+
+        <div className={`rounded-[24px] border p-4 ${permissionTone(permissions.storage)}`}>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-bold text-white">Arquivos e midia</p>
+              <p className={`mt-2 ${compact ? 'text-xs leading-5' : 'text-sm leading-6'}`}>
+                Libera salvar cards do treino e exportar imagens do app para postar depois.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+              <FolderOpen size={18} />
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em]">
+              {permissionLabel(permissions.storage)}
+            </span>
+            <button
+              type="button"
+              onClick={() => void requestStoragePermission()}
+              disabled={busyKey === 'storage'}
+              className="rounded-2xl border border-white/10 bg-black/20 px-4 py-2 text-sm font-bold text-white transition-all hover:border-white/20 hover:bg-black/35 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {busyKey === 'storage'
+                ? 'Solicitando...'
+                : permissions.storage === 'granted'
+                  ? 'Revisar permissao'
+                  : 'Permitir arquivos'}
             </button>
           </div>
         </div>
@@ -156,7 +189,9 @@ export default function AppPermissionsPanel({ compact = false }: AppPermissionsP
         </div>
       </div>
 
-      {permissions.camera === 'granted' && permissions.notifications === 'granted' ? (
+      {permissions.camera === 'granted' &&
+      permissions.notifications === 'granted' &&
+      permissions.storage === 'granted' ? (
         <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">
           <CheckCircle2 size={14} />
           Aparelho pronto para testes

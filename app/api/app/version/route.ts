@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { getReleaseNotes } from '@/lib/app-release-notes';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,6 +48,7 @@ export async function GET() {
         apkFileName,
         updatedAt: apkStats.mtime.toISOString(),
         downloadUrl: `/download/app?v=${versionCode}&t=${apkStats.mtime.getTime()}`,
+        releaseNotes: getReleaseNotes(versionName),
       },
       {
         headers: {

@@ -6,6 +6,7 @@ import {
   checkNativePermissions,
   requestCameraAccess,
   requestNotificationAccess,
+  requestStorageAccess,
   sendNotificationPreview,
   type NativePermissionSnapshot,
 } from '@/lib/native-app';
@@ -13,13 +14,14 @@ import {
 const DEFAULT_PERMISSIONS: NativePermissionSnapshot = {
   camera: 'unavailable',
   notifications: 'unavailable',
+  storage: 'unavailable',
 };
 
 export function useNativePermissions() {
   const nativeApp = useNativeApp();
   const [permissions, setPermissions] = useState<NativePermissionSnapshot>(DEFAULT_PERMISSIONS);
   const [loading, setLoading] = useState(false);
-  const [busyKey, setBusyKey] = useState<'camera' | 'notifications' | 'test' | null>(null);
+  const [busyKey, setBusyKey] = useState<'camera' | 'notifications' | 'storage' | 'test' | null>(null);
 
   const refreshPermissions = async () => {
     if (!nativeApp) {
@@ -63,6 +65,17 @@ export function useNativePermissions() {
     }
   };
 
+  const requestStoragePermission = async () => {
+    setBusyKey('storage');
+    try {
+      const status = await requestStorageAccess();
+      setPermissions((current) => ({ ...current, storage: status }));
+      return status;
+    } finally {
+      setBusyKey(null);
+    }
+  };
+
   const sendTestNotification = async () => {
     setBusyKey('test');
     try {
@@ -80,10 +93,12 @@ export function useNativePermissions() {
     allGranted:
       nativeApp &&
       permissions.camera === 'granted' &&
-      permissions.notifications === 'granted',
+      permissions.notifications === 'granted' &&
+      permissions.storage === 'granted',
     refreshPermissions,
     requestCameraPermission,
     requestNotificationPermission,
+    requestStoragePermission,
     sendTestNotification,
   };
 }

@@ -201,6 +201,14 @@ export async function saveFileToDevice(options: {
 
   try {
     const { Directory, Filesystem } = await import('@capacitor/filesystem');
+    const currentPermissions = await Filesystem.checkPermissions().catch(() => ({ publicStorage: 'unavailable' }));
+    if (currentPermissions.publicStorage !== 'granted') {
+      const requested = await Filesystem.requestPermissions().catch(() => ({ publicStorage: 'unavailable' }));
+      if (requested.publicStorage !== 'granted') {
+        return null;
+      }
+    }
+
     const extension = getFileExtension(options.file);
     const preferredName =
       options.preferredName ||

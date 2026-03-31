@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { BellRing, Camera, X } from 'lucide-react';
+import { BellRing, Camera, FolderOpen, X } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import AppPermissionsPanel from '@/components/app/AppPermissionsPanel';
 import { useNativePermissions } from '@/hooks/useNativePermissions';
@@ -31,7 +31,8 @@ export default function AppPermissionsPrompt() {
 
   const cameraPending = permissions.camera !== 'granted' && permissions.camera !== 'limited';
   const notificationsPending = permissions.notifications !== 'granted';
-  const shouldShow = cameraPending || notificationsPending;
+  const storagePending = permissions.storage !== 'granted';
+  const shouldShow = cameraPending || notificationsPending || storagePending;
 
   if (!shouldShow) {
     return null;
@@ -48,9 +49,11 @@ export default function AppPermissionsPrompt() {
             <h3 className="mt-2 text-lg font-bold text-white sm:text-xl">Ative as permissoes do app</h3>
             <p className="mt-2 text-sm leading-5 text-zinc-500 sm:leading-6">
               {cameraPending && notificationsPending
-                ? 'A camera e as notificacoes ajudam o aplicativo a funcionar melhor no celular.'
+                ? 'As permissoes principais ajudam o aplicativo a funcionar melhor no celular.'
                 : cameraPending
                   ? 'Permita a camera para tirar fotos direto no modulo de avaliacao.'
+                  : storagePending
+                    ? 'Permita arquivos e midia para salvar artes e exportar imagens do app.'
                   : 'Permita notificacoes para testar os avisos do app no aparelho.'}
             </p>
           </div>
@@ -79,6 +82,12 @@ export default function AppPermissionsPrompt() {
             <span className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-amber-200">
               <BellRing size={12} />
               Notificacoes pendentes
+            </span>
+          ) : null}
+          {storagePending ? (
+            <span className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-amber-200">
+              <FolderOpen size={12} />
+              Arquivos pendentes
             </span>
           ) : null}
         </div>

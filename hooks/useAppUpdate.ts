@@ -9,6 +9,10 @@ interface RemoteAppVersionPayload {
   updatedAt: string;
   downloadUrl: string;
   apkFileName: string;
+  releaseNotes?: {
+    title: string;
+    highlights: string[];
+  } | null;
 }
 
 interface InstalledAppInfo {
