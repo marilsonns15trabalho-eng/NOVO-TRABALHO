@@ -9,6 +9,7 @@ import {
 import { getSupabaseAdmin, normalizeEmail } from '@/lib/server/supabase-admin';
 
 export const runtime = 'nodejs';
+export const maxDuration = 60;
 
 const DEFAULT_PASSWORD = '123456';
 
@@ -144,7 +145,6 @@ function buildAvaliacaoPayload(avaliacao: LegacyAvaliacao, studentId: string) {
     data: avaliacao.data,
     peso: n(avaliacao.peso),
     altura: n(avaliacao.altura),
-    pescoco: n(avaliacao.pescoco),
     ombro: n(avaliacao.ombro),
     torax: n(avaliacao.torax),
     cintura: n(avaliacao.cintura),
@@ -166,7 +166,6 @@ function buildAvaliacaoPayload(avaliacao: LegacyAvaliacao, studentId: string) {
     massa_gorda: n(avaliacao.massa_gorda),
     massa_magra: n(avaliacao.massa_magra),
     soma_dobras: n(avaliacao.soma_dobras),
-    rcq: n(avaliacao.rcq),
     protocolo: normalizeProtocol(avaliacao.protocolo),
     observacoes: avaliacao.observacoes || null,
     medidas: {
