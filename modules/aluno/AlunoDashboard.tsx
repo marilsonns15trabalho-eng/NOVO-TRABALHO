@@ -36,6 +36,7 @@ import WorkoutShareComposer from '@/components/treinos/WorkoutShareComposer';
 import { useMobileViewport } from '@/hooks/useMobileViewport';
 import { useNativeApp } from '@/hooks/useNativeApp';
 import { getAvaliacaoEvolutionMetrics } from '@/lib/avaliacao-evolution';
+import { getAvaliacaoProtocolLabel } from '@/lib/biometrics';
 import { formatDatePtBr, getLocalDateInputValue } from '@/lib/date';
 import { exportAvaliacaoEvolutionPdf } from '@/lib/pdf/exportAvaliacaoEvolutionPdf';
 import { exportAvaliacaoPdf } from '@/lib/pdf/exportAvaliacaoPdf';
@@ -1453,7 +1454,7 @@ export default function AlunoDashboard() {
 
                         <div className="flex flex-col items-end gap-2">
                           <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-zinc-400">
-                            {avaliacao.protocolo || 'faulkner'}
+                            {getAvaliacaoProtocolLabel(avaliacao.protocolo)}
                           </div>
                           <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] ${
                             comparisonBase

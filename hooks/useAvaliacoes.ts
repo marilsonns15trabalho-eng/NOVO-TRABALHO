@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotification } from '@/hooks/useNotification';
+import { getBiometriaValidationMessage } from '@/lib/biometrics';
 import * as avaliacoesService from '@/services/avaliacoes.service';
 import { formatDatePtBr, getLocalDateInputValue } from '@/lib/date';
 import type {
@@ -14,7 +15,7 @@ import type {
 function createDefaultAvaliacaoForm(): AvaliacaoFormData {
   return {
     data: getLocalDateInputValue(),
-    protocolo: 'faulkner',
+    protocolo: 'navy',
   };
 }
 
@@ -108,7 +109,17 @@ export function useAvaliacoes() {
           historicoCompleto.find((item) => item.id === avaliacao.id) ?? avaliacao;
 
         setEditingAvaliacao(avaliacaoCompleta);
-        setNewAvaliacao({ ...avaliacaoCompleta });
+        setNewAvaliacao({
+          ...avaliacaoCompleta,
+          student_gender:
+            avaliacaoCompleta.students?.gender ??
+            avaliacaoCompleta.students?.sexo ??
+            null,
+          student_birth_date:
+            avaliacaoCompleta.students?.birth_date ??
+            avaliacaoCompleta.students?.data_nascimento ??
+            null,
+        });
         setShowAddModal(true);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Erro ao abrir avaliacao.';
@@ -157,6 +168,14 @@ export function useAvaliacoes() {
 
         if (newAvaliacao.altura === null || newAvaliacao.altura === undefined || Number(newAvaliacao.altura) <= 0) {
           throw new Error('Informe uma altura valida para a avaliacao.');
+        }
+
+        const biometriaValidationMessage = getBiometriaValidationMessage(
+          newAvaliacao as Record<string, unknown>,
+        );
+
+        if (biometriaValidationMessage) {
+          throw new Error(biometriaValidationMessage);
         }
 
         const savedAvaliacao = await avaliacoesService.salvarAvaliacao(

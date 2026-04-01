@@ -1,4 +1,4 @@
-export type ProtocoloAvaliacao = 'faulkner' | 'pollock7' | 'pollock3';
+export type ProtocoloAvaliacao = 'faulkner' | 'navy' | 'pollock7' | 'pollock3';
 export type AvaliacaoPhotoPosition = 'front' | 'back' | 'left' | 'right';
 
 export interface AvaliacaoPhoto {
@@ -81,7 +81,10 @@ export interface Avaliacao {
   };
 }
 
-export type AvaliacaoFormData = Partial<Avaliacao>;
+export type AvaliacaoFormData = Partial<Avaliacao> & {
+  student_gender?: string | null;
+  student_birth_date?: string | null;
+};
 
 export interface AvaliacaoAlunoItem {
   id: string;

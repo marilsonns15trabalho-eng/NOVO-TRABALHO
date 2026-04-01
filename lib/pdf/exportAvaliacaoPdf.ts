@@ -1,5 +1,5 @@
 import { extractDateOnly, formatDatePtBr } from '@/lib/date';
-import { calcularRcq } from '@/lib/biometrics';
+import { calcularRcq, getAvaliacaoProtocolLabel } from '@/lib/biometrics';
 
 type PdfAvaliacao = {
   data: string;
@@ -64,7 +64,7 @@ export async function exportAvaliacaoPdf(avaliacao: PdfAvaliacao) {
   doc.setTextColor(17, 24, 39);
   doc.setFontSize(12);
   doc.text(`Aluno: ${studentName}`, 14, 52);
-  doc.text(`Protocolo: ${avaliacao.protocolo || 'Faulkner'}`, 14, 60);
+  doc.text(`Protocolo: ${getAvaliacaoProtocolLabel(avaliacao.protocolo)}`, 14, 60);
 
   const infoRows = [
     ['Peso', formatValue(avaliacao.peso, ' kg')],
@@ -115,12 +115,25 @@ export async function exportAvaliacaoPdf(avaliacao: PdfAvaliacao) {
     tableWidth: 86,
   });
 
-  const skinfoldRows = [
-    ['Tricipital', formatValue(avaliacao.tricipital, ' mm')],
-    ['Subescapular', formatValue(avaliacao.subescapular, ' mm')],
-    ['Supra iliaca', formatValue(avaliacao.supra_iliaca, ' mm')],
-    ['Abdominal', formatValue(avaliacao.abdominal, ' mm')],
-  ];
+  const protocolLabel = getAvaliacaoProtocolLabel(avaliacao.protocolo);
+  const protocolTableTitle =
+    avaliacao.protocolo === 'navy'
+      ? `Medidas do protocolo (${protocolLabel})`
+      : `Dobras cutaneas (${protocolLabel})`;
+  const protocolRows =
+    avaliacao.protocolo === 'navy'
+      ? [
+          ['Pescoco', formatValue(avaliacao.pescoco, ' cm')],
+          ['Cintura', formatValue(avaliacao.cintura, ' cm')],
+          ['Quadril', formatValue(avaliacao.quadril, ' cm')],
+          ['Altura', formatValue(avaliacao.altura, ' m')],
+        ]
+      : [
+          ['Tricipital', formatValue(avaliacao.tricipital, ' mm')],
+          ['Subescapular', formatValue(avaliacao.subescapular, ' mm')],
+          ['Supra iliaca', formatValue(avaliacao.supra_iliaca, ' mm')],
+          ['Abdominal', formatValue(avaliacao.abdominal, ' mm')],
+        ];
 
   const afterFirstTables = Math.max(
     (doc as any).lastAutoTable?.finalY || 140,
@@ -129,8 +142,8 @@ export async function exportAvaliacaoPdf(avaliacao: PdfAvaliacao) {
 
   (autoTable as any)(doc, {
     startY: afterFirstTables + 8,
-    head: [['Dobras cutaneas', 'Valor']],
-    body: skinfoldRows,
+    head: [[protocolTableTitle, 'Valor']],
+    body: protocolRows,
     theme: 'grid',
     headStyles: { fillColor: [168, 85, 247], textColor: [255, 255, 255] },
     alternateRowStyles: { fillColor: [250, 245, 255] },

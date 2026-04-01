@@ -1,5 +1,5 @@
 import { optimizeAssessmentPhotoFile } from '@/lib/assessmentPhotos';
-import { calcularBiometria, calcularRcq } from '@/lib/biometrics';
+import { calcularBiometria, calcularRcq, getBiometriaValidationMessage } from '@/lib/biometrics';
 import { STORAGE_BUCKETS, TABLES } from '@/lib/constants';
 import { normalizeStudentRelation } from '@/lib/mappers';
 import { getAuthenticatedUser, supabase } from '@/lib/supabase';
@@ -264,12 +264,36 @@ export async function salvarAvaliacao(
   const user = await getAuthenticatedUser();
   await assertCanManageStudentDataForUserId(user.id);
 
-  const dadosCalculados = calcularBiometria(avaliacaoData as Record<string, unknown>);
-  const data = { ...avaliacaoData, ...dadosCalculados };
   const studentId = await resolveStudentIdForWrite(
-    typeof data.student_id === 'string' ? data.student_id : undefined,
+    typeof avaliacaoData.student_id === 'string' ? avaliacaoData.student_id : undefined,
     user.id,
   );
+  let studentContext: { gender?: string | null; birth_date?: string | null } | null = null;
+
+  if (avaliacaoData.protocolo === 'navy' || !avaliacaoData.student_gender) {
+    const { data: studentRow } = await supabase
+      .from(TABLES.STUDENTS)
+      .select('gender, birth_date')
+      .eq('id', studentId)
+      .maybeSingle();
+
+    studentContext = studentRow || null;
+  }
+
+  const biometricInput = {
+    ...avaliacaoData,
+    student_gender:
+      avaliacaoData.student_gender ??
+      studentContext?.gender ??
+      null,
+    student_birth_date:
+      avaliacaoData.student_birth_date ??
+      studentContext?.birth_date ??
+      null,
+  };
+
+  const dadosCalculados = calcularBiometria(biometricInput as Record<string, unknown>);
+  const data = { ...avaliacaoData, ...biometricInput, ...dadosCalculados };
   const peso = n(data.peso);
   const altura = n(data.altura);
 
@@ -291,6 +315,14 @@ export async function salvarAvaliacao(
     throw new Error('Informe uma altura valida para a avaliacao.');
   }
 
+  const biometriaValidationMessage = getBiometriaValidationMessage(
+    biometricInput as Record<string, unknown>,
+  );
+
+  if (biometriaValidationMessage) {
+    throw new Error(biometriaValidationMessage);
+  }
+
   const rowId =
     editingId ??
     (typeof avaliacaoData.id === 'string' ? avaliacaoData.id : undefined);
@@ -306,7 +338,7 @@ export async function salvarAvaliacao(
     massa_magra: n(data.massa_magra),
     massa_gorda: n(data.massa_gorda),
     soma_dobras: n(data.soma_dobras),
-    protocolo: data.protocolo || 'faulkner',
+    protocolo: data.protocolo || 'navy',
     observacoes: data.observacoes || null,
     ombro: n(data.ombro),
     torax: n(data.torax),

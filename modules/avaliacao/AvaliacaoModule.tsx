@@ -40,7 +40,11 @@ import {
 } from '@/components/dashboard/ModulePrimitives';
 
 import { createPhotoDraftMap, revokePhotoDraftUrls } from '@/lib/assessmentPhotos';
-import { calcularBiometria } from '@/lib/biometrics';
+import {
+  calcularBiometria,
+  getAvaliacaoProtocolLabel,
+  getBiometriaValidationMessage,
+} from '@/lib/biometrics';
 import { compareDateOnly, extractDateOnly, formatDateDayMonthPtBr, formatDatePtBr, isSameMonthDate } from '@/lib/date';
 import { captureAssessmentPhotoFile } from '@/lib/native-app';
 import { exportAvaliacaoPdf } from '@/lib/pdf/exportAvaliacaoPdf';
@@ -243,6 +247,24 @@ export default function AvaliacaoModule() {
   const filteredAlunosList = alunos.filter((a: any) =>
     (a.nome || '').toLowerCase().includes((alunoSearch || '').toLowerCase())
   );
+  const selectedAluno = alunos.find((aluno) => aluno.id === newAvaliacao.student_id);
+  const protocoloSelecionadoLabel = getAvaliacaoProtocolLabel(newAvaliacao.protocolo);
+  const biometriaHint = getBiometriaValidationMessage({
+    ...(newAvaliacao as Record<string, unknown>),
+    student_gender:
+      newAvaliacao.student_gender ??
+      selectedAluno?.gender ??
+      selectedAluno?.sexo ??
+      null,
+    student_birth_date:
+      newAvaliacao.student_birth_date ??
+      selectedAluno?.birth_date ??
+      selectedAluno?.data_nascimento ??
+      null,
+  });
+  const shouldShowBiometriaHint =
+    newAvaliacao.protocolo === 'navy' &&
+    Boolean(newAvaliacao.student_id || newAvaliacao.cintura || newAvaliacao.pescoco || newAvaliacao.quadril);
 
   const totalAvaliacoes = filteredAvaliacoes.length;
   const alunosAvaliados = new Set(
@@ -496,7 +518,9 @@ export default function AvaliacaoModule() {
                 <div className="bg-black/40 border border-zinc-800 p-6 rounded-2xl text-center relative group">
                   <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Percentual de Gordura</p>
                   <p className="text-4xl font-black text-purple-500">{selectedReport.percentual_gordura || 0}%</p>
-                  <p className="text-xs text-zinc-600 mt-2">Protocolo Faulkner</p>
+                  <p className="text-xs text-zinc-600 mt-2">
+                    {getAvaliacaoProtocolLabel(selectedReport.protocolo)}
+                  </p>
                   {historicoAluno.length > 1 && historicoAluno.findIndex((a: any) => a.id === selectedReport.id) > 0 && (
                     (() => {
                       const currentIndex = historicoAluno.findIndex((a: any) => a.id === selectedReport.id);
@@ -715,7 +739,17 @@ export default function AvaliacaoModule() {
                             <div
                               key={aluno.id}
                               onClick={() => {
-                                handleAvaliacaoFieldChange('student_id', aluno.id);
+                                setNewAvaliacao((prev) => {
+                                  const atualizado = {
+                                    ...prev,
+                                    student_id: aluno.id,
+                                    student_gender: aluno.gender ?? aluno.sexo ?? null,
+                                    student_birth_date:
+                                      aluno.birth_date ?? aluno.data_nascimento ?? null,
+                                  };
+                                  const calculado = calcularBiometria(atualizado as Record<string, unknown>);
+                                  return { ...atualizado, ...calculado };
+                                });
                                 setAlunoSearch(aluno.nome);
                                 setShowAlunoDropdown(false);
                               }}
@@ -730,7 +764,7 @@ export default function AvaliacaoModule() {
                               <div className="min-w-0">
                                 <p className="truncate font-bold">{aluno.nome}</p>
                                 <p className="truncate text-xs text-zinc-500">
-                                  {aluno.birth_date || aluno.gender ? 'Aluna cadastrada' : 'Selecionar'}
+                                  {aluno.birth_date || aluno.gender ? 'Cadastro encontrado' : 'Selecionar'}
                                 </p>
                               </div>
                             </div>
@@ -753,7 +787,13 @@ export default function AvaliacaoModule() {
                       className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 outline-none transition-all"
                     >
                       <option value="faulkner">Faulkner (4 Dobras)</option>
+                      <option value="navy">US Navy (Circunferencias)</option>
                     </select>
+                    <p className="text-xs text-zinc-500">
+                      {newAvaliacao.protocolo === 'navy'
+                        ? 'US Navy usa altura, cintura e pescoco. Para mulheres, tambem quadril.'
+                        : 'Faulkner usa tricipital, subescapular, supra-iliaca e abdominal.'}
+                    </p>
                   </div>
                 </div>
 
@@ -828,6 +868,15 @@ export default function AvaliacaoModule() {
 
                 <div className="border-t border-zinc-800 pt-4">
                   <h4 className="text-lg font-bold mb-4 text-purple-500">Resultados</h4>
+                  <div className="mb-4 rounded-2xl border border-zinc-800 bg-black/40 px-4 py-3">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                      Protocolo aplicado
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-white">{protocoloSelecionadoLabel}</p>
+                    {shouldShowBiometriaHint && biometriaHint ? (
+                      <p className="mt-2 text-xs text-amber-300">{biometriaHint}</p>
+                    ) : null}
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Soma Dobras</label>
@@ -871,7 +920,7 @@ export default function AvaliacaoModule() {
 
                 {!canSaveAvaliacao ? (
                   <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-                    Preencha aluna, data, peso e altura para liberar o salvamento.
+                    Preencha aluno, data, peso e altura para liberar o salvamento.
                   </div>
                 ) : null}
 

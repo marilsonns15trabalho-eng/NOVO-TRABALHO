@@ -1,5 +1,5 @@
 import { diffDateOnlyInDays, formatDatePtBr, formatDateTimePtBr } from '@/lib/date';
-import { calcularRcq } from '@/lib/biometrics';
+import { calcularRcq, getAvaliacaoProtocolLabel } from '@/lib/biometrics';
 
 type PdfAvaliacao = {
   id?: string;
@@ -557,13 +557,35 @@ export async function exportAvaliacaoEvolutionPdf(
 
   doc.addPage();
   drawHeader(doc);
-  drawGridTable(renderTable, doc, 'DOBRAS CUTANEAS (Protocolo Faulkner)', 38, dateA, dateB, [
-    buildRow('Tricipital (mm)', asNumber(previous.tricipital), asNumber(current.tricipital), ' mm'),
-    buildRow('Subescapular (mm)', asNumber(previous.subescapular), asNumber(current.subescapular), ' mm'),
-    buildRow('Supra-iliaca (mm)', asNumber(previous.supra_iliaca), asNumber(current.supra_iliaca), ' mm'),
-    buildRow('Abdominal (mm)', asNumber(previous.abdominal), asNumber(current.abdominal), ' mm'),
-    buildRow('Soma Total', calculateSkinfoldSum(previous), calculateSkinfoldSum(current), ' mm'),
-  ]);
+  const protocolLabel = getAvaliacaoProtocolLabel(current.protocolo);
+  const protocolTableTitle =
+    current.protocolo === 'navy'
+      ? `MEDIDAS DO PROTOCOLO (${protocolLabel})`
+      : `DOBRAS CUTANEAS (${protocolLabel})`;
+  const protocolRows =
+    current.protocolo === 'navy'
+      ? [
+          buildRow('Pescoco (cm)', asNumber(previous.pescoco), asNumber(current.pescoco), ' cm'),
+          buildRow('Cintura (cm)', asNumber(previous.cintura), asNumber(current.cintura), ' cm'),
+          buildRow('Quadril (cm)', asNumber(previous.quadril), asNumber(current.quadril), ' cm'),
+          buildRow('Altura', asNumber(previous.altura), asNumber(current.altura)),
+        ]
+      : [
+          buildRow('Tricipital (mm)', asNumber(previous.tricipital), asNumber(current.tricipital), ' mm'),
+          buildRow('Subescapular (mm)', asNumber(previous.subescapular), asNumber(current.subescapular), ' mm'),
+          buildRow('Supra-iliaca (mm)', asNumber(previous.supra_iliaca), asNumber(current.supra_iliaca), ' mm'),
+          buildRow('Abdominal (mm)', asNumber(previous.abdominal), asNumber(current.abdominal), ' mm'),
+          buildRow('Soma Total', calculateSkinfoldSum(previous), calculateSkinfoldSum(current), ' mm'),
+        ];
+  drawGridTable(
+    renderTable,
+    doc,
+    protocolTableTitle,
+    38,
+    dateA,
+    dateB,
+    protocolRows,
+  );
 
   doc.addPage();
   drawHeader(doc);
