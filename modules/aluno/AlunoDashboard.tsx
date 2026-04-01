@@ -33,11 +33,14 @@ import ProfileAvatar from '@/components/account/ProfileAvatar';
 import AppNotificationBell from '@/components/notifications/AppNotificationBell';
 import ExerciseOfficialPreviewModal from '@/components/treinos/ExerciseOfficialPreviewModal';
 import WorkoutShareComposer from '@/components/treinos/WorkoutShareComposer';
+import { Toast } from '@/components/ui';
 import { useMobileViewport } from '@/hooks/useMobileViewport';
 import { useNativeApp } from '@/hooks/useNativeApp';
+import { useNotification } from '@/hooks/useNotification';
 import { getAvaliacaoEvolutionMetrics } from '@/lib/avaliacao-evolution';
 import { getAvaliacaoProtocolLabel } from '@/lib/biometrics';
 import { formatDatePtBr, getLocalDateInputValue } from '@/lib/date';
+import type { FileDownloadResult } from '@/lib/external-links';
 import { exportAvaliacaoEvolutionPdf } from '@/lib/pdf/exportAvaliacaoEvolutionPdf';
 import { exportAvaliacaoPdf } from '@/lib/pdf/exportAvaliacaoPdf';
 import { supabase } from '@/lib/supabase';
@@ -190,6 +193,22 @@ function formatAvaliacaoDelta(
   })}${suffix}`;
 }
 
+function getPdfFeedbackMessage(result: FileDownloadResult | null, label: string) {
+  if (!result) {
+    return `${label} gerado com sucesso.`;
+  }
+
+  if (result.kind === 'saved') {
+    return `${label} salvo no celular na pasta Lioness.`;
+  }
+
+  if (result.kind === 'shared') {
+    return `${label} pronto para compartilhar no aparelho.`;
+  }
+
+  return `${label} baixado com sucesso.`;
+}
+
 interface StudentNavItemProps {
   label: string;
   helper: string;
@@ -238,6 +257,7 @@ export default function AlunoDashboard() {
   const nativeApp = useNativeApp();
   const mobileViewport = useMobileViewport();
   const appLikeShell = nativeApp || mobileViewport;
+  const { notification, showNotification, clearNotification } = useNotification();
 
   const [loading, setLoading] = useState(true);
   const [studentId, setStudentId] = useState<string | null>(null);
@@ -395,6 +415,28 @@ export default function AlunoDashboard() {
     const baseName = profile?.display_name || user?.email?.split('@')[0] || 'Aluno';
     return baseName.split(' ')[0];
   }, [profile?.display_name, user?.email]);
+
+  const handleExportCurrentPdf = async (avaliacao: Avaliacao) => {
+    try {
+      const result = await exportAvaliacaoPdf(avaliacao);
+      showNotification(getPdfFeedbackMessage(result, 'PDF da avaliacao'), 'success');
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Nao foi possivel gerar o PDF da avaliacao.';
+      showNotification(message, 'error');
+    }
+  };
+
+  const handleExportEvolutionPdf = async (base: Avaliacao, atual: Avaliacao) => {
+    try {
+      const result = await exportAvaliacaoEvolutionPdf(base, atual);
+      showNotification(getPdfFeedbackMessage(result, 'PDF de evolucao'), 'success');
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Nao foi possivel gerar o PDF de evolucao.';
+      showNotification(message, 'error');
+    }
+  };
 
   const hour = new Date().getHours();
   const salutation = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
@@ -1280,7 +1322,7 @@ export default function AlunoDashboard() {
               {latestAvaliacao ? (
                 <button
                   type="button"
-                  onClick={() => void exportAvaliacaoPdf(latestAvaliacao)}
+                  onClick={() => void handleExportCurrentPdf(latestAvaliacao)}
                   className="inline-flex items-center gap-2 rounded-2xl border border-purple-500/20 bg-purple-500/10 px-4 py-3 text-sm font-bold text-purple-300 transition-all hover:bg-purple-500 hover:text-white"
                 >
                   <FileText size={16} />
@@ -1290,7 +1332,7 @@ export default function AlunoDashboard() {
 
               <button
                 type="button"
-                onClick={() => latestAvaliacao && latestEvolutionBase && void exportAvaliacaoEvolutionPdf(latestEvolutionBase, latestAvaliacao)}
+                onClick={() => latestAvaliacao && latestEvolutionBase && void handleExportEvolutionPdf(latestEvolutionBase, latestAvaliacao)}
                 disabled={!latestAvaliacao || !latestEvolutionBase}
                 className={`inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold transition-all ${
                   latestAvaliacao && latestEvolutionBase
@@ -1373,7 +1415,7 @@ export default function AlunoDashboard() {
 
                     <button
                       type="button"
-                      onClick={() => latestAvaliacao && latestEvolutionBase && void exportAvaliacaoEvolutionPdf(latestEvolutionBase, latestAvaliacao)}
+                      onClick={() => latestAvaliacao && latestEvolutionBase && void handleExportEvolutionPdf(latestEvolutionBase, latestAvaliacao)}
                       className="inline-flex items-center gap-2 rounded-2xl border border-sky-400/20 bg-sky-400/10 px-4 py-3 text-sm font-bold text-sky-200 transition-all hover:bg-sky-400 hover:text-black"
                     >
                       <Download size={16} />
@@ -1590,7 +1632,7 @@ export default function AlunoDashboard() {
                       <div className="mt-4 flex flex-wrap gap-3">
                         <button
                           type="button"
-                          onClick={() => void exportAvaliacaoPdf(avaliacao)}
+                          onClick={() => void handleExportCurrentPdf(avaliacao)}
                           className="inline-flex items-center gap-2 rounded-2xl border border-purple-500/20 bg-purple-500/10 px-4 py-3 text-sm font-bold text-purple-300 transition-all hover:bg-purple-500 hover:text-white"
                         >
                           <FileText size={16} />
@@ -1599,7 +1641,7 @@ export default function AlunoDashboard() {
 
                         <button
                           type="button"
-                          onClick={() => comparisonBase && void exportAvaliacaoEvolutionPdf(comparisonBase, avaliacao)}
+                          onClick={() => comparisonBase && void handleExportEvolutionPdf(comparisonBase, avaliacao)}
                           disabled={!comparisonBase}
                           className={`inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold transition-all ${
                             comparisonBase
@@ -1879,6 +1921,7 @@ export default function AlunoDashboard() {
         </div>
       )}
 
+      <Toast notification={notification} onClose={clearNotification} />
       {appLikeShell ? <AppBottomNav items={appBottomNavItems} /> : null}
     </motion.div>
   );

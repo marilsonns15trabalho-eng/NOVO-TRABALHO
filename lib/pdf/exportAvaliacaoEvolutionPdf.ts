@@ -1,6 +1,6 @@
 import { diffDateOnlyInDays, formatDatePtBr, formatDateTimePtBr } from '@/lib/date';
 import { calcularRcq, getAvaliacaoProtocolLabel } from '@/lib/biometrics';
-import { downloadFile } from '@/lib/external-links';
+import { downloadFile, type FileDownloadResult } from '@/lib/external-links';
 
 type PdfAvaliacao = {
   id?: string;
@@ -172,14 +172,17 @@ function safeFileName(value: string) {
     .replace(/^_|_$/g, '');
 }
 
-async function savePdfDocument(doc: any, fileName: string) {
+async function savePdfDocument(
+  doc: any,
+  fileName: string,
+): Promise<FileDownloadResult | null> {
   const blob = doc.output('blob');
   const pdfFile = new File([blob], fileName, {
     type: 'application/pdf',
     lastModified: Date.now(),
   });
 
-  await downloadFile(pdfFile, fileName);
+  return downloadFile(pdfFile, fileName);
 }
 
 function drawHeader(doc: any) {
@@ -510,7 +513,7 @@ function buildRecommendations(previous: PdfAvaliacao, current: PdfAvaliacao) {
 export async function exportAvaliacaoEvolutionPdf(
   previous: PdfAvaliacao,
   current: PdfAvaliacao,
-) {
+): Promise<FileDownloadResult | null> {
   const { default: jsPDF } = await import('jspdf');
   const { default: autoTable } = await import('jspdf-autotable');
 
@@ -699,5 +702,5 @@ export async function exportAvaliacaoEvolutionPdf(
 
   const studentName = safeFileName(current.students?.nome || previous.students?.nome || 'aluno');
   const fileName = `Evolucao_${studentName}_${dateA.replace(/\//g, '-')}_${dateB.replace(/\//g, '-')}.pdf`;
-  await savePdfDocument(doc, fileName);
+  return savePdfDocument(doc, fileName);
 }

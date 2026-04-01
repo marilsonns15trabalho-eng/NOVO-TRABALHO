@@ -1,6 +1,6 @@
 import { extractDateOnly, formatDatePtBr } from '@/lib/date';
 import { calcularRcq, getAvaliacaoProtocolLabel } from '@/lib/biometrics';
-import { downloadFile } from '@/lib/external-links';
+import { downloadFile, type FileDownloadResult } from '@/lib/external-links';
 
 type PdfAvaliacao = {
   data: string;
@@ -43,17 +43,22 @@ function formatValue(value: unknown, suffix = '') {
   return `${value}${suffix}`;
 }
 
-async function savePdfDocument(doc: any, fileName: string) {
+async function savePdfDocument(
+  doc: any,
+  fileName: string,
+): Promise<FileDownloadResult | null> {
   const blob = doc.output('blob');
   const pdfFile = new File([blob], fileName, {
     type: 'application/pdf',
     lastModified: Date.now(),
   });
 
-  await downloadFile(pdfFile, fileName);
+  return downloadFile(pdfFile, fileName);
 }
 
-export async function exportAvaliacaoPdf(avaliacao: PdfAvaliacao) {
+export async function exportAvaliacaoPdf(
+  avaliacao: PdfAvaliacao,
+): Promise<FileDownloadResult | null> {
   const { default: jsPDF } = await import('jspdf');
   const { default: autoTable } = await import('jspdf-autotable');
 
@@ -177,5 +182,5 @@ export async function exportAvaliacaoPdf(avaliacao: PdfAvaliacao) {
   doc.text('Documento gerado pelo sistema Lioness.', pageWidth / 2, 286, { align: 'center' });
 
   const fileName = `Avaliacao_${studentName.replace(/\s+/g, '_')}_${extractDateOnly(avaliacao.data) || avaliacao.data}.pdf`;
-  await savePdfDocument(doc, fileName);
+  return savePdfDocument(doc, fileName);
 }

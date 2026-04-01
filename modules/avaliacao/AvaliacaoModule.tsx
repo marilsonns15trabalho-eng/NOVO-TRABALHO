@@ -47,6 +47,7 @@ import {
   getBiometriaValidationMessage,
 } from '@/lib/biometrics';
 import { compareDateOnly, extractDateOnly, formatDateDayMonthPtBr, formatDatePtBr, isSameMonthDate } from '@/lib/date';
+import type { FileDownloadResult } from '@/lib/external-links';
 import { captureAssessmentPhotoFile } from '@/lib/native-app';
 import { exportAvaliacaoPdf } from '@/lib/pdf/exportAvaliacaoPdf';
 import { exportAvaliacaoEvolutionPdf } from '@/lib/pdf/exportAvaliacaoEvolutionPdf';
@@ -61,6 +62,22 @@ function parseOptionalDecimal(value: string) {
 
   const parsed = Number(value.replace(',', '.'));
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function getPdfFeedbackMessage(result: FileDownloadResult | null, label: string) {
+  if (!result) {
+    return `${label} gerado com sucesso.`;
+  }
+
+  if (result.kind === 'saved') {
+    return `${label} salvo no celular na pasta Lioness.`;
+  }
+
+  if (result.kind === 'shared') {
+    return `${label} pronto para compartilhar no aparelho.`;
+  }
+
+  return `${label} baixado com sucesso.`;
 }
 
 export default function AvaliacaoModule() {
@@ -284,6 +301,28 @@ export default function AvaliacaoModule() {
     Number(newAvaliacao.peso) > 0 &&
     Number(newAvaliacao.altura) > 0;
 
+  const handleExportCurrentPdf = async (avaliacao: Avaliacao) => {
+    try {
+      const result = await exportAvaliacaoPdf(avaliacao);
+      showNotification(getPdfFeedbackMessage(result, 'PDF da avaliacao'), 'success');
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Nao foi possivel gerar o PDF da avaliacao.';
+      showNotification(message, 'error');
+    }
+  };
+
+  const handleExportEvolutionPdf = async (base: Avaliacao, atual: Avaliacao) => {
+    try {
+      const result = await exportAvaliacaoEvolutionPdf(base, atual);
+      showNotification(getPdfFeedbackMessage(result, 'PDF de evolucao'), 'success');
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Nao foi possivel gerar o PDF de evolucao.';
+      showNotification(message, 'error');
+    }
+  };
+
   return (
     <ModuleShell>
       <ModuleHero
@@ -500,13 +539,13 @@ export default function AvaliacaoModule() {
                 </div>
                 <div className="flex gap-3">
                   <button
-                    onClick={() => exportAvaliacaoPdf(selectedReport)}
+                    onClick={() => void handleExportCurrentPdf(selectedReport)}
                     className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 rounded-xl font-bold transition-all flex items-center gap-2"
                   >
                     PDF avaliacao
                   </button>
                   <button
-                    onClick={() => comparisonBase && exportAvaliacaoEvolutionPdf(comparisonBase, selectedReport)}
+                    onClick={() => comparisonBase && void handleExportEvolutionPdf(comparisonBase, selectedReport)}
                     disabled={!comparisonBase}
                     className={`px-6 py-2 rounded-xl font-bold transition-all flex items-center gap-2 ${
                       comparisonBase

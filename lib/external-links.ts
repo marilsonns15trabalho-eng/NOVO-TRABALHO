@@ -4,6 +4,21 @@ import { Browser } from '@capacitor/browser';
 import { Share } from '@capacitor/share';
 import { isNativeApp } from '@/lib/platform';
 
+export type FileDownloadResult =
+  | {
+      kind: 'saved';
+      fileName: string;
+      path: string;
+      uri: string;
+    }
+  | {
+      kind: 'shared';
+    }
+  | {
+      kind: 'downloaded';
+      fileName: string;
+    };
+
 function openUrlWithAnchor(url: string, target: '_blank' | '_self' = '_blank') {
   const anchor = document.createElement('a');
   anchor.href = url;
@@ -119,9 +134,12 @@ function toBase64Payload(file: File): Promise<string> {
   });
 }
 
-export async function downloadFile(file: File, fallbackName?: string) {
+export async function downloadFile(
+  file: File,
+  fallbackName?: string,
+): Promise<FileDownloadResult | null> {
   if (typeof window === 'undefined') {
-    return;
+    return null;
   }
 
   if (isNativeApp()) {
@@ -132,7 +150,12 @@ export async function downloadFile(file: File, fallbackName?: string) {
     });
 
     if (saved) {
-      return saved;
+      return {
+        kind: 'saved',
+        fileName: saved.fileName,
+        path: saved.path,
+        uri: saved.uri,
+      };
     }
 
     const shared = await shareFile({
@@ -143,21 +166,27 @@ export async function downloadFile(file: File, fallbackName?: string) {
     });
 
     if (shared) {
-      return { shared: true };
+      return { kind: 'shared' };
     }
   }
 
   const objectUrl = URL.createObjectURL(file);
+  const fileName = fallbackName || file.name || 'arquivo';
   try {
     const anchor = document.createElement('a');
     anchor.href = objectUrl;
-    anchor.download = fallbackName || file.name || 'arquivo';
+    anchor.download = fileName;
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
   } finally {
     window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1200);
   }
+
+  return {
+    kind: 'downloaded',
+    fileName,
+  };
 }
 
 export async function shareFile(options: {
