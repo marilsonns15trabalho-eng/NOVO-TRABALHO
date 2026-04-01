@@ -1,0 +1,176 @@
+{
+  "extracted_at": "2026-04-01T00:53:39.741Z",
+  "db_path": "c:\\Users\\maril\\Downloads\\lpe_database.db",
+  "legacy_students_total": 79,
+  "students_selected_for_import": 56,
+  "students_skipped_missing_or_invalid_email": [
+    {
+      "legacy_lpe_id": 14,
+      "name": "LILIANE DOS SANTOS ROCHA",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 15,
+      "name": "CLAUDIA CRISTINA DE LIMA E SILVA",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 16,
+      "name": "SUELEN SILVA CAMPOS",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 17,
+      "name": "LEIDE DAIANE MUNIZ DA SILVA SOUZA",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 18,
+      "name": "MARIA EDUARDA DE JESUS COUTO",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 19,
+      "name": "BIANCA JANAINA DE FIQUEIREDO E SILVA",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 20,
+      "name": "JACIRA MENEZES DA CONCEIÇÃO",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 21,
+      "name": "MISLANE ALMEIDA GOMES",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 22,
+      "name": "BRUNA EDUARDA MAIA DE SOUZA CABRAL",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 23,
+      "name": "VALESCA CARVALHO DOS SANTOS TRINDADE",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 24,
+      "name": "JOSEMAR COSTA SILVA JESUS",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 25,
+      "name": "ESTEFFANY DE LIMA",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 26,
+      "name": "ROBERTA SANTOS LEITE",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 27,
+      "name": "JOSEANE CAROLINE GOMES",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 28,
+      "name": "GELMA DINORÁ SANTOS DA LAPA OLIVEIRA",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 36,
+      "name": "MARIA DAURA",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 46,
+      "name": "AVANI BARRETO",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 61,
+      "name": "PATRICIA DA SILVA SANTANA",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 67,
+      "name": "JESSICA TAVARES",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 69,
+      "name": "ANA CARLA DA SILVA BISPO",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 76,
+      "name": "DANIELA CARDOSO",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 77,
+      "name": "IVANEIA CONCEIÇÃO",
+      "email": ""
+    },
+    {
+      "legacy_lpe_id": 78,
+      "name": "SIRLEM OLIVEIRA DOS SANTOS",
+      "email": ""
+    }
+  ],
+  "students_skipped_duplicate_email_groups": [],
+  "legacy_avaliacoes_total": 52,
+  "avaliacoes_selected_for_import": 40,
+  "avaliacoes_skipped_without_student_email": [
+    {
+      "legacy_lpe_id": 37,
+      "legacy_lpe_student_id": 25
+    },
+    {
+      "legacy_lpe_id": 41,
+      "legacy_lpe_student_id": 67
+    },
+    {
+      "legacy_lpe_id": 46,
+      "legacy_lpe_student_id": 26
+    },
+    {
+      "legacy_lpe_id": 58,
+      "legacy_lpe_student_id": 26
+    },
+    {
+      "legacy_lpe_id": 63,
+      "legacy_lpe_student_id": 67
+    },
+    {
+      "legacy_lpe_id": 66,
+      "legacy_lpe_student_id": 14
+    },
+    {
+      "legacy_lpe_id": 69,
+      "legacy_lpe_student_id": 69
+    },
+    {
+      "legacy_lpe_id": 70,
+      "legacy_lpe_student_id": 61
+    },
+    {
+      "legacy_lpe_id": 82,
+      "legacy_lpe_student_id": 76
+    },
+    {
+      "legacy_lpe_id": 83,
+      "legacy_lpe_student_id": 76
+    },
+    {
+      "legacy_lpe_id": 84,
+      "legacy_lpe_student_id": 77
+    },
+    {
+      "legacy_lpe_id": 85,
+      "legacy_lpe_student_id": 77
+    }
+  ]
+}

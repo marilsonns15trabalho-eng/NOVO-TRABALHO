@@ -25,7 +25,7 @@ import {
   ModuleSurface,
   ModuleSectionHeading,
 } from '@/components/dashboard/ModulePrimitives';
-import { importLegacyLpeStudents } from '@/services/legacyImport.service';
+import { importLegacyLpeRefresh } from '@/services/legacyImport.service';
 
 export default function ConfiguracoesModule() {
   const {
@@ -49,12 +49,12 @@ export default function ConfiguracoesModule() {
     setLegacyImportFeedback(null);
 
     try {
-      const result = await importLegacyLpeStudents(dryRun);
+      const result = await importLegacyLpeRefresh(dryRun);
       setLegacyImportFeedback({
         type: 'success',
         message: dryRun
-          ? `Simulacao concluida: ${result.imported.length} alunos validos prontos para importacao.`
-          : `Importacao concluida: ${result.imported.length} alunos processados. Senha inicial: ${result.default_password}.`,
+          ? `Simulacao concluida: ${result.imported_students.length} alunos e ${result.imported_avaliacoes.length} avaliacoes prontas para importacao.`
+          : `Importacao concluida: ${result.imported_students.length} alunos e ${result.imported_avaliacoes.length} avaliacoes processadas. Senha inicial: ${result.default_password}.`,
       });
     } catch (error) {
       setLegacyImportFeedback({
@@ -329,8 +329,8 @@ export default function ConfiguracoesModule() {
             <div className="space-y-6 border-t border-zinc-800 pt-8">
               <ModuleSectionHeading
                 eyebrow="Migracao"
-                title="Importacao dos 47 alunos do legado"
-                description="Importa somente os alunos com e-mail valido e cria o acesso com senha 123456."
+                title="Importacao do legado atualizado"
+                description="Importa 56 alunos com e-mail valido e 40 avaliacoes, sem duplicar o que ja foi cadastrado."
               />
 
               {legacyImportFeedback ? (
@@ -363,7 +363,7 @@ export default function ConfiguracoesModule() {
                   className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-6 py-4 font-bold text-black transition-all hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {importingLegacy ? <Loader2 className="animate-spin" size={18} /> : <Database size={18} />}
-                  Importar 47 alunos
+                  Importar 56 alunos + 40 avaliacoes
                 </button>
               </div>
             </div>
