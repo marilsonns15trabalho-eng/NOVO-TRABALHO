@@ -5,6 +5,7 @@ import {
   ArrowDown,
   ArrowUp,
   Plus,
+  Trash2,
   Loader2,
   Search,
   Calendar,
@@ -28,7 +29,7 @@ import {
 } from 'recharts';
 import AssessmentPhotoGallery from '@/components/avaliacao/AssessmentPhotoGallery';
 import AssessmentPhotoUploader from '@/components/avaliacao/AssessmentPhotoUploader';
-import { Toast } from '@/components/ui';
+import { ConfirmDialog, Toast } from '@/components/ui';
 import {
   ModuleEmptyState,
   ModuleHero,
@@ -85,6 +86,10 @@ export default function AvaliacaoModule() {
     selectedAvaliacao: selectedReport,
     historico: historicoAluno,
     viewAvaliacao: handleViewReport,
+    deleteConfirmation,
+    setDeleteConfirmation,
+    handleDelete,
+    deletingId,
     notification,
     showNotification,
     clearNotification,
@@ -438,12 +443,20 @@ export default function AvaliacaoModule() {
                         Ver relatorio
                       </button>
                       {canManageRecords && (
-                        <button
-                          onClick={() => startEdit(avaliacao)}
-                          className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-xs font-bold transition-all mr-2"
-                        >
-                          Editar
-                        </button>
+                        <>
+                          <button
+                            onClick={() => startEdit(avaliacao)}
+                            className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-xs font-bold transition-all mr-2"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirmation(avaliacao.id)}
+                            className="px-4 py-2 bg-rose-500/10 text-rose-300 hover:bg-rose-500 hover:text-white rounded-xl text-xs font-bold transition-all"
+                          >
+                            Excluir
+                          </button>
+                        </>
                       )}
                     </td>
                   </tr>
@@ -505,12 +518,21 @@ export default function AvaliacaoModule() {
                         ? 'Gerar relatorio comparativo entre esta avaliacao e a anterior.'
                         : 'Esta avaliacao ainda nao possui registro anterior para comparacao.'
                     }
-                  >
-                    PDF evolucao
-                  </button>
-                  <button onClick={() => setShowReportModal(false)} className="text-zinc-500 hover:text-white p-2">
-                    <Plus className="rotate-45" size={24} />
-                  </button>
+                    >
+                      PDF evolucao
+                    </button>
+                    {canManageRecords ? (
+                      <button
+                        onClick={() => setDeleteConfirmation(selectedReport.id)}
+                        className="bg-rose-500/10 text-rose-300 hover:bg-rose-500 hover:text-white px-6 py-2 rounded-xl font-bold transition-all flex items-center gap-2"
+                      >
+                        <Trash2 size={16} />
+                        Excluir
+                      </button>
+                    ) : null}
+                    <button onClick={() => setShowReportModal(false)} className="text-zinc-500 hover:text-white p-2">
+                      <Plus className="rotate-45" size={24} />
+                    </button>
                 </div>
               </div>
 
@@ -945,6 +967,17 @@ export default function AvaliacaoModule() {
       </AnimatePresence>
 
       <Toast notification={notification} onClose={clearNotification} />
+      <ConfirmDialog
+        isOpen={!!deleteConfirmation}
+        onClose={() => setDeleteConfirmation(null)}
+        onConfirm={handleDelete}
+        title="Excluir avaliacao?"
+        message="Tem certeza que deseja excluir esta avaliacao? Esta acao tambem removera as fotos vinculadas e nao pode ser desfeita."
+        confirmText="Excluir avaliacao"
+        cancelText="Cancelar"
+        variant="danger"
+        loading={!!deletingId}
+      />
       </ModuleSurface>
     </ModuleShell>
   );

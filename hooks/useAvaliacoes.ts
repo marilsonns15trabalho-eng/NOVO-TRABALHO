@@ -37,6 +37,8 @@ export function useAvaliacoes() {
   const [newAvaliacao, setNewAvaliacao] = useState<AvaliacaoFormData>(
     createDefaultAvaliacaoForm,
   );
+  const [deleteConfirmation, setDeleteConfirmation] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     if (!isReady) return;
@@ -228,6 +230,50 @@ export function useAvaliacoes() {
     setNewAvaliacao(createDefaultAvaliacaoForm());
   }, []);
 
+  const handleDelete = useCallback(async () => {
+    if (!deleteConfirmation) {
+      return;
+    }
+
+    try {
+      if (isAluno) {
+        throw new Error('Acao nao permitida para aluno');
+      }
+
+      setDeletingId(deleteConfirmation);
+      await avaliacoesService.excluirAvaliacao(deleteConfirmation);
+
+      if (selectedAvaliacao?.id === deleteConfirmation) {
+        setShowViewModal(false);
+        setSelectedAvaliacao(null);
+        setHistorico([]);
+      }
+
+      if (editingAvaliacao?.id === deleteConfirmation) {
+        setShowAddModal(false);
+        setEditingAvaliacao(null);
+        setNewAvaliacao(createDefaultAvaliacaoForm());
+      }
+
+      setDeleteConfirmation(null);
+      showNotification('Avaliacao excluida com sucesso.', 'success');
+      await loadData();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Nao foi possivel excluir a avaliacao.';
+      showNotification(message, 'error');
+    } finally {
+      setDeletingId(null);
+    }
+  }, [
+    deleteConfirmation,
+    editingAvaliacao,
+    isAluno,
+    loadData,
+    selectedAvaliacao,
+    showNotification,
+  ]);
+
   return {
     avaliacoes: filteredAvaliacoes,
     alunos,
@@ -248,6 +294,10 @@ export function useAvaliacoes() {
     newAvaliacao,
     setNewAvaliacao,
     handleSave,
+    deleteConfirmation,
+    setDeleteConfirmation,
+    handleDelete,
+    deletingId,
     notification,
     showNotification,
     clearNotification,

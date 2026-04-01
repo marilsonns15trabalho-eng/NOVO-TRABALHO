@@ -513,3 +513,58 @@ export async function syncAvaliacaoPhotos(params: {
     }
   }
 }
+
+export async function excluirAvaliacao(avaliacaoId: string): Promise<void> {
+  const user = await getAuthenticatedUser();
+  await assertCanManageStudentDataForUserId(user.id);
+
+  const { data: existingPhotos, error: photoFetchError } = await supabase
+    .from(TABLES.AVALIACAO_PHOTOS)
+    .select('storage_path')
+    .eq('avaliacao_id', avaliacaoId);
+
+  if (photoFetchError) {
+    logSupabaseError('Erro ao buscar fotos da avaliacao para exclusao:', photoFetchError);
+    throw new Error('Nao foi possivel preparar a exclusao da avaliacao.');
+  }
+
+  const storagePaths = (existingPhotos || [])
+    .map((item: { storage_path?: string | null }) => item.storage_path)
+    .filter((path): path is string => Boolean(path));
+
+  if (storagePaths.length) {
+    const { error: storageDeleteError } = await supabase.storage
+      .from(STORAGE_BUCKETS.AVALIACAO_PHOTOS)
+      .remove(storagePaths);
+
+    if (storageDeleteError) {
+      logSupabaseError('Erro ao remover arquivos da avaliacao:', storageDeleteError);
+    }
+
+    const { error: photoDeleteError } = await supabase
+      .from(TABLES.AVALIACAO_PHOTOS)
+      .delete()
+      .eq('avaliacao_id', avaliacaoId);
+
+    if (photoDeleteError) {
+      logSupabaseError('Erro ao remover registros de fotos da avaliacao:', photoDeleteError);
+      throw new Error('Nao foi possivel remover as fotos vinculadas a avaliacao.');
+    }
+  }
+
+  const { data: deletedRow, error: deleteError } = await supabase
+    .from(TABLES.AVALIACOES)
+    .delete()
+    .eq('id', avaliacaoId)
+    .select('id')
+    .maybeSingle();
+
+  if (deleteError) {
+    logSupabaseError('Erro ao excluir avaliacao:', deleteError);
+    throw new Error(deleteError.message || 'Nao foi possivel excluir a avaliacao.');
+  }
+
+  if (!deletedRow?.id) {
+    throw new Error('Avaliacao nao encontrada ou sem permissao para exclusao.');
+  }
+}

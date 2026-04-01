@@ -1,5 +1,6 @@
 import { extractDateOnly, formatDatePtBr } from '@/lib/date';
 import { calcularRcq, getAvaliacaoProtocolLabel } from '@/lib/biometrics';
+import { downloadFile } from '@/lib/external-links';
 
 type PdfAvaliacao = {
   data: string;
@@ -40,6 +41,16 @@ function formatValue(value: unknown, suffix = '') {
   }
 
   return `${value}${suffix}`;
+}
+
+async function savePdfDocument(doc: any, fileName: string) {
+  const blob = doc.output('blob');
+  const pdfFile = new File([blob], fileName, {
+    type: 'application/pdf',
+    lastModified: Date.now(),
+  });
+
+  await downloadFile(pdfFile, fileName);
 }
 
 export async function exportAvaliacaoPdf(avaliacao: PdfAvaliacao) {
@@ -165,5 +176,6 @@ export async function exportAvaliacaoPdf(avaliacao: PdfAvaliacao) {
   doc.setTextColor(107, 114, 128);
   doc.text('Documento gerado pelo sistema Lioness.', pageWidth / 2, 286, { align: 'center' });
 
-  doc.save(`Avaliacao_${studentName.replace(/\s+/g, '_')}_${extractDateOnly(avaliacao.data) || avaliacao.data}.pdf`);
+  const fileName = `Avaliacao_${studentName.replace(/\s+/g, '_')}_${extractDateOnly(avaliacao.data) || avaliacao.data}.pdf`;
+  await savePdfDocument(doc, fileName);
 }

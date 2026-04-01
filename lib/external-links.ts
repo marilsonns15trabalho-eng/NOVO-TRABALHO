@@ -80,6 +80,10 @@ function getFileExtension(file: File) {
     return fromName;
   }
 
+  if (file.type === 'application/pdf') {
+    return 'pdf';
+  }
+
   if (file.type === 'image/png') {
     return 'png';
   }
@@ -118,6 +122,29 @@ function toBase64Payload(file: File): Promise<string> {
 export async function downloadFile(file: File, fallbackName?: string) {
   if (typeof window === 'undefined') {
     return;
+  }
+
+  if (isNativeApp()) {
+    const saved = await saveFileToDevice({
+      file,
+      folderName: 'Lioness',
+      preferredName: fallbackName || file.name,
+    });
+
+    if (saved) {
+      return saved;
+    }
+
+    const shared = await shareFile({
+      file,
+      title: fallbackName || file.name || 'Arquivo Lioness',
+      text: 'Arquivo gerado pelo app Lioness.',
+      dialogTitle: 'Salvar ou compartilhar arquivo',
+    });
+
+    if (shared) {
+      return { shared: true };
+    }
   }
 
   const objectUrl = URL.createObjectURL(file);

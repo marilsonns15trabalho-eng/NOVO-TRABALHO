@@ -1,5 +1,6 @@
 import { diffDateOnlyInDays, formatDatePtBr, formatDateTimePtBr } from '@/lib/date';
 import { calcularRcq, getAvaliacaoProtocolLabel } from '@/lib/biometrics';
+import { downloadFile } from '@/lib/external-links';
 
 type PdfAvaliacao = {
   id?: string;
@@ -169,6 +170,16 @@ function safeFileName(value: string) {
     .replace(/[^a-zA-Z0-9_-]+/g, '_')
     .replace(/_+/g, '_')
     .replace(/^_|_$/g, '');
+}
+
+async function savePdfDocument(doc: any, fileName: string) {
+  const blob = doc.output('blob');
+  const pdfFile = new File([blob], fileName, {
+    type: 'application/pdf',
+    lastModified: Date.now(),
+  });
+
+  await downloadFile(pdfFile, fileName);
 }
 
 function drawHeader(doc: any) {
@@ -687,5 +698,6 @@ export async function exportAvaliacaoEvolutionPdf(
   );
 
   const studentName = safeFileName(current.students?.nome || previous.students?.nome || 'aluno');
-  doc.save(`Evolucao_${studentName}_${dateA.replace(/\//g, '-')}_${dateB.replace(/\//g, '-')}.pdf`);
+  const fileName = `Evolucao_${studentName}_${dateA.replace(/\//g, '-')}_${dateB.replace(/\//g, '-')}.pdf`;
+  await savePdfDocument(doc, fileName);
 }
