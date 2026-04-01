@@ -1,5 +1,23 @@
 import { getAuthenticatedUser, supabase } from '@/lib/supabase';
 
+async function getRoleForUserId(userId: string): Promise<'admin' | 'professor' | 'aluno' | null> {
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .select('role')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (error || !data?.role) {
+    return null;
+  }
+
+  if (data.role === 'admin' || data.role === 'professor' || data.role === 'aluno') {
+    return data.role;
+  }
+
+  return null;
+}
+
 export async function findStudentIdByLinkedAuthUserId(linkedAuthUserId?: string): Promise<string | null> {
   const userId = typeof linkedAuthUserId === 'string' ? linkedAuthUserId.trim() : '';
   if (!userId) return null;
@@ -16,19 +34,22 @@ export async function findStudentIdByLinkedAuthUserId(linkedAuthUserId?: string)
 
 export async function resolveStudentIdForWrite(
   explicitStudentId: string | null | undefined,
-  authUserId?: string
+  authUserId?: string,
 ): Promise<string> {
   const userId = authUserId ?? (await getAuthenticatedUser()).id;
   const providedStudentId =
     typeof explicitStudentId === 'string'
       ? explicitStudentId.trim()
       : String(explicitStudentId ?? '').trim();
+
+  const role = await getRoleForUserId(userId);
   const linkedStudentId = await findStudentIdByLinkedAuthUserId(userId);
 
-  if (linkedStudentId) {
+  if (role === 'aluno' && linkedStudentId) {
     if (providedStudentId && providedStudentId !== linkedStudentId) {
       throw new Error('Selecione apenas o student vinculado ao usuario autenticado.');
     }
+
     return linkedStudentId;
   }
 

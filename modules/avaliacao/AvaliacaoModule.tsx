@@ -492,7 +492,7 @@ export default function AvaliacaoModule() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4 mb-8">
                 <div className="bg-black/40 border border-zinc-800 p-6 rounded-2xl text-center relative group">
                   <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Percentual de Gordura</p>
                   <p className="text-4xl font-black text-purple-500">{selectedReport.percentual_gordura || 0}%</p>
@@ -547,6 +547,13 @@ export default function AvaliacaoModule() {
                       );
                     })()
                   )}
+                </div>
+                <div className="bg-black/40 border border-zinc-800 p-6 rounded-2xl text-center">
+                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">RCQ</p>
+                  <p className="text-4xl font-black text-amber-400">
+                    {selectedReport.rcq !== undefined && selectedReport.rcq !== null ? selectedReport.rcq.toFixed(2) : '-'}
+                  </p>
+                  <p className="text-xs text-zinc-600 mt-2">Relacao cintura-quadril</p>
                 </div>
               </div>
 
@@ -630,6 +637,8 @@ export default function AvaliacaoModule() {
                 <div className="space-y-6">
                   <h4 className="text-xl font-bold border-b border-zinc-800 pb-2">Perímetros</h4>
                   <div className="grid grid-cols-2 gap-y-3">
+                    <div className="flex justify-between pr-4 border-r border-zinc-800"><span className="text-zinc-500">Pescoco:</span> <span className="font-bold">{selectedReport.pescoco || '-'} cm</span></div>
+                    <div className="flex justify-between pl-4"><span className="text-zinc-500">RCQ:</span> <span className="font-bold">{selectedReport.rcq !== undefined && selectedReport.rcq !== null ? selectedReport.rcq.toFixed(2) : '-'}</span></div>
                     <div className="flex justify-between pr-4 border-r border-zinc-800"><span className="text-zinc-500">Ombro:</span> <span className="font-bold">{selectedReport.ombro || '-'} cm</span></div>
                     <div className="flex justify-between pl-4"><span className="text-zinc-500">Tórax:</span> <span className="font-bold">{selectedReport.torax || '-'} cm</span></div>
                     <div className="flex justify-between pr-4 border-r border-zinc-800"><span className="text-zinc-500">Cintura:</span> <span className="font-bold">{selectedReport.cintura || '-'} cm</span></div>
@@ -762,6 +771,16 @@ export default function AvaliacaoModule() {
                 <div className="border-t border-zinc-800 pt-4">
                   <h4 className="text-lg font-bold mb-4 text-purple-500">Perímetros (cm)</h4>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Pescoco</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={newAvaliacao.pescoco ?? ''}
+                        onChange={(e) => handleAvaliacaoFieldChange('pescoco', parseOptionalDecimal(e.target.value))}
+                        className="w-full bg-black border border-zinc-800 rounded-xl py-2 px-3 text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 outline-none transition-all"
+                      />
+                    </div>
                     {[
                       { key: 'ombro', label: 'Ombro' }, { key: 'torax', label: 'Tórax' }, { key: 'cintura', label: 'Cintura' }, { key: 'abdome', label: 'Abdome' },
                       { key: 'quadril', label: 'Quadril' }, { key: 'braco_direito', label: 'Braço Dir.' }, { key: 'braco_esquerdo', label: 'Braço Esq.' }, { key: 'coxa_direita', label: 'Coxa Dir.' },
@@ -809,7 +828,7 @@ export default function AvaliacaoModule() {
 
                 <div className="border-t border-zinc-800 pt-4">
                   <h4 className="text-lg font-bold mb-4 text-purple-500">Resultados</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Soma Dobras</label>
                       <input type="number" readOnly value={newAvaliacao.soma_dobras ?? ''} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-zinc-400 cursor-not-allowed outline-none" placeholder="0.0" />
@@ -829,6 +848,10 @@ export default function AvaliacaoModule() {
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Massa Magra (kg)</label>
                       <input type="number" readOnly value={newAvaliacao.massa_magra ?? ''} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-zinc-400 cursor-not-allowed outline-none" placeholder="Calculado auto." />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">RCQ</label>
+                      <input type="number" readOnly value={newAvaliacao.rcq ?? ''} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 px-3 text-zinc-400 cursor-not-allowed outline-none" placeholder="Calculado auto." />
                     </div>
                   </div>
                 </div>

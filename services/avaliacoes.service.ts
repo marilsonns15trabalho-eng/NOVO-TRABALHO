@@ -1,5 +1,5 @@
 import { optimizeAssessmentPhotoFile } from '@/lib/assessmentPhotos';
-import { calcularBiometria } from '@/lib/biometrics';
+import { calcularBiometria, calcularRcq } from '@/lib/biometrics';
 import { STORAGE_BUCKETS, TABLES } from '@/lib/constants';
 import { normalizeStudentRelation } from '@/lib/mappers';
 import { getAuthenticatedUser, supabase } from '@/lib/supabase';
@@ -84,6 +84,7 @@ function mapAvaliacaoRow(
     ...item,
     students: student ? attachStudentAvatar(student, avatarMap || new Map()) : undefined,
     photos,
+    pescoco: item.pescoco ?? item.medidas?.pescoco,
     ombro: item.ombro ?? item.medidas?.ombro,
     torax: item.torax ?? item.medidas?.torax,
     cintura: item.cintura ?? item.medidas?.cintura,
@@ -103,6 +104,10 @@ function mapAvaliacaoRow(
     abdominal: item.abdominal ?? item.dobras?.abdominal,
     soma_dobras: item.soma_dobras ?? item.dobras?.soma_dobras,
     percentual_gordura: item.percentual_gordura ?? item.gordura_corporal,
+    rcq:
+      item.rcq ??
+      item.medidas?.rcq ??
+      calcularRcq(item.cintura ?? item.medidas?.cintura, item.quadril ?? item.medidas?.quadril),
     massa_gorda:
       item.massa_gorda ??
       (item.peso && item.massa_magra
@@ -319,6 +324,7 @@ export async function salvarAvaliacao(
     supra_iliaca: n(data.supra_iliaca),
     abdominal: n(data.abdominal),
     medidas: {
+      pescoco: n(data.pescoco),
       ombro: n(data.ombro),
       torax: n(data.torax),
       cintura: n(data.cintura),
@@ -330,6 +336,7 @@ export async function salvarAvaliacao(
       coxa_esquerda: n(data.coxa_esquerda),
       panturrilha_direita: n(data.panturrilha_direita),
       panturrilha_esquerda: n(data.panturrilha_esquerda),
+      rcq: n(data.rcq),
     },
     dobras: {
       tricipital: n(data.tricipital),

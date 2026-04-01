@@ -1,4 +1,5 @@
 import { extractDateOnly, formatDatePtBr } from '@/lib/date';
+import { calcularRcq } from '@/lib/biometrics';
 
 type PdfAvaliacao = {
   data: string;
@@ -10,6 +11,7 @@ type PdfAvaliacao = {
   massa_magra?: number | null;
   protocolo?: string | null;
   observacoes?: string | null;
+  pescoco?: number | null;
   ombro?: number | null;
   torax?: number | null;
   cintura?: number | null;
@@ -68,6 +70,7 @@ export async function exportAvaliacaoPdf(avaliacao: PdfAvaliacao) {
     ['Peso', formatValue(avaliacao.peso, ' kg')],
     ['Altura', formatValue(avaliacao.altura, ' m')],
     ['IMC', formatValue(avaliacao.imc)],
+    ['RCQ', formatValue(calcularRcq(avaliacao.cintura, avaliacao.quadril))],
     ['% Gordura', formatValue(avaliacao.percentual_gordura, '%')],
     ['Massa gorda', formatValue(avaliacao.massa_gorda, ' kg')],
     ['Massa magra', formatValue(avaliacao.massa_magra, ' kg')],
@@ -86,6 +89,7 @@ export async function exportAvaliacaoPdf(avaliacao: PdfAvaliacao) {
   });
 
   const perimeterRows = [
+    ['Pescoco', formatValue(avaliacao.pescoco, ' cm')],
     ['Ombro', formatValue(avaliacao.ombro, ' cm')],
     ['Torax', formatValue(avaliacao.torax, ' cm')],
     ['Cintura', formatValue(avaliacao.cintura, ' cm')],

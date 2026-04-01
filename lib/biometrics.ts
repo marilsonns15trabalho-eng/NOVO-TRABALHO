@@ -1,9 +1,8 @@
-// Cálculo biométrico — fonte única de verdade (frontend + avaliacoes.service)
-
-/** Entrada flexível: formulário usa supra_iliaca; aceita também suprailiaca */
 export type DadosBiometricosInput = Record<string, unknown> & {
   peso?: number | string;
   altura?: number | string;
+  cintura?: number | string;
+  quadril?: number | string;
   tricipital?: number | string;
   subescapular?: number | string;
   supra_iliaca?: number | string;
@@ -17,29 +16,43 @@ export interface ResultadoBiometrico {
   percentual_gordura: number;
   massa_gorda: number;
   massa_magra: number;
+  rcq?: number;
 }
 
-/**
- * IMC e composição a partir de peso, altura e 4 dobras.
- * Altura: se > 3, interpreta como cm (divide por 100); senão, como metros (compatível com dados legados).
- * % gordura: soma das dobras × 0,153 (fórmula simplificada, ajustável depois).
- */
-export function calcularBiometria(dados: DadosBiometricosInput): ResultadoBiometrico {
-  const peso = Number(dados.peso) || 0;
-  const altura = Number(dados.altura) || 0;
+function asNumber(value: unknown): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
 
+export function calcularRcq(
+  cintura?: number | string | null,
+  quadril?: number | string | null,
+): number | undefined {
+  const cinturaValue = asNumber(cintura);
+  const quadrilValue = asNumber(quadril);
+
+  if (cinturaValue <= 0 || quadrilValue <= 0) {
+    return undefined;
+  }
+
+  return Number((cinturaValue / quadrilValue).toFixed(2));
+}
+
+export function calcularBiometria(dados: DadosBiometricosInput): ResultadoBiometrico {
+  const peso = asNumber(dados.peso);
+  const altura = asNumber(dados.altura);
   const alturaM = altura > 3 ? altura / 100 : altura;
 
   const imc = alturaM > 0 ? peso / (alturaM * alturaM) : 0;
 
   const somaDobras =
-    Number(dados.tricipital || 0) +
-    Number(dados.subescapular || 0) +
-    Number(dados.suprailiaca ?? dados.supra_iliaca ?? 0) +
-    Number(dados.abdominal || 0);
+    asNumber(dados.tricipital) +
+    asNumber(dados.subescapular) +
+    asNumber(dados.suprailiaca ?? dados.supra_iliaca) +
+    asNumber(dados.abdominal);
 
-  const percentualGordura = somaDobras > 0 ? somaDobras * 0.153 : 0;
-
+  // Faulkner/Yuhasz 4 dobras: %G = (Σ4 x 0.153) + 5.783
+  const percentualGordura = somaDobras > 0 ? somaDobras * 0.153 + 5.783 : 0;
   const massaGorda = peso * (percentualGordura / 100);
   const massaMagra = peso - massaGorda;
 
@@ -49,5 +62,6 @@ export function calcularBiometria(dados: DadosBiometricosInput): ResultadoBiomet
     massa_gorda: Number(massaGorda.toFixed(2)),
     massa_magra: Number(massaMagra.toFixed(2)),
     soma_dobras: Number(somaDobras.toFixed(2)),
+    rcq: calcularRcq(dados.cintura, dados.quadril),
   };
 }

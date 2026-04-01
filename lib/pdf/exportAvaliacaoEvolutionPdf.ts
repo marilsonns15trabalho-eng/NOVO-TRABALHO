@@ -1,4 +1,5 @@
 import { diffDateOnlyInDays, formatDatePtBr, formatDateTimePtBr } from '@/lib/date';
+import { calcularRcq } from '@/lib/biometrics';
 
 type PdfAvaliacao = {
   id?: string;
@@ -11,6 +12,7 @@ type PdfAvaliacao = {
   massa_magra?: number | null;
   protocolo?: string | null;
   observacoes?: string | null;
+  pescoco?: number | null;
   ombro?: number | null;
   torax?: number | null;
   cintura?: number | null;
@@ -116,17 +118,6 @@ function difference(
   }
 
   return current - previous;
-}
-
-function calculateRcq(avaliacao: PdfAvaliacao) {
-  const cintura = asNumber(avaliacao.cintura);
-  const quadril = asNumber(avaliacao.quadril);
-
-  if (!cintura || !quadril) {
-    return null;
-  }
-
-  return Number((cintura / quadril).toFixed(2));
 }
 
 function calculateSkinfoldSum(avaliacao: PdfAvaliacao) {
@@ -401,7 +392,10 @@ function buildAnalysis(previous: PdfAvaliacao, current: PdfAvaliacao) {
     asNumber(previous.percentual_gordura),
   );
   const leanDiff = difference(asNumber(current.massa_magra), asNumber(previous.massa_magra));
-  const rcqDiff = difference(calculateRcq(current), calculateRcq(previous));
+  const rcqDiff = difference(
+    calcularRcq(current.cintura, current.quadril),
+    calcularRcq(previous.cintura, previous.quadril),
+  );
   const waistDiff = difference(asNumber(current.cintura), asNumber(previous.cintura));
 
   if (weightDiff !== null) {
@@ -525,7 +519,7 @@ export async function exportAvaliacaoEvolutionPdf(
     buildRow('% Gordura', asNumber(previous.percentual_gordura), asNumber(current.percentual_gordura), '%'),
     buildRow('Massa Gorda (kg)', asNumber(previous.massa_gorda), asNumber(current.massa_gorda), ' kg'),
     buildRow('Massa Magra (kg)', asNumber(previous.massa_magra), asNumber(current.massa_magra), ' kg'),
-    buildRow('RCQ', calculateRcq(previous), calculateRcq(current), '', 2),
+    buildRow('RCQ', calcularRcq(previous.cintura, previous.quadril), calcularRcq(current.cintura, current.quadril), '', 2),
   ]);
 
   doc.addPage();
@@ -536,7 +530,8 @@ export async function exportAvaliacaoEvolutionPdf(
     buildRow('% Gordura', asNumber(previous.percentual_gordura), asNumber(current.percentual_gordura), '%'),
     buildRow('Massa Gorda (kg)', asNumber(previous.massa_gorda), asNumber(current.massa_gorda), ' kg'),
     buildRow('Massa Magra (kg)', asNumber(previous.massa_magra), asNumber(current.massa_magra), ' kg'),
-    buildRow('RCQ', calculateRcq(previous), calculateRcq(current), '', 2),
+    buildRow('RCQ', calcularRcq(previous.cintura, previous.quadril), calcularRcq(current.cintura, current.quadril), '', 2),
+    buildRow('Pescoco (cm)', asNumber(previous.pescoco), asNumber(current.pescoco), ' cm'),
     buildRow('Circ. Cintura (cm)', asNumber(previous.cintura), asNumber(current.cintura), ' cm'),
     buildRow('Circ. Quadril (cm)', asNumber(previous.quadril), asNumber(current.quadril), ' cm'),
     buildRow('Circ. Abdome (cm)', asNumber(previous.abdome), asNumber(current.abdome), ' cm'),
@@ -546,6 +541,7 @@ export async function exportAvaliacaoEvolutionPdf(
   doc.addPage();
   drawHeader(doc);
   drawGridTable(renderTable, doc, 'MEDIDAS PERIMETRICAS (cm)', 38, dateA, dateB, [
+    buildRow('Pescoco', asNumber(previous.pescoco), asNumber(current.pescoco), ' cm'),
     buildRow('Ombro', asNumber(previous.ombro), asNumber(current.ombro), ' cm'),
     buildRow('Torax', asNumber(previous.torax), asNumber(current.torax), ' cm'),
     buildRow('Cintura', asNumber(previous.cintura), asNumber(current.cintura), ' cm'),
@@ -609,8 +605,8 @@ export async function exportAvaliacaoEvolutionPdf(
     74,
     'Relacao Cintura-Quadril',
     [
-      { label: dateA, values: [calculateRcq(previous)] },
-      { label: dateB, values: [calculateRcq(current)] },
+      { label: dateA, values: [calcularRcq(previous.cintura, previous.quadril) ?? null] },
+      { label: dateB, values: [calcularRcq(current.cintura, current.quadril) ?? null] },
     ],
     [{ label: 'RCQ', color: [245, 158, 11] }],
   );

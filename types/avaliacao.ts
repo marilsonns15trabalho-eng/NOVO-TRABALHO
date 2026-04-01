@@ -1,5 +1,3 @@
-// Tipos do domínio de Avaliação Física
-
 export type ProtocoloAvaliacao = 'faulkner' | 'pollock7' | 'pollock3';
 export type AvaliacaoPhotoPosition = 'front' | 'back' | 'left' | 'right';
 
@@ -33,7 +31,8 @@ export interface Avaliacao {
   peso: number;
   altura: number;
 
-  // Perímetros
+  // Perimetros
+  pescoco?: number;
   ombro?: number;
   torax?: number;
   braco_direito?: number;
@@ -48,7 +47,7 @@ export interface Avaliacao {
   panturrilha_direita?: number;
   panturrilha_esquerda?: number;
 
-  // Dobras Cutâneas (Faulkner)
+  // Dobras cutaneas
   tricipital?: number;
   subescapular?: number;
   supra_iliaca?: number;
@@ -56,12 +55,13 @@ export interface Avaliacao {
 
   observacoes?: string;
 
-  // Resultados (calculados)
+  // Resultados calculados
   imc?: number;
   percentual_gordura?: number;
   massa_gorda?: number;
   massa_magra?: number;
   soma_dobras?: number;
+  rcq?: number;
   protocolo?: ProtocoloAvaliacao;
   photos?: AvaliacaoPhoto[];
 
@@ -83,7 +83,6 @@ export interface Avaliacao {
 
 export type AvaliacaoFormData = Partial<Avaliacao>;
 
-/** Aluno para o seletor no formulário de avaliação */
 export interface AvaliacaoAlunoItem {
   id: string;
   nome: string;
