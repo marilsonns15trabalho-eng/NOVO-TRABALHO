@@ -305,12 +305,6 @@ export default function AlunoDashboard() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (!hasChallengeAccess && activeSection === 'desafio') {
-      setActiveSection('inicio');
-    }
-  }, [activeSection, hasChallengeAccess]);
-
-  useEffect(() => {
     const run = async () => {
       if (!isReady || !user) return;
 
@@ -511,6 +505,12 @@ export default function AlunoDashboard() {
     () => challengeHub?.active_challenges || [],
     [challengeHub?.active_challenges],
   );
+
+  useEffect(() => {
+    if (!hasChallengeAccess && activeSection === 'desafio') {
+      setActiveSection('inicio');
+    }
+  }, [activeSection, hasChallengeAccess]);
 
   const handleExportCurrentPdf = async (avaliacao: Avaliacao) => {
     try {

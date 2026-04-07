@@ -1,31 +1,12 @@
 -- ============================================================
--- FASE 3.20 - CORRECAO RLS E PDF DIARIO DO DESAFIO
--- Rodar depois de phase3_19.
+-- FASE 3.21 - CORRECAO DEFINITIVA DA RECURSAO RLS DO DESAFIO
+-- Rodar depois de phase3_19/20.
 -- Objetivo:
---   * corrigir recursao infinita nas policies do modulo desafio
---   * permitir PDF diario privado com substituicao do arquivo antigo
---   * restringir gestao de participantes ao admin
+--   * eliminar a recursao infinita nas policies de desafios
+--   * mover a verificacao de acesso para funcoes SECURITY DEFINER
 -- ============================================================
 
 SET search_path = public;
-
-CREATE OR REPLACE FUNCTION public.is_admin_user()
-RETURNS BOOLEAN
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-    SELECT EXISTS (
-        SELECT 1
-        FROM public.user_profiles up
-        WHERE up.id = (SELECT auth.uid())
-          AND up.role = 'admin'
-    );
-$$;
-
-REVOKE ALL ON FUNCTION public.is_admin_user() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.is_admin_user() TO authenticated;
 
 ALTER TABLE public.desafio_dias
     ADD COLUMN IF NOT EXISTS storage_path TEXT,
@@ -96,40 +77,13 @@ USING (
     )
 );
 
-DROP POLICY IF EXISTS desafio_participantes_staff_insert ON public.desafio_participantes;
-CREATE POLICY desafio_participantes_staff_insert ON public.desafio_participantes
-FOR INSERT
-WITH CHECK ((SELECT public.is_admin_user()));
-
-DROP POLICY IF EXISTS desafio_participantes_staff_update ON public.desafio_participantes;
-CREATE POLICY desafio_participantes_staff_update ON public.desafio_participantes
-FOR UPDATE
-USING ((SELECT public.is_admin_user()))
-WITH CHECK ((SELECT public.is_admin_user()));
-
-DROP POLICY IF EXISTS desafio_participantes_staff_delete ON public.desafio_participantes;
-CREATE POLICY desafio_participantes_staff_delete ON public.desafio_participantes
-FOR DELETE
-USING ((SELECT public.is_admin_user()));
-
-INSERT INTO storage.buckets (
-    id,
-    name,
-    public,
-    file_size_limit,
-    allowed_mime_types
-)
-VALUES (
-    'challenge-day-pdfs',
-    'challenge-day-pdfs',
-    FALSE,
-    15728640,
-    ARRAY['application/pdf']
-)
-ON CONFLICT (id) DO UPDATE
-SET public = EXCLUDED.public,
-    file_size_limit = EXCLUDED.file_size_limit,
-    allowed_mime_types = EXCLUDED.allowed_mime_types;
+DROP POLICY IF EXISTS desafio_dias_select ON public.desafio_dias;
+CREATE POLICY desafio_dias_select ON public.desafio_dias
+FOR SELECT
+USING (
+    (SELECT public.is_staff())
+    OR (SELECT public.can_current_student_access_challenge(challenge_id))
+);
 
 DROP POLICY IF EXISTS challenge_day_pdfs_select ON storage.objects;
 CREATE POLICY challenge_day_pdfs_select ON storage.objects
@@ -140,34 +94,6 @@ USING (
         (SELECT public.is_staff())
         OR (SELECT public.can_current_student_access_challenge_pdf(storage.objects.name))
     )
-);
-
-DROP POLICY IF EXISTS challenge_day_pdfs_insert ON storage.objects;
-CREATE POLICY challenge_day_pdfs_insert ON storage.objects
-FOR INSERT
-WITH CHECK (
-    bucket_id = 'challenge-day-pdfs'
-    AND (SELECT public.is_staff())
-);
-
-DROP POLICY IF EXISTS challenge_day_pdfs_update ON storage.objects;
-CREATE POLICY challenge_day_pdfs_update ON storage.objects
-FOR UPDATE
-USING (
-    bucket_id = 'challenge-day-pdfs'
-    AND (SELECT public.is_staff())
-)
-WITH CHECK (
-    bucket_id = 'challenge-day-pdfs'
-    AND (SELECT public.is_staff())
-);
-
-DROP POLICY IF EXISTS challenge_day_pdfs_delete ON storage.objects;
-CREATE POLICY challenge_day_pdfs_delete ON storage.objects
-FOR DELETE
-USING (
-    bucket_id = 'challenge-day-pdfs'
-    AND (SELECT public.is_staff())
 );
 
 ANALYZE public.desafios;
