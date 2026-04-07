@@ -3,12 +3,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CalendarDays,
+  Download,
+  Eye,
   Loader2,
   Plus,
   Save,
   ShieldCheck,
   Target,
   Trash2,
+  Upload,
   UserPlus,
   Users,
 } from 'lucide-react';
@@ -23,16 +26,20 @@ import {
   ModuleSurface,
 } from '@/components/dashboard/ModulePrimitives';
 import { ConfirmDialog, Toast } from '@/components/ui';
+import { useAuth } from '@/hooks/useAuth';
 import { useNotification } from '@/hooks/useNotification';
 import { formatDatePtBr, getAppDateInputValue } from '@/lib/date';
+import { deriveFoodProtocolTitle, formatFoodProtocolSize } from '@/lib/food-protocols';
 import {
   assignStudentToChallenge,
   createChallenge,
   deleteChallenge,
+  downloadChallengeDayPdf,
   fetchChallengeDays,
   fetchChallengeParticipants,
   fetchChallengeStudents,
   fetchChallengeSummaries,
+  openChallengeDayPdf,
   removeStudentFromChallenge,
   saveChallengeDay,
   updateChallenge,
@@ -130,7 +137,9 @@ function mapDayToForm(day: ChallengeDay | null): ChallengeDayFormState {
 }
 
 export default function DesafioModule() {
+  const { role } = useAuth();
   const { notification, showNotification, clearNotification } = useNotification();
+  const canManageParticipants = role === 'admin';
 
   const [students, setStudents] = useState<ChallengeStudent[]>([]);
   const [challengeSummaries, setChallengeSummaries] = useState<ChallengeSummary[]>([]);
@@ -148,6 +157,9 @@ export default function DesafioModule() {
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [challengeForm, setChallengeForm] = useState<ChallengeFormState>({ ...EMPTY_CHALLENGE_FORM });
   const [dayForm, setDayForm] = useState<ChallengeDayFormState>(createEmptyDayForm());
+  const [dayFile, setDayFile] = useState<File | null>(null);
+  const [openingDayPdfId, setOpeningDayPdfId] = useState<string | null>(null);
+  const [downloadingDayPdfId, setDownloadingDayPdfId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ChallengeSummary | null>(null);
   const selectedChallengeIdRef = useRef<string | null>(null);
 
@@ -188,7 +200,7 @@ export default function DesafioModule() {
     try {
       setLoading(true);
       const [studentRows, challengeRows] = await Promise.all([
-        fetchChallengeStudents(),
+        canManageParticipants ? fetchChallengeStudents() : Promise.resolve([]),
         fetchChallengeSummaries(),
       ]);
 
@@ -218,7 +230,7 @@ export default function DesafioModule() {
     } finally {
       setLoading(false);
     }
-  }, [showNotification]);
+  }, [canManageParticipants, showNotification]);
 
   const loadChallengeDetails = useCallback(async (challengeId: string) => {
     try {
@@ -250,6 +262,7 @@ export default function DesafioModule() {
     if (!selectedChallengeId) {
       setParticipants([]);
       setChallengeDays([]);
+      setDayFile(null);
       setDayForm(createEmptyDayForm());
       return;
     }
@@ -280,7 +293,21 @@ export default function DesafioModule() {
     setChallengeForm({ ...EMPTY_CHALLENGE_FORM });
     setParticipants([]);
     setChallengeDays([]);
+    setDayFile(null);
     setDayForm(createEmptyDayForm());
+  };
+
+  const handlePickDayFile = (incomingFile: File | null) => {
+    setDayFile(incomingFile);
+
+    if (!incomingFile) {
+      return;
+    }
+
+    setDayForm((current) => ({
+      ...current,
+      title: current.title.trim() ? current.title : deriveFoodProtocolTitle(incomingFile.name),
+    }));
   };
 
   const handleSaveChallenge = async () => {
@@ -396,6 +423,7 @@ export default function DesafioModule() {
         training_guidance: dayForm.training_guidance,
         nutrition_guidance: dayForm.nutrition_guidance,
         notes: dayForm.notes,
+        file: dayFile,
       });
 
       setChallengeDays((current) => {
@@ -406,6 +434,7 @@ export default function DesafioModule() {
 
         return [savedDay, ...next].sort((a, b) => b.challenge_date.localeCompare(a.challenge_date));
       });
+      setDayFile(null);
       showNotification('Atualizacao diaria salva com sucesso.', 'success');
     } catch (error) {
       showNotification(
@@ -417,6 +446,45 @@ export default function DesafioModule() {
     }
   };
 
+  const handleOpenDayPdf = async (day: ChallengeDay) => {
+    try {
+      setOpeningDayPdfId(day.id);
+      await openChallengeDayPdf(day);
+    } catch (error) {
+      showNotification(
+        error instanceof Error ? error.message : 'Nao foi possivel abrir o PDF do desafio.',
+        'error',
+      );
+    } finally {
+      setOpeningDayPdfId(null);
+    }
+  };
+
+  const handleDownloadDayPdf = async (day: ChallengeDay) => {
+    try {
+      setDownloadingDayPdfId(day.id);
+      const result = await downloadChallengeDayPdf(day);
+      if (result?.kind === 'saved') {
+        showNotification('PDF do desafio salvo no celular na pasta Lioness.', 'success');
+        return;
+      }
+
+      if (result?.kind === 'shared') {
+        showNotification('PDF do desafio pronto para compartilhar no aparelho.', 'success');
+        return;
+      }
+
+      showNotification('PDF do desafio baixado com sucesso.', 'success');
+    } catch (error) {
+      showNotification(
+        error instanceof Error ? error.message : 'Nao foi possivel baixar o PDF do desafio.',
+        'error',
+      );
+    } finally {
+      setDownloadingDayPdfId(null);
+    }
+  };
+
   const existingDayForForm =
     challengeDays.find((day) => day.challenge_date === dayForm.challenge_date) ?? null;
 
@@ -425,7 +493,7 @@ export default function DesafioModule() {
       <ModuleHero
         badge="Desafio"
         title="Desafios diarios com acesso controlado"
-        description="Crie desafios, vincule alunas especificas e atualize o conteudo de treino e protocolo alimentar por dia, sem expor a aba para quem nao participa."
+        description="Gerencie desafios, organize participantes e publique o material diario de cada etapa."
         accent="amber"
         chips={[
           { label: 'Desafios', value: String(challengeSummaries.length) },
@@ -437,7 +505,7 @@ export default function DesafioModule() {
           <>
             <ModuleHeroAction
               label="Novo desafio"
-              subtitle="Abrir um desafio vazio para sua esposa configurar."
+              subtitle="Criar a estrutura inicial do desafio."
               icon={Plus}
               accent="amber"
               filled
@@ -445,7 +513,7 @@ export default function DesafioModule() {
             />
             <ModuleHeroAction
               label="Salvar desafio"
-              subtitle="Gravar titulo, status e periodo com leitura leve no banco."
+              subtitle="Salvar titulo, status e periodo."
               icon={Save}
               accent="amber"
               onClick={() => void handleSaveChallenge()}
@@ -459,21 +527,21 @@ export default function DesafioModule() {
         <ModuleStatCard
           label="Desafios ativos"
           value={String(activeChallengesCount)}
-          detail="Quantidade atual de desafios liberados para leitura das alunas vinculadas."
+          detail="Desafios atualmente publicados para as alunas vinculadas."
           icon={Target}
           accent="amber"
         />
         <ModuleStatCard
           label="Alunas vinculadas"
           value={String(participants.length)}
-          detail="Participantes do desafio selecionado agora, sem misturar com os demais."
+          detail="Participantes ativos do desafio selecionado."
           icon={Users}
           accent="amber"
         />
         <ModuleStatCard
           label="Dias atualizados"
           value={String(challengeDays.length)}
-          detail="Historico recente de atualizacoes diarias carregado apenas quando o desafio e aberto."
+          detail="Publicacoes registradas no desafio selecionado."
           icon={CalendarDays}
           accent="amber"
         />
@@ -484,7 +552,7 @@ export default function DesafioModule() {
           <ModuleSectionHeading
             eyebrow="Configuracao"
             title={selectedChallenge ? 'Editar desafio selecionado' : 'Criar novo desafio'}
-            description="Defina titulo, periodo e status. O desafio so fica visivel para alunas vinculadas e quando estiver ativo."
+            description="Defina titulo, periodo e status de publicacao."
           />
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -595,7 +663,7 @@ export default function DesafioModule() {
           <ModuleSectionHeading
             eyebrow="Lista"
             title="Desafios cadastrados"
-            description="Selecione um desafio para carregar participantes e atualizacoes diarias sem fazer consulta completa o tempo todo."
+            description="Selecione um desafio para editar participantes e publicacoes diarias."
           />
 
           {loading ? (
@@ -657,7 +725,7 @@ export default function DesafioModule() {
           <ModuleSectionHeading
             eyebrow="Participantes"
             title={selectedChallenge ? 'Alunas do desafio selecionado' : 'Selecione um desafio'}
-            description="A aluna so ve a aba de desafio quando estiver vinculada aqui."
+            description="Somente alunas vinculadas visualizam esta area. A gestao de participantes fica disponivel para administradores."
           />
 
           {!selectedChallenge ? (
@@ -668,38 +736,44 @@ export default function DesafioModule() {
             />
           ) : (
             <>
-              <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px_auto]">
-                <input
-                  type="text"
-                  value={studentSearch}
-                  onChange={(event) => setStudentSearch(event.target.value)}
-                  placeholder="Buscar aluna pelo nome ou e-mail..."
-                  className="rounded-2xl border border-zinc-800 bg-black/40 px-4 py-3 text-white outline-none transition-all focus:border-amber-500 focus:ring-2 focus:ring-amber-500/30"
-                />
+              {canManageParticipants ? (
+                <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px_auto]">
+                  <input
+                    type="text"
+                    value={studentSearch}
+                    onChange={(event) => setStudentSearch(event.target.value)}
+                    placeholder="Buscar aluna pelo nome ou e-mail..."
+                    className="rounded-2xl border border-zinc-800 bg-black/40 px-4 py-3 text-white outline-none transition-all focus:border-amber-500 focus:ring-2 focus:ring-amber-500/30"
+                  />
 
-                <select
-                  value={selectedStudentId}
-                  onChange={(event) => setSelectedStudentId(event.target.value)}
-                  className="rounded-2xl border border-zinc-800 bg-black/40 px-4 py-3 text-white outline-none transition-all focus:border-amber-500 focus:ring-2 focus:ring-amber-500/30"
-                >
-                  <option value="">Selecionar aluna</option>
-                  {filteredStudents.map((student) => (
-                    <option key={student.id} value={student.id}>
-                      {student.nome}
-                    </option>
-                  ))}
-                </select>
+                  <select
+                    value={selectedStudentId}
+                    onChange={(event) => setSelectedStudentId(event.target.value)}
+                    className="rounded-2xl border border-zinc-800 bg-black/40 px-4 py-3 text-white outline-none transition-all focus:border-amber-500 focus:ring-2 focus:ring-amber-500/30"
+                  >
+                    <option value="">Selecionar aluna</option>
+                    {filteredStudents.map((student) => (
+                      <option key={student.id} value={student.id}>
+                        {student.nome}
+                      </option>
+                    ))}
+                  </select>
 
-                <button
-                  type="button"
-                  onClick={() => void handleAssignStudent()}
-                  disabled={!selectedStudentId || assigningStudent}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-300 transition-all hover:bg-amber-500 hover:text-black disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {assigningStudent ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
-                  Adicionar
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => void handleAssignStudent()}
+                    disabled={!selectedStudentId || assigningStudent}
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-300 transition-all hover:bg-amber-500 hover:text-black disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {assigningStudent ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
+                    Adicionar
+                  </button>
+                </div>
+              ) : (
+                <div className="rounded-[22px] border border-zinc-800 bg-zinc-900/40 px-4 py-4 text-sm text-zinc-400">
+                  A gestao de participantes esta disponivel apenas para administradores.
+                </div>
+              )}
 
               {detailsLoading ? (
                 <div className="flex items-center justify-center py-10 text-zinc-400">
@@ -709,7 +783,7 @@ export default function DesafioModule() {
                 <ModuleEmptyState
                   icon={Users}
                   title="Nenhuma aluna vinculada"
-                  description="Adicione as alunas que devem enxergar o desafio no painel."
+                  description="Adicione as alunas que devem participar deste desafio."
                 />
               ) : (
                 <div className="space-y-3">
@@ -741,7 +815,7 @@ export default function DesafioModule() {
                       <button
                         type="button"
                         onClick={() => void handleRemoveStudent(participant.student_id)}
-                        disabled={removingStudentId === participant.student_id}
+                        disabled={!canManageParticipants || removingStudentId === participant.student_id}
                         className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm font-bold text-rose-300 transition-all hover:bg-rose-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {removingStudentId === participant.student_id ? (
@@ -763,7 +837,7 @@ export default function DesafioModule() {
           <ModuleSectionHeading
             eyebrow="Atualizacao diaria"
             title={selectedChallenge ? 'Conteudo do dia' : 'Selecione um desafio'}
-            description="Sua esposa pode atualizar o treino e a orientacao alimentar de cada data sem sobrescrever o historico."
+            description="Publique o PDF diario e complemente o conteudo com observacoes quando necessario."
           />
 
           {!selectedChallenge ? (
@@ -803,6 +877,73 @@ export default function DesafioModule() {
                     className="w-full rounded-2xl border border-zinc-800 bg-black/40 px-4 py-3 text-white outline-none transition-all focus:border-amber-500 focus:ring-2 focus:ring-amber-500/30"
                   />
                 </div>
+              </div>
+
+              <div className="space-y-3 rounded-[24px] border border-dashed border-zinc-800 bg-black/20 p-4">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-white">PDF do desafio do dia</p>
+                    <p className="mt-1 text-sm text-zinc-500">
+                      Ao enviar um novo PDF nesta data, o arquivo anterior sera substituido.
+                    </p>
+                  </div>
+
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition-all hover:border-zinc-700">
+                    <Upload size={16} />
+                    Selecionar PDF
+                    <input
+                      type="file"
+                      accept="application/pdf,.pdf"
+                      className="hidden"
+                      onChange={(event) => handlePickDayFile(event.target.files?.[0] ?? null)}
+                    />
+                  </label>
+                </div>
+
+                {existingDayForForm?.file_name ? (
+                  <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+                    <p className="font-bold text-white">{existingDayForForm.file_name}</p>
+                    <p className="mt-1 text-emerald-100/80">
+                      {formatFoodProtocolSize(existingDayForForm.size_bytes)}
+                    </p>
+
+                    <div className="mt-3 flex flex-wrap gap-3">
+                      <button
+                        type="button"
+                        onClick={() => void handleOpenDayPdf(existingDayForForm)}
+                        disabled={openingDayPdfId === existingDayForForm.id}
+                        className="inline-flex items-center gap-2 rounded-2xl border border-zinc-800 bg-black/25 px-4 py-2 text-sm font-bold text-white transition-all hover:border-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {openingDayPdfId === existingDayForForm.id ? <Loader2 size={16} className="animate-spin" /> : <Eye size={16} />}
+                        Abrir PDF atual
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => void handleDownloadDayPdf(existingDayForForm)}
+                        disabled={downloadingDayPdfId === existingDayForForm.id}
+                        className="inline-flex items-center gap-2 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-2 text-sm font-bold text-amber-300 transition-all hover:bg-amber-500 hover:text-black disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {downloadingDayPdfId === existingDayForForm.id ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                        Baixar PDF atual
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+
+                {dayFile ? (
+                  <div className="rounded-2xl border border-sky-500/20 bg-sky-500/10 px-4 py-3 text-sm text-sky-100">
+                    <p className="font-bold text-white">{dayFile.name}</p>
+                    <p className="mt-1 text-sky-100/80">{formatFoodProtocolSize(dayFile.size)}</p>
+                    <button
+                      type="button"
+                      onClick={() => setDayFile(null)}
+                      className="mt-3 rounded-full border border-sky-500/20 bg-black/20 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-sky-100 transition-all hover:bg-black/35"
+                    >
+                      Limpar PDF selecionado
+                    </button>
+                  </div>
+                ) : null}
               </div>
 
               <div className="space-y-2">
@@ -881,7 +1022,7 @@ export default function DesafioModule() {
                   <ModuleEmptyState
                     icon={CalendarDays}
                     title="Nenhum dia atualizado"
-                    description="Salve a primeira orientacao diaria para comecar o historico do desafio."
+                    description="Salve a primeira publicacao diaria para iniciar o historico deste desafio."
                   />
                 ) : (
                   <div className="space-y-3">
@@ -889,7 +1030,10 @@ export default function DesafioModule() {
                       <button
                         key={day.id}
                         type="button"
-                        onClick={() => setDayForm(mapDayToForm(day))}
+                        onClick={() => {
+                          setDayFile(null);
+                          setDayForm(mapDayToForm(day));
+                        }}
                         className={`w-full rounded-[22px] border p-4 text-left transition-all ${
                           day.challenge_date === dayForm.challenge_date
                             ? 'border-amber-500/20 bg-amber-500/10'
@@ -905,9 +1049,16 @@ export default function DesafioModule() {
                               {formatDatePtBr(day.challenge_date)}
                             </p>
                           </div>
-                          <span className="rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-400">
-                            editar
-                          </span>
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                            {day.file_name ? (
+                              <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-300">
+                                pdf diario
+                              </span>
+                            ) : null}
+                            <span className="rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-400">
+                              editar
+                            </span>
+                          </div>
                         </div>
                       </button>
                     ))}

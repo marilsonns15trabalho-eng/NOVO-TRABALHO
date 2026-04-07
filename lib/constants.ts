@@ -68,6 +68,7 @@ export const STORAGE_BUCKETS = {
   AVALIACAO_PHOTOS: 'avaliacao-photos',
   PROFILE_PHOTOS: 'profile-photos',
   FOOD_PROTOCOLS: 'food-protocols',
+  CHALLENGE_DAY_PDFS: 'challenge-day-pdfs',
 } as const;
 
 /** Super admin protegido contra alteracoes */

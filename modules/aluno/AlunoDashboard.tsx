@@ -274,6 +274,8 @@ export default function AlunoDashboard() {
   const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([]);
   const [challengeHub, setChallengeHub] = useState<StudentChallengeHub | null>(null);
   const [foodProtocols, setFoodProtocols] = useState<FoodProtocol[]>([]);
+  const [openingChallengeDayId, setOpeningChallengeDayId] = useState<string | null>(null);
+  const [downloadingChallengeDayId, setDownloadingChallengeDayId] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<StudentSectionKey>('inicio');
   const [completingTreinoId, setCompletingTreinoId] = useState<string | null>(null);
   const [executionSession, setExecutionSession] = useState<TreinoExecutionSession | null>(null);
@@ -745,6 +747,33 @@ export default function AlunoDashboard() {
     }
   };
 
+  const handleOpenChallengeDay = async (day: ChallengeDay) => {
+    try {
+      setOpeningChallengeDayId(day.id);
+      await desafiosService.openChallengeDayPdf(day);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Nao foi possivel abrir o PDF do desafio.';
+      showNotification(message, 'error');
+    } finally {
+      setOpeningChallengeDayId(null);
+    }
+  };
+
+  const handleDownloadChallengeDay = async (day: ChallengeDay) => {
+    try {
+      setDownloadingChallengeDayId(day.id);
+      const result = await desafiosService.downloadChallengeDayPdf(day);
+      showNotification(getPdfFeedbackMessage(result, 'PDF do desafio'), 'success');
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Nao foi possivel baixar o PDF do desafio.';
+      showNotification(message, 'error');
+    } finally {
+      setDownloadingChallengeDayId(null);
+    }
+  };
+
   const getTreinoStatusLabel = (treino: Treino) => {
     if (treino.completed_today) {
       return 'Concluido';
@@ -1186,7 +1215,7 @@ export default function AlunoDashboard() {
                 </p>
                 <h2 className="mt-2 text-3xl font-bold text-white">Desafio do dia</h2>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
-                  Atualizacao diaria liberada somente para alunas vinculadas. Abra a aba de desafio para acompanhar tudo com calma.
+                  Conteudo diario disponivel para alunas vinculadas ao desafio.
                 </p>
               </div>
 
@@ -1233,9 +1262,11 @@ export default function AlunoDashboard() {
                         {todayEntry?.title || 'Sem titulo especifico para hoje.'}
                       </p>
                       <p className="mt-3 text-sm leading-6 text-zinc-500">
-                        {todayEntry?.training_guidance || todayEntry?.nutrition_guidance
-                          ? 'Abra a aba de desafio para ler a orientacao completa de treino e alimentacao.'
-                          : 'Hoje ainda nao existe uma orientacao diaria publicada para este desafio.'}
+                        {todayEntry?.storage_path
+                          ? 'O material de hoje ja esta disponivel em PDF.'
+                          : todayEntry?.training_guidance || todayEntry?.nutrition_guidance
+                            ? 'Abra a aba de desafio para consultar o conteudo completo.'
+                          : 'O conteudo de hoje ainda nao foi publicado.'}
                       </p>
                     </div>
                   </div>
@@ -1909,7 +1940,7 @@ export default function AlunoDashboard() {
               </p>
               <h2 className="mt-2 text-3xl font-bold text-white">Minha rotina do desafio</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
-                Aqui ficam os desafios que a equipe liberou para voce, com atualizacao diaria de treino e orientacao alimentar.
+                Acompanhe os materiais e orientacoes do desafio liberados para voce.
               </p>
             </div>
 
@@ -1955,9 +1986,9 @@ export default function AlunoDashboard() {
 
                   {!todayEntry ? (
                     <div className="mt-5 rounded-[24px] border border-dashed border-zinc-800 bg-zinc-950/70 px-5 py-6">
-                      <p className="text-sm font-bold text-white">Sem publicacao para hoje</p>
+                      <p className="text-sm font-bold text-white">Conteudo indisponivel</p>
                       <p className="mt-2 text-sm leading-6 text-zinc-500">
-                        A equipe ainda nao publicou a atualizacao diaria deste desafio para hoje.
+                        Nenhum material foi disponibilizado para esta data.
                       </p>
                     </div>
                   ) : (
@@ -1983,6 +2014,42 @@ export default function AlunoDashboard() {
                           {todayEntry.nutrition_guidance || 'Sem orientacao alimentar registrada para hoje.'}
                         </p>
                       </div>
+
+                      {todayEntry.storage_path ? (
+                        <div className="rounded-[24px] border border-amber-500/20 bg-amber-500/10 p-5 xl:col-span-2">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-200/80">
+                            PDF do desafio
+                          </p>
+                          <p className="mt-3 text-lg font-bold text-white">
+                            {todayEntry.file_name || 'PDF do dia disponivel'}
+                          </p>
+                          <p className="mt-2 text-sm leading-6 text-amber-100/80">
+                            Abra para visualizar agora ou baixe no celular para consultar offline quando precisar.
+                          </p>
+
+                          <div className="mt-4 flex flex-wrap gap-3">
+                            <button
+                              type="button"
+                              onClick={() => void handleOpenChallengeDay(todayEntry)}
+                              disabled={openingChallengeDayId === todayEntry.id}
+                              className="inline-flex items-center gap-2 rounded-2xl border border-zinc-800 bg-black/25 px-4 py-3 text-sm font-bold text-white transition-all hover:border-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {openingChallengeDayId === todayEntry.id ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+                              Abrir PDF
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => void handleDownloadChallengeDay(todayEntry)}
+                              disabled={downloadingChallengeDayId === todayEntry.id}
+                              className="inline-flex items-center gap-2 rounded-2xl border border-amber-500/20 bg-black/20 px-4 py-3 text-sm font-bold text-amber-100 transition-all hover:bg-amber-500 hover:text-black disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {downloadingChallengeDayId === todayEntry.id ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                              Baixar no celular
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
 
                       {todayEntry.notes ? (
                         <div className="rounded-[24px] border border-zinc-800 bg-zinc-900/40 p-5 xl:col-span-2">

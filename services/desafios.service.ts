@@ -1,5 +1,8 @@
+import { assertAdmin } from '@/lib/authz';
 import { getAppDateInputValue } from '@/lib/date';
-import { TABLES } from '@/lib/constants';
+import { downloadFile, openExternalUrl, type FileDownloadResult } from '@/lib/external-links';
+import { deriveFoodProtocolTitle, sanitizeFoodProtocolFileName } from '@/lib/food-protocols';
+import { STORAGE_BUCKETS, TABLES } from '@/lib/constants';
 import { normalizeStudentRelation } from '@/lib/mappers';
 import { getAuthenticatedUser, supabase } from '@/lib/supabase';
 import {
@@ -17,6 +20,9 @@ import type {
   ChallengeUpsertInput,
   StudentChallengeHub,
 } from '@/types/desafio';
+
+const MAX_CHALLENGE_DAY_PDF_BYTES = 15 * 1024 * 1024;
+const CHALLENGE_DAY_SIGNED_URL_EXPIRES_IN = 60 * 60;
 
 function mapChallengeRow(row: any): ChallengeSummary {
   return {
@@ -45,6 +51,11 @@ function mapChallengeDayRow(row: any): ChallengeDay {
     notes: row.notes ?? null,
     linked_training_plan_id: row.linked_training_plan_id ?? null,
     linked_food_protocol_id: row.linked_food_protocol_id ?? null,
+    storage_path: row.storage_path ?? null,
+    file_name: row.file_name ?? null,
+    content_type: row.content_type ?? null,
+    size_bytes: row.size_bytes ?? null,
+    signed_url: row.signed_url ?? null,
     updated_by_auth_user_id: row.updated_by_auth_user_id ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at ?? null,
@@ -102,6 +113,22 @@ function isChallengeVisibleOnDate(challenge: ChallengeSummary, dateKey: string) 
   }
 
   return true;
+}
+
+function buildChallengeDaySelect() {
+  return 'id, challenge_id, challenge_date, title, training_guidance, nutrition_guidance, notes, linked_training_plan_id, linked_food_protocol_id, storage_path, file_name, content_type, size_bytes, updated_by_auth_user_id, created_at, updated_at';
+}
+
+async function getChallengeDaySignedUrl(storagePath: string) {
+  const { data, error } = await supabase.storage
+    .from(STORAGE_BUCKETS.CHALLENGE_DAY_PDFS)
+    .createSignedUrl(storagePath, CHALLENGE_DAY_SIGNED_URL_EXPIRES_IN);
+
+  if (error || !data?.signedUrl) {
+    throw new Error('Nao foi possivel abrir o PDF do desafio agora.');
+  }
+
+  return data.signedUrl;
 }
 
 async function buildParticipantCountMap(challengeIds: string[]) {
@@ -206,7 +233,7 @@ export async function fetchChallengeDays(challengeId: string): Promise<Challenge
 
   const { data, error } = await supabase
     .from(TABLES.DESAFIO_DIAS)
-    .select('id, challenge_id, challenge_date, title, training_guidance, nutrition_guidance, notes, linked_training_plan_id, linked_food_protocol_id, updated_by_auth_user_id, created_at, updated_at')
+    .select(buildChallengeDaySelect())
     .eq('challenge_id', challengeId)
     .order('challenge_date', { ascending: false })
     .limit(60);
@@ -285,6 +312,7 @@ export async function assignStudentToChallenge(
   studentId: string,
   notes?: string | null,
 ): Promise<ChallengeParticipant> {
+  await assertAdmin();
   const user = await getAuthenticatedUser();
   const payload = {
     challenge_id: challengeId,
@@ -313,6 +341,7 @@ export async function assignStudentToChallenge(
 }
 
 export async function removeStudentFromChallenge(challengeId: string, studentId: string): Promise<void> {
+  await assertAdmin();
   const { error } = await supabase
     .from(TABLES.DESAFIO_PARTICIPANTES)
     .update({ removed_at: new Date().toISOString() })
@@ -327,26 +356,97 @@ export async function removeStudentFromChallenge(challengeId: string, studentId:
 
 export async function saveChallengeDay(input: ChallengeDayUpsertInput): Promise<ChallengeDay> {
   const user = await getAuthenticatedUser();
+  let nextStoragePath: string | null = null;
+  let nextFileName: string | null = null;
+  let nextContentType: string | null = null;
+  let nextSizeBytes: number | null = null;
+  let previousStoragePath: string | null = null;
+
+  if (input.file) {
+    const lowerName = input.file.name.toLowerCase();
+    const isPdf = input.file.type === 'application/pdf' || lowerName.endsWith('.pdf');
+
+    if (!isPdf) {
+      throw new Error('Envie apenas PDF no desafio diario.');
+    }
+
+    if (input.file.size <= 0 || input.file.size > MAX_CHALLENGE_DAY_PDF_BYTES) {
+      throw new Error('O PDF do desafio deve ter ate 15 MB.');
+    }
+
+    const { data: existingDay, error: existingDayError } = await supabase
+      .from(TABLES.DESAFIO_DIAS)
+      .select('id, storage_path')
+      .eq('challenge_id', input.challenge_id)
+      .eq('challenge_date', input.challenge_date)
+      .maybeSingle();
+
+    if (existingDayError) {
+      throw new Error(existingDayError.message || 'Nao foi possivel preparar o PDF do desafio.');
+    }
+
+    previousStoragePath = existingDay?.storage_path ?? null;
+
+    const safeFileName = sanitizeFoodProtocolFileName(
+      input.file.name,
+      input.title?.trim() || deriveFoodProtocolTitle(input.file.name),
+    );
+    nextStoragePath = `${input.challenge_id}/${input.challenge_date}/${Date.now()}-${safeFileName}`;
+    nextFileName = safeFileName;
+    nextContentType = 'application/pdf';
+    nextSizeBytes = input.file.size;
+
+    const { error: uploadError } = await supabase.storage
+      .from(STORAGE_BUCKETS.CHALLENGE_DAY_PDFS)
+      .upload(nextStoragePath, input.file, {
+        contentType: 'application/pdf',
+        cacheControl: '31536000',
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw new Error(uploadError.message || 'Nao foi possivel enviar o PDF do desafio.');
+    }
+  }
+
   const payload = {
     challenge_id: input.challenge_id,
     challenge_date: input.challenge_date,
-    title: input.title?.trim() || null,
+    title: input.title?.trim() || (input.file ? deriveFoodProtocolTitle(input.file.name) : null),
     training_guidance: input.training_guidance?.trim() || null,
     nutrition_guidance: input.nutrition_guidance?.trim() || null,
     notes: input.notes?.trim() || null,
     linked_training_plan_id: input.linked_training_plan_id || null,
     linked_food_protocol_id: input.linked_food_protocol_id || null,
     updated_by_auth_user_id: user.id,
+    ...(input.file
+      ? {
+          storage_path: nextStoragePath,
+          file_name: nextFileName,
+          content_type: nextContentType,
+          size_bytes: nextSizeBytes,
+        }
+      : {}),
   };
 
   const { data, error } = await supabase
     .from(TABLES.DESAFIO_DIAS)
     .upsert([payload], { onConflict: 'challenge_id,challenge_date' })
-    .select('id, challenge_id, challenge_date, title, training_guidance, nutrition_guidance, notes, linked_training_plan_id, linked_food_protocol_id, updated_by_auth_user_id, created_at, updated_at')
+    .select(buildChallengeDaySelect())
     .single();
 
   if (error || !data) {
+    if (nextStoragePath) {
+      await supabase.storage.from(STORAGE_BUCKETS.CHALLENGE_DAY_PDFS).remove([nextStoragePath]).catch(() => undefined);
+    }
     throw new Error(error?.message || 'Nao foi possivel salvar o dia do desafio.');
+  }
+
+  if (nextStoragePath && previousStoragePath && previousStoragePath !== nextStoragePath) {
+    await supabase.storage
+      .from(STORAGE_BUCKETS.CHALLENGE_DAY_PDFS)
+      .remove([previousStoragePath])
+      .catch(() => undefined);
   }
 
   return mapChallengeDayRow(data);
@@ -450,7 +550,7 @@ export async function fetchMyChallengeHub(linkedAuthUserId?: string | null): Pro
 
   const { data: dayRows, error: dayError } = await supabase
     .from(TABLES.DESAFIO_DIAS)
-    .select('id, challenge_id, challenge_date, title, training_guidance, nutrition_guidance, notes, linked_training_plan_id, linked_food_protocol_id, updated_by_auth_user_id, created_at, updated_at')
+    .select(buildChallengeDaySelect())
     .in('challenge_id', activeChallenges.map((challenge) => challenge.id))
     .eq('challenge_date', todayKey)
     .order('challenge_date', { ascending: false });
@@ -465,4 +565,36 @@ export async function fetchMyChallengeHub(linkedAuthUserId?: string | null): Pro
     today_entries: (dayRows || []).map(mapChallengeDayRow),
     has_visible_challenges: activeChallenges.length > 0,
   };
+}
+
+export async function openChallengeDayPdf(day: ChallengeDay) {
+  if (!day.storage_path) {
+    throw new Error('Este dia do desafio ainda nao possui PDF.');
+  }
+
+  const url = day.signed_url || (await getChallengeDaySignedUrl(day.storage_path));
+  await openExternalUrl(url, { preferSystemBrowser: true });
+}
+
+export async function downloadChallengeDayPdf(day: ChallengeDay): Promise<FileDownloadResult | null> {
+  if (!day.storage_path) {
+    throw new Error('Este dia do desafio ainda nao possui PDF.');
+  }
+
+  const url = day.signed_url || (await getChallengeDaySignedUrl(day.storage_path));
+  const response = await fetch(url, { cache: 'no-store' });
+
+  if (!response.ok) {
+    throw new Error('Nao foi possivel baixar o PDF do desafio.');
+  }
+
+  const blob = await response.blob();
+  const fileName =
+    day.file_name ||
+    sanitizeFoodProtocolFileName(`${day.title || `desafio-${day.challenge_date}`}.pdf`, `desafio-${day.challenge_date}`);
+  const file = new File([blob], fileName, {
+    type: day.content_type || 'application/pdf',
+  });
+
+  return downloadFile(file, fileName);
 }

@@ -134,12 +134,7 @@ USING (
     (SELECT public.is_staff())
     OR (
         student_id = (SELECT public.current_student_id())
-        AND EXISTS (
-            SELECT 1
-            FROM public.desafios d
-            WHERE d.id = desafio_participantes.challenge_id
-              AND d.status = 'active'
-        )
+        AND removed_at IS NULL
     )
 );
 

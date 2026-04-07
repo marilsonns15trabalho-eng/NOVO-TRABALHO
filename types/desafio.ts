@@ -44,6 +44,11 @@ export interface ChallengeDay {
   notes?: string | null;
   linked_training_plan_id?: string | null;
   linked_food_protocol_id?: string | null;
+  storage_path?: string | null;
+  file_name?: string | null;
+  content_type?: string | null;
+  size_bytes?: number | null;
+  signed_url?: string | null;
   updated_by_auth_user_id?: string | null;
   created_at: string;
   updated_at?: string | null;
@@ -66,6 +71,7 @@ export interface ChallengeDayUpsertInput {
   notes?: string | null;
   linked_training_plan_id?: string | null;
   linked_food_protocol_id?: string | null;
+  file?: File | null;
 }
 
 export interface StudentChallengeHub {
