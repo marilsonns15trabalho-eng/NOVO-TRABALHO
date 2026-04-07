@@ -506,12 +506,6 @@ export default function AlunoDashboard() {
     [challengeHub?.active_challenges],
   );
 
-  useEffect(() => {
-    if (!hasChallengeAccess && activeSection === 'desafio') {
-      setActiveSection('inicio');
-    }
-  }, [activeSection, hasChallengeAccess]);
-
   const handleExportCurrentPdf = async (avaliacao: Avaliacao) => {
     try {
       const result = await exportAvaliacaoPdf(avaliacao);
@@ -605,16 +599,12 @@ export default function AlunoDashboard() {
       icon: <FileStack size={18} className="text-emerald-400" />,
       accentClassName: 'bg-gradient-to-r from-emerald-500/90 via-emerald-400/70 to-transparent',
     },
-    ...(hasChallengeAccess
-      ? [
-          {
-            label: 'Desafios',
-            value: String(activeChallenges.length),
-            icon: <Target size={18} className="text-amber-400" />,
-            accentClassName: 'bg-gradient-to-r from-amber-500/90 via-amber-400/70 to-transparent',
-          },
-        ]
-      : []),
+    {
+      label: 'Desafios',
+      value: hasChallengeAccess ? String(activeChallenges.length) : 'Bloqueado',
+      icon: <Target size={18} className="text-amber-400" />,
+      accentClassName: 'bg-gradient-to-r from-amber-500/90 via-amber-400/70 to-transparent',
+    },
   ];
   const sectionItems: Array<{
     key: StudentSectionKey;
@@ -640,16 +630,12 @@ export default function AlunoDashboard() {
       helper: `${avaliacoes.length} registros`,
       icon: <Activity size={16} />,
     },
-    ...(hasChallengeAccess
-      ? [
-          {
-            key: 'desafio' as StudentSectionKey,
-            label: 'Desafio',
-            helper: `${activeChallenges.length} ativo(s)`,
-            icon: <Target size={16} />,
-          },
-        ]
-      : []),
+    {
+      key: 'desafio',
+      label: 'Desafio',
+      helper: hasChallengeAccess ? `${activeChallenges.length} ativo(s)` : 'Aguardando liberacao',
+      icon: <Target size={16} />,
+    },
     {
       key: 'protocolos',
       label: 'Protocolos',
@@ -685,17 +671,13 @@ export default function AlunoDashboard() {
       active: activeSection === 'avaliacoes',
       onClick: () => setActiveSection('avaliacoes'),
     },
-    ...(hasChallengeAccess
-      ? [
-          {
-            key: 'desafio',
-            label: 'Desafio',
-            icon: Target,
-            active: activeSection === 'desafio',
-            onClick: () => setActiveSection('desafio'),
-          },
-        ]
-      : []),
+    {
+      key: 'desafio',
+      label: 'Desafio',
+      icon: Target,
+      active: activeSection === 'desafio',
+      onClick: () => setActiveSection('desafio'),
+    },
     {
       key: 'protocolos',
       label: 'Protocolos',
@@ -1206,29 +1188,29 @@ export default function AlunoDashboard() {
           )}
         </section>
 
-        {hasChallengeAccess ? (
-          <section className="rounded-[32px] border border-zinc-800 bg-zinc-950/85 p-6 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)]">
-            <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">
-                  Desafio
-                </p>
-                <h2 className="mt-2 text-3xl font-bold text-white">Desafio do dia</h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
-                  Conteudo diario disponivel para alunas vinculadas ao desafio.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setActiveSection('desafio')}
-                className="inline-flex items-center gap-2 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-300 transition-all hover:bg-amber-500 hover:text-black"
-              >
-                <Target size={16} />
-                Abrir desafio
-              </button>
+        <section className="rounded-[32px] border border-zinc-800 bg-zinc-950/85 p-6 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)]">
+          <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">
+                Desafio
+              </p>
+              <h2 className="mt-2 text-3xl font-bold text-white">Desafio</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
+                Acompanhe aqui o acesso e o conteudo do seu desafio.
+              </p>
             </div>
 
+            <button
+              type="button"
+              onClick={() => setActiveSection('desafio')}
+              className="inline-flex items-center gap-2 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-300 transition-all hover:bg-amber-500 hover:text-black"
+            >
+              <Target size={16} />
+              Abrir desafio
+            </button>
+          </div>
+
+          {hasChallengeAccess ? (
             <div className="grid gap-4 xl:grid-cols-2">
               {activeChallenges.map((challenge) => {
                 const todayEntry =
@@ -1266,15 +1248,21 @@ export default function AlunoDashboard() {
                           ? 'O material de hoje ja esta disponivel em PDF.'
                           : todayEntry?.training_guidance || todayEntry?.nutrition_guidance
                             ? 'Abra a aba de desafio para consultar o conteudo completo.'
-                          : 'O conteudo de hoje ainda nao foi publicado.'}
+                            : 'O conteudo de hoje ainda nao foi publicado.'}
                       </p>
                     </div>
                   </div>
                 );
               })}
             </div>
-          </section>
-        ) : null}
+          ) : (
+            <EmptyState
+              title="Acesso aguardando liberacao"
+              description="Este modulo fica disponivel quando o administrador incluir voce em um desafio."
+              icon={<Target size={18} />}
+            />
+          )}
+        </section>
 
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
           <OverviewCard
@@ -1931,7 +1919,7 @@ export default function AlunoDashboard() {
         </section>
         )}
 
-        {activeSection === 'desafio' && hasChallengeAccess && (
+        {activeSection === 'desafio' && (
         <section className="rounded-[32px] border border-zinc-800 bg-zinc-950/85 p-6 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)]">
           <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
@@ -1948,125 +1936,132 @@ export default function AlunoDashboard() {
               {activeChallenges.length} desafio(s) ativo(s)
             </div>
           </div>
+          {hasChallengeAccess ? (
+            <div className="space-y-5">
+              {activeChallenges.map((challenge) => {
+                const todayEntry =
+                  todayChallengeEntries.find((entry) => entry.challenge_id === challenge.id) ?? null;
 
-          <div className="space-y-5">
-            {activeChallenges.map((challenge) => {
-              const todayEntry =
-                todayChallengeEntries.find((entry) => entry.challenge_id === challenge.id) ?? null;
-
-              return (
-                <div
-                  key={challenge.id}
-                  className="rounded-[28px] border border-zinc-800 bg-black/30 p-5"
-                >
-                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                    <div className="max-w-3xl">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-2xl font-bold text-white">{challenge.title}</h3>
-                        <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">
-                          ativo
-                        </span>
+                return (
+                  <div
+                    key={challenge.id}
+                    className="rounded-[28px] border border-zinc-800 bg-black/30 p-5"
+                  >
+                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                      <div className="max-w-3xl">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-2xl font-bold text-white">{challenge.title}</h3>
+                          <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">
+                            ativo
+                          </span>
+                        </div>
+                        <p className="mt-2 text-sm leading-6 text-zinc-400">
+                          {challenge.description || 'Sem descricao geral para este desafio.'}
+                        </p>
                       </div>
-                      <p className="mt-2 text-sm leading-6 text-zinc-400">
-                        {challenge.description || 'Sem descricao geral para este desafio.'}
-                      </p>
-                    </div>
 
-                    <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-4 py-4">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
-                        Periodo
-                      </p>
-                      <p className="mt-2 text-sm font-bold text-white">
-                        {challenge.start_date ? formatDatePtBr(challenge.start_date) : '-'}
-                        {' -> '}
-                        {challenge.end_date ? formatDatePtBr(challenge.end_date) : '-'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {!todayEntry ? (
-                    <div className="mt-5 rounded-[24px] border border-dashed border-zinc-800 bg-zinc-950/70 px-5 py-6">
-                      <p className="text-sm font-bold text-white">Conteudo indisponivel</p>
-                      <p className="mt-2 text-sm leading-6 text-zinc-500">
-                        Nenhum material foi disponibilizado para esta data.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="mt-5 grid gap-4 xl:grid-cols-2">
-                      <div className="rounded-[24px] border border-zinc-800 bg-zinc-900/40 p-5">
+                      <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-4 py-4">
                         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
-                          Treino do dia
+                          Periodo
                         </p>
-                        <p className="mt-3 text-lg font-bold text-white">
-                          {todayEntry.title || `Atualizacao ${formatDatePtBr(todayEntry.challenge_date)}`}
-                        </p>
-                        <p className="mt-3 text-sm leading-6 text-zinc-400">
-                          {todayEntry.training_guidance || 'Sem orientacao de treino registrada para hoje.'}
-                        </p>
-                      </div>
-
-                      <div className="rounded-[24px] border border-zinc-800 bg-zinc-900/40 p-5">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
-                          Alimentacao do dia
-                        </p>
-                        <p className="mt-3 text-lg font-bold text-white">Protocolo do dia</p>
-                        <p className="mt-3 text-sm leading-6 text-zinc-400">
-                          {todayEntry.nutrition_guidance || 'Sem orientacao alimentar registrada para hoje.'}
+                        <p className="mt-2 text-sm font-bold text-white">
+                          {challenge.start_date ? formatDatePtBr(challenge.start_date) : '-'}
+                          {' -> '}
+                          {challenge.end_date ? formatDatePtBr(challenge.end_date) : '-'}
                         </p>
                       </div>
+                    </div>
 
-                      {todayEntry.storage_path ? (
-                        <div className="rounded-[24px] border border-amber-500/20 bg-amber-500/10 p-5 xl:col-span-2">
-                          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-200/80">
-                            PDF do desafio
+                    {!todayEntry ? (
+                      <div className="mt-5 rounded-[24px] border border-dashed border-zinc-800 bg-zinc-950/70 px-5 py-6">
+                        <p className="text-sm font-bold text-white">Conteudo indisponivel</p>
+                        <p className="mt-2 text-sm leading-6 text-zinc-500">
+                          Nenhum material foi disponibilizado para esta data.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="mt-5 grid gap-4 xl:grid-cols-2">
+                        <div className="rounded-[24px] border border-zinc-800 bg-zinc-900/40 p-5">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                            Treino do dia
                           </p>
                           <p className="mt-3 text-lg font-bold text-white">
-                            {todayEntry.file_name || 'PDF do dia disponivel'}
-                          </p>
-                          <p className="mt-2 text-sm leading-6 text-amber-100/80">
-                            Abra para visualizar agora ou baixe no celular para consultar offline quando precisar.
-                          </p>
-
-                          <div className="mt-4 flex flex-wrap gap-3">
-                            <button
-                              type="button"
-                              onClick={() => void handleOpenChallengeDay(todayEntry)}
-                              disabled={openingChallengeDayId === todayEntry.id}
-                              className="inline-flex items-center gap-2 rounded-2xl border border-zinc-800 bg-black/25 px-4 py-3 text-sm font-bold text-white transition-all hover:border-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              {openingChallengeDayId === todayEntry.id ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
-                              Abrir PDF
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => void handleDownloadChallengeDay(todayEntry)}
-                              disabled={downloadingChallengeDayId === todayEntry.id}
-                              className="inline-flex items-center gap-2 rounded-2xl border border-amber-500/20 bg-black/20 px-4 py-3 text-sm font-bold text-amber-100 transition-all hover:bg-amber-500 hover:text-black disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              {downloadingChallengeDayId === todayEntry.id ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-                              Baixar no celular
-                            </button>
-                          </div>
-                        </div>
-                      ) : null}
-
-                      {todayEntry.notes ? (
-                        <div className="rounded-[24px] border border-zinc-800 bg-zinc-900/40 p-5 xl:col-span-2">
-                          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
-                            Observacoes da equipe
+                            {todayEntry.title || `Atualizacao ${formatDatePtBr(todayEntry.challenge_date)}`}
                           </p>
                           <p className="mt-3 text-sm leading-6 text-zinc-400">
-                            {todayEntry.notes}
+                            {todayEntry.training_guidance || 'Sem orientacao de treino registrada para hoje.'}
                           </p>
                         </div>
-                      ) : null}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+
+                        <div className="rounded-[24px] border border-zinc-800 bg-zinc-900/40 p-5">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                            Alimentacao do dia
+                          </p>
+                          <p className="mt-3 text-lg font-bold text-white">Protocolo do dia</p>
+                          <p className="mt-3 text-sm leading-6 text-zinc-400">
+                            {todayEntry.nutrition_guidance || 'Sem orientacao alimentar registrada para hoje.'}
+                          </p>
+                        </div>
+
+                        {todayEntry.storage_path ? (
+                          <div className="rounded-[24px] border border-amber-500/20 bg-amber-500/10 p-5 xl:col-span-2">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-200/80">
+                              PDF do desafio
+                            </p>
+                            <p className="mt-3 text-lg font-bold text-white">
+                              {todayEntry.file_name || 'PDF do dia disponivel'}
+                            </p>
+                            <p className="mt-2 text-sm leading-6 text-amber-100/80">
+                              Abra para visualizar agora ou baixe no celular para consultar offline quando precisar.
+                            </p>
+
+                            <div className="mt-4 flex flex-wrap gap-3">
+                              <button
+                                type="button"
+                                onClick={() => void handleOpenChallengeDay(todayEntry)}
+                                disabled={openingChallengeDayId === todayEntry.id}
+                                className="inline-flex items-center gap-2 rounded-2xl border border-zinc-800 bg-black/25 px-4 py-3 text-sm font-bold text-white transition-all hover:border-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {openingChallengeDayId === todayEntry.id ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+                                Abrir PDF
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => void handleDownloadChallengeDay(todayEntry)}
+                                disabled={downloadingChallengeDayId === todayEntry.id}
+                                className="inline-flex items-center gap-2 rounded-2xl border border-amber-500/20 bg-black/20 px-4 py-3 text-sm font-bold text-amber-100 transition-all hover:bg-amber-500 hover:text-black disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {downloadingChallengeDayId === todayEntry.id ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                                Baixar no celular
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {todayEntry.notes ? (
+                          <div className="rounded-[24px] border border-zinc-800 bg-zinc-900/40 p-5 xl:col-span-2">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                              Observacoes da equipe
+                            </p>
+                            <p className="mt-3 text-sm leading-6 text-zinc-400">
+                              {todayEntry.notes}
+                            </p>
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <EmptyState
+              title="Acesso ainda nao liberado"
+              description="Este modulo sera desbloqueado quando o administrador incluir voce em um desafio."
+              icon={<AlertTriangle size={18} />}
+            />
+          )}
         </section>
         )}
 
