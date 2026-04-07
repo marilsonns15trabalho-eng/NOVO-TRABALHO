@@ -23,6 +23,39 @@ export function getLocalDateInputValue(date = new Date()) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+function getDatePartsForTimeZone(date: Date, timeZone: string) {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+
+  const parts = formatter.formatToParts(date);
+  const year = parts.find((item) => item.type === 'year')?.value || '';
+  const month = parts.find((item) => item.type === 'month')?.value || '';
+  const day = parts.find((item) => item.type === 'day')?.value || '';
+
+  if (!year || !month || !day) {
+    return null;
+  }
+
+  return { year, month, day };
+}
+
+export function getTimeZoneDateInputValue(date = new Date(), timeZone = APP_TIME_ZONE) {
+  const parts = getDatePartsForTimeZone(date, timeZone);
+  if (!parts) {
+    return getLocalDateInputValue(date);
+  }
+
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+export function getAppDateInputValue(date = new Date()) {
+  return getTimeZoneDateInputValue(date, APP_TIME_ZONE);
+}
+
 export function extractDateOnly(value: string | Date | null | undefined) {
   if (!value) {
     return '';

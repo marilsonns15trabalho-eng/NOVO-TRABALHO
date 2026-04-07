@@ -26,7 +26,7 @@ export default function AppBottomNav({ items, className }: AppBottomNavProps) {
         className,
       )}
     >
-      <div className="mx-auto grid max-w-2xl grid-cols-[repeat(auto-fit,minmax(0,1fr))] gap-2">
+      <div className="mx-auto flex max-w-2xl gap-2 overflow-x-auto pb-1">
         {items.map((item) => {
           const Icon = item.icon;
 
@@ -36,7 +36,7 @@ export default function AppBottomNav({ items, className }: AppBottomNavProps) {
               type="button"
               onClick={item.onClick}
               className={cn(
-                'flex min-h-[62px] flex-col items-center justify-center gap-1 rounded-2xl border px-2 py-2 text-center transition-all',
+                'flex min-h-[62px] min-w-[86px] shrink-0 flex-col items-center justify-center gap-1 rounded-2xl border px-2 py-2 text-center transition-all',
                 item.active
                   ? 'border-orange-500/25 bg-orange-500/12 text-white'
                   : 'border-zinc-800 bg-zinc-950/70 text-zinc-500 hover:border-zinc-700 hover:text-white',

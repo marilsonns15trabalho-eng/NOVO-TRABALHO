@@ -7,6 +7,7 @@ import {
   FileStack,
   Home,
   Settings,
+  Target,
   Users,
   Utensils,
   type LucideIcon,
@@ -21,8 +22,8 @@ export interface MenuItem {
 }
 
 export const ROLE_ACCESS: Record<UserRole, string[]> = {
-  admin: ['home', 'alunos', 'financeiro', 'planos', 'treinos', 'anamnese', 'avaliacao', 'protocolo-alimentar', 'relatorios', 'configuracoes', 'avatar'],
-  professor: ['home', 'alunos', 'treinos', 'avaliacao', 'anamnese', 'protocolo-alimentar', 'avatar'],
+  admin: ['home', 'alunos', 'financeiro', 'planos', 'treinos', 'anamnese', 'avaliacao', 'protocolo-alimentar', 'desafio', 'relatorios', 'configuracoes', 'avatar'],
+  professor: ['home', 'alunos', 'treinos', 'avaliacao', 'anamnese', 'protocolo-alimentar', 'desafio', 'avatar'],
   aluno: [],
 };
 
@@ -41,6 +42,7 @@ export const allMenuItems: MenuItem[] = [
   { id: 'anamnese', label: 'Anamnese', icon: Utensils, path: '/dashboard/anamnese' },
   { id: 'avaliacao', label: 'Avaliacao Fisica', icon: Activity, path: '/dashboard/avaliacao' },
   { id: 'protocolo-alimentar', label: 'Protocolo Alimentar', icon: FileStack, path: '/dashboard/protocolo-alimentar' },
+  { id: 'desafio', label: 'Desafio', icon: Target, path: '/dashboard/desafio' },
   { id: 'relatorios', label: 'Relatorios', icon: BarChart3, path: '/dashboard/relatorios' },
   { id: 'configuracoes', label: 'Configuracoes', icon: Settings, path: '/dashboard/configuracoes' },
 ];

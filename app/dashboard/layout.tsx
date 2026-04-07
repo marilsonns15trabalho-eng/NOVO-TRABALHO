@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Loader2, Menu } from 'lucide-react';
 import AppBottomNav from '@/components/app/AppBottomNav';
@@ -22,6 +22,7 @@ const TITLES: Record<string, string> = {
   anamnese: 'Anamnese Nutricional',
   avaliacao: 'Avaliacao Fisica',
   'protocolo-alimentar': 'Protocolos Alimentares',
+  desafio: 'Desafios',
   relatorios: 'Relatorios e Estatisticas',
   configuracoes: 'Configuracoes do Sistema',
   avatar: 'Foto de Perfil',
@@ -39,14 +40,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const activeId = useMemo(() => getActiveIdFromPath(pathname), [pathname]);
   const title = TITLES[activeId] || 'Painel de Controle';
 
-  const handleNavigate = (id: string) => {
+  const handleNavigate = useCallback((id: string) => {
     if (id === 'home') {
       router.push('/dashboard');
       return;
     }
 
     router.push(`/dashboard/${id}`);
-  };
+  }, [router]);
 
   const bottomNavItems = useMemo(() => {
     if (!role) {
@@ -79,7 +80,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         onClick: () => setMobileMenuOpen(true),
       },
     ];
-  }, [activeId, role]);
+  }, [activeId, handleNavigate, role]);
 
   useEffect(() => {
     if (!isReady) return;

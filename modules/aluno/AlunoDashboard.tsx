@@ -20,6 +20,7 @@ import {
   Save,
   ShieldCheck,
   Sparkles,
+  Target,
   TrendingUp,
   XCircle,
 } from 'lucide-react';
@@ -49,10 +50,12 @@ import AccountSecurityForm from '@/components/account/AccountSecurityForm';
 import { formatTrainingDay, isTreinoRecentlyUpdated, pickTodayWorkout } from '@/lib/training';
 import { ensureStudentWorkspace } from '@/services/account.service';
 import * as avaliacoesService from '@/services/avaliacoes.service';
+import * as desafiosService from '@/services/desafios.service';
 import * as exerciseLibraryService from '@/services/exerciseLibrary.service';
 import * as foodProtocolsService from '@/services/food-protocols.service';
 import * as treinosService from '@/services/treinos.service';
 import type { Avaliacao } from '@/types/avaliacao';
+import type { ChallengeDay, StudentChallengeHub } from '@/types/desafio';
 import type { ExerciseLibraryItem } from '@/types/exercise-library';
 import type { FoodProtocol } from '@/types/food-protocol';
 import type {
@@ -67,7 +70,7 @@ interface StudentPlan {
   plan_price?: number;
 }
 
-type StudentSectionKey = 'inicio' | 'treinos' | 'avaliacoes' | 'protocolos' | 'conta';
+type StudentSectionKey = 'inicio' | 'treinos' | 'avaliacoes' | 'desafio' | 'protocolos' | 'conta';
 
 interface OverviewCardProps {
   eyebrow: string;
@@ -269,6 +272,7 @@ export default function AlunoDashboard() {
   const [trainingProgress, setTrainingProgress] = useState<StudentMonthlyTrainingProgress | null>(null);
   const [treinos, setTreinos] = useState<Treino[]>([]);
   const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([]);
+  const [challengeHub, setChallengeHub] = useState<StudentChallengeHub | null>(null);
   const [foodProtocols, setFoodProtocols] = useState<FoodProtocol[]>([]);
   const [activeSection, setActiveSection] = useState<StudentSectionKey>('inicio');
   const [completingTreinoId, setCompletingTreinoId] = useState<string | null>(null);
@@ -290,12 +294,19 @@ export default function AlunoDashboard() {
       section === 'inicio' ||
       section === 'treinos' ||
       section === 'avaliacoes' ||
+      section === 'desafio' ||
       section === 'protocolos' ||
       section === 'conta'
     ) {
       setActiveSection(section);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    if (!hasChallengeAccess && activeSection === 'desafio') {
+      setActiveSection('inicio');
+    }
+  }, [activeSection, hasChallengeAccess]);
 
   useEffect(() => {
     const run = async () => {
@@ -326,24 +337,79 @@ export default function AlunoDashboard() {
         const resolvedStudentId = studentRow?.id ?? null;
         setStudentId(resolvedStudentId);
 
-        const [treinosData, avaliacoesData, workoutPlanData, trainingProgressData, protocolosData] = await Promise.all([
+        const [
+          treinosResult,
+          avaliacoesResult,
+          workoutPlanResult,
+          trainingProgressResult,
+          challengeHubResult,
+          protocolosResult,
+        ] = await Promise.allSettled([
           treinosService.fetchTreinos(user.id),
           avaliacoesService.fetchAvaliacoes(user.id, true),
           treinosService.fetchActiveTrainingPlanForStudent(user.id),
           treinosService.fetchStudentMonthlyProgress(user.id),
+          desafiosService.fetchMyChallengeHub(user.id),
           foodProtocolsService.fetchFoodProtocols({ linkedAuthUserId: user.id }),
         ]);
 
-        setTreinos(treinosData);
-        setAvaliacoes(avaliacoesData);
-        setWorkoutPlan(workoutPlanData);
-        setTrainingProgress(trainingProgressData);
-        setFoodProtocols(protocolosData);
+        if (treinosResult.status === 'fulfilled') {
+          setTreinos(treinosResult.value);
+        } else {
+          console.warn('Nao foi possivel carregar os treinos do aluno:', treinosResult.reason);
+          setTreinos([]);
+        }
+
+        if (avaliacoesResult.status === 'fulfilled') {
+          setAvaliacoes(avaliacoesResult.value);
+        } else {
+          console.warn('Nao foi possivel carregar as avaliacoes do aluno:', avaliacoesResult.reason);
+          setAvaliacoes([]);
+        }
+
+        if (workoutPlanResult.status === 'fulfilled') {
+          setWorkoutPlan(workoutPlanResult.value);
+        } else {
+          console.warn('Nao foi possivel carregar o plano de treino do aluno:', workoutPlanResult.reason);
+          setWorkoutPlan(null);
+        }
+
+        if (trainingProgressResult.status === 'fulfilled') {
+          setTrainingProgress(trainingProgressResult.value);
+        } else {
+          console.warn('Nao foi possivel carregar o progresso do aluno:', trainingProgressResult.reason);
+          setTrainingProgress(null);
+        }
+
+        if (challengeHubResult.status === 'fulfilled') {
+          setChallengeHub(challengeHubResult.value);
+        } else {
+          console.warn('Nao foi possivel carregar os desafios do aluno:', challengeHubResult.reason);
+          setChallengeHub({
+            student_id: resolvedStudentId,
+            active_challenges: [],
+            today_entries: [],
+            has_visible_challenges: false,
+          });
+        }
+
+        if (protocolosResult.status === 'fulfilled') {
+          setFoodProtocols(protocolosResult.value);
+        } else {
+          console.warn('Nao foi possivel carregar os protocolos do aluno:', protocolosResult.reason);
+          setFoodProtocols([]);
+        }
 
         if (!resolvedStudentId) {
           setPlan(null);
           setWorkoutPlan(null);
           setTrainingProgress(null);
+          setChallengeHub({
+            student_id: null,
+            active_challenges: [],
+            today_entries: [],
+            has_visible_challenges: false,
+          });
           return;
         }
 
@@ -385,6 +451,12 @@ export default function AlunoDashboard() {
         setPlan(null);
         setWorkoutPlan(null);
         setTrainingProgress(null);
+        setChallengeHub({
+          student_id: null,
+          active_challenges: [],
+          today_entries: [],
+          has_visible_challenges: false,
+        });
         setTreinos([]);
         setAvaliacoes([]);
         setFoodProtocols([]);
@@ -428,6 +500,15 @@ export default function AlunoDashboard() {
     const baseName = profile?.display_name || user?.email?.split('@')[0] || 'Aluno';
     return baseName.split(' ')[0];
   }, [profile?.display_name, user?.email]);
+  const hasChallengeAccess = Boolean(challengeHub?.has_visible_challenges);
+  const todayChallengeEntries = useMemo<ChallengeDay[]>(
+    () => challengeHub?.today_entries || [],
+    [challengeHub?.today_entries],
+  );
+  const activeChallenges = useMemo(
+    () => challengeHub?.active_challenges || [],
+    [challengeHub?.active_challenges],
+  );
 
   const handleExportCurrentPdf = async (avaliacao: Avaliacao) => {
     try {
@@ -522,6 +603,16 @@ export default function AlunoDashboard() {
       icon: <FileStack size={18} className="text-emerald-400" />,
       accentClassName: 'bg-gradient-to-r from-emerald-500/90 via-emerald-400/70 to-transparent',
     },
+    ...(hasChallengeAccess
+      ? [
+          {
+            label: 'Desafios',
+            value: String(activeChallenges.length),
+            icon: <Target size={18} className="text-amber-400" />,
+            accentClassName: 'bg-gradient-to-r from-amber-500/90 via-amber-400/70 to-transparent',
+          },
+        ]
+      : []),
   ];
   const sectionItems: Array<{
     key: StudentSectionKey;
@@ -547,6 +638,16 @@ export default function AlunoDashboard() {
       helper: `${avaliacoes.length} registros`,
       icon: <Activity size={16} />,
     },
+    ...(hasChallengeAccess
+      ? [
+          {
+            key: 'desafio' as StudentSectionKey,
+            label: 'Desafio',
+            helper: `${activeChallenges.length} ativo(s)`,
+            icon: <Target size={16} />,
+          },
+        ]
+      : []),
     {
       key: 'protocolos',
       label: 'Protocolos',
@@ -582,6 +683,17 @@ export default function AlunoDashboard() {
       active: activeSection === 'avaliacoes',
       onClick: () => setActiveSection('avaliacoes'),
     },
+    ...(hasChallengeAccess
+      ? [
+          {
+            key: 'desafio',
+            label: 'Desafio',
+            icon: Target,
+            active: activeSection === 'desafio',
+            onClick: () => setActiveSection('desafio'),
+          },
+        ]
+      : []),
     {
       key: 'protocolos',
       label: 'Protocolos',
@@ -1064,6 +1176,74 @@ export default function AlunoDashboard() {
             </>
           )}
         </section>
+
+        {hasChallengeAccess ? (
+          <section className="rounded-[32px] border border-zinc-800 bg-zinc-950/85 p-6 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)]">
+            <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">
+                  Desafio
+                </p>
+                <h2 className="mt-2 text-3xl font-bold text-white">Desafio do dia</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
+                  Atualizacao diaria liberada somente para alunas vinculadas. Abra a aba de desafio para acompanhar tudo com calma.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setActiveSection('desafio')}
+                className="inline-flex items-center gap-2 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-300 transition-all hover:bg-amber-500 hover:text-black"
+              >
+                <Target size={16} />
+                Abrir desafio
+              </button>
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-2">
+              {activeChallenges.map((challenge) => {
+                const todayEntry =
+                  todayChallengeEntries.find((entry) => entry.challenge_id === challenge.id) ?? null;
+
+                return (
+                  <div
+                    key={challenge.id}
+                    className="rounded-[26px] border border-zinc-800 bg-black/30 p-5"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-lg font-bold text-white">{challenge.title}</p>
+                        <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">
+                          {challenge.start_date ? formatDatePtBr(challenge.start_date) : '-'}
+                          {' -> '}
+                          {challenge.end_date ? formatDatePtBr(challenge.end_date) : '-'}
+                        </p>
+                      </div>
+
+                      <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">
+                        ativo
+                      </span>
+                    </div>
+
+                    <div className="mt-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                        Atualizacao de hoje
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-zinc-400">
+                        {todayEntry?.title || 'Sem titulo especifico para hoje.'}
+                      </p>
+                      <p className="mt-3 text-sm leading-6 text-zinc-500">
+                        {todayEntry?.training_guidance || todayEntry?.nutrition_guidance
+                          ? 'Abra a aba de desafio para ler a orientacao completa de treino e alimentacao.'
+                          : 'Hoje ainda nao existe uma orientacao diaria publicada para este desafio.'}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
 
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
           <OverviewCard
@@ -1717,6 +1897,109 @@ export default function AlunoDashboard() {
               </div>
             </div>
           )}
+        </section>
+        )}
+
+        {activeSection === 'desafio' && hasChallengeAccess && (
+        <section className="rounded-[32px] border border-zinc-800 bg-zinc-950/85 p-6 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)]">
+          <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">
+                Desafio
+              </p>
+              <h2 className="mt-2 text-3xl font-bold text-white">Minha rotina do desafio</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
+                Aqui ficam os desafios que a equipe liberou para voce, com atualizacao diaria de treino e orientacao alimentar.
+              </p>
+            </div>
+
+            <div className="rounded-full border border-amber-500/20 bg-amber-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-amber-300">
+              {activeChallenges.length} desafio(s) ativo(s)
+            </div>
+          </div>
+
+          <div className="space-y-5">
+            {activeChallenges.map((challenge) => {
+              const todayEntry =
+                todayChallengeEntries.find((entry) => entry.challenge_id === challenge.id) ?? null;
+
+              return (
+                <div
+                  key={challenge.id}
+                  className="rounded-[28px] border border-zinc-800 bg-black/30 p-5"
+                >
+                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div className="max-w-3xl">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-2xl font-bold text-white">{challenge.title}</h3>
+                        <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">
+                          ativo
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm leading-6 text-zinc-400">
+                        {challenge.description || 'Sem descricao geral para este desafio.'}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/6 bg-white/[0.03] px-4 py-4">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                        Periodo
+                      </p>
+                      <p className="mt-2 text-sm font-bold text-white">
+                        {challenge.start_date ? formatDatePtBr(challenge.start_date) : '-'}
+                        {' -> '}
+                        {challenge.end_date ? formatDatePtBr(challenge.end_date) : '-'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {!todayEntry ? (
+                    <div className="mt-5 rounded-[24px] border border-dashed border-zinc-800 bg-zinc-950/70 px-5 py-6">
+                      <p className="text-sm font-bold text-white">Sem publicacao para hoje</p>
+                      <p className="mt-2 text-sm leading-6 text-zinc-500">
+                        A equipe ainda nao publicou a atualizacao diaria deste desafio para hoje.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="mt-5 grid gap-4 xl:grid-cols-2">
+                      <div className="rounded-[24px] border border-zinc-800 bg-zinc-900/40 p-5">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                          Treino do dia
+                        </p>
+                        <p className="mt-3 text-lg font-bold text-white">
+                          {todayEntry.title || `Atualizacao ${formatDatePtBr(todayEntry.challenge_date)}`}
+                        </p>
+                        <p className="mt-3 text-sm leading-6 text-zinc-400">
+                          {todayEntry.training_guidance || 'Sem orientacao de treino registrada para hoje.'}
+                        </p>
+                      </div>
+
+                      <div className="rounded-[24px] border border-zinc-800 bg-zinc-900/40 p-5">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                          Alimentacao do dia
+                        </p>
+                        <p className="mt-3 text-lg font-bold text-white">Protocolo do dia</p>
+                        <p className="mt-3 text-sm leading-6 text-zinc-400">
+                          {todayEntry.nutrition_guidance || 'Sem orientacao alimentar registrada para hoje.'}
+                        </p>
+                      </div>
+
+                      {todayEntry.notes ? (
+                        <div className="rounded-[24px] border border-zinc-800 bg-zinc-900/40 p-5 xl:col-span-2">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                            Observacoes da equipe
+                          </p>
+                          <p className="mt-3 text-sm leading-6 text-zinc-400">
+                            {todayEntry.notes}
+                          </p>
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </section>
         )}
 
