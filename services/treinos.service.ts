@@ -15,6 +15,7 @@ import {
 } from '@/services/app-notifications.service';
 import type { StudentListItem } from '@/types/common';
 import type {
+  Exercicio,
   StudentMonthlyTrainingProgress,
   TrainingPlan,
   TrainingPlanVersion,
@@ -36,6 +37,34 @@ type TrainingPlanPayload = {
   duration_weeks?: number | null;
   coach_notes?: string | null;
 };
+
+export interface TrainingRoutineImportWorkoutPayload {
+  nome: string;
+  objetivo?: string | null;
+  descricao?: string | null;
+  duracao_minutos?: number | null;
+  split_label?: string | null;
+  day_of_week?: number | null;
+  exercicios?: Exercicio[];
+}
+
+export interface TrainingRoutineImportPayload {
+  plan_name: string;
+  weekly_frequency: number;
+  description?: string | null;
+  objective?: string | null;
+  level?: string | null;
+  duration_weeks?: number | null;
+  coach_notes?: string | null;
+  replace_existing_by_name?: boolean;
+  workouts: TrainingRoutineImportWorkoutPayload[];
+}
+
+export interface TrainingRoutineImportResult {
+  training_plan_id: string;
+  created_treinos: number;
+  archived_plan_count: number;
+}
 
 type RawStudent = {
   id: string;
@@ -953,7 +982,7 @@ async function createTrainingPlanVersion(params: {
   assertNoTreinoError('Treinos.insertPlanVersion', insertError);
 }
 
-export async function createTrainingPlan(payload: TrainingPlanPayload): Promise<void> {
+export async function createTrainingPlan(payload: TrainingPlanPayload): Promise<string> {
   const user = await getAuthenticatedUser();
   await assertCanManageStudentDataForUserId(user.id);
 
@@ -995,6 +1024,8 @@ export async function createTrainingPlan(payload: TrainingPlanPayload): Promise<
     durationWeeks: payload.duration_weeks,
     coachNotes: payload.coach_notes,
   });
+
+  return data.id;
 }
 
 export async function updateTrainingPlan(
@@ -1024,6 +1055,154 @@ export async function updateTrainingPlan(
     durationWeeks: payload.duration_weeks,
     coachNotes: payload.coach_notes,
   });
+}
+
+function getDefaultWorkoutDay(weeklyFrequency: number, index: number) {
+  const presets: Record<number, number[]> = {
+    1: [1],
+    2: [1, 4],
+    3: [1, 3, 5],
+    4: [1, 2, 4, 5],
+    5: [1, 2, 3, 4, 5],
+    6: [1, 2, 3, 4, 5, 6],
+    7: [0, 1, 2, 3, 4, 5, 6],
+  };
+
+  const days = presets[weeklyFrequency] || presets[3];
+  return days[index % days.length] ?? null;
+}
+
+function getDefaultSplitLabel(index: number) {
+  const code = 'A'.charCodeAt(0) + index;
+  if (code > 'Z'.charCodeAt(0)) {
+    return null;
+  }
+
+  return String.fromCharCode(code);
+}
+
+async function archiveExistingTrainingPlansByName(planName: string) {
+  const { data: existingPlans, error: existingPlansError } = await supabase
+    .from(TABLES.TRAINING_PLANS)
+    .select('id')
+    .eq('name', planName)
+    .eq('active', true);
+
+  assertNoTreinoError('Treinos.findExistingPlansByName', existingPlansError);
+
+  const existingPlanIds = (existingPlans || []).map((row: any) => row.id).filter(Boolean);
+  if (existingPlanIds.length === 0) {
+    return 0;
+  }
+
+  const { error: deactivatePlansError } = await supabase
+    .from(TABLES.TRAINING_PLANS)
+    .update({ active: false })
+    .in('id', existingPlanIds);
+
+  assertNoTreinoError('Treinos.archiveExistingPlans', deactivatePlansError);
+
+  const { error: deactivateTreinosError } = await supabase
+    .from(TABLES.TREINOS)
+    .update({ ativo: false })
+    .in('training_plan_id', existingPlanIds)
+    .eq('ativo', true);
+
+  assertNoTreinoError('Treinos.archiveExistingPlanTreinos', deactivateTreinosError);
+  return existingPlanIds.length;
+}
+
+export async function importTrainingRoutine(payload: TrainingRoutineImportPayload): Promise<TrainingRoutineImportResult> {
+  const user = await getAuthenticatedUser();
+  await assertCanManageStudentDataForUserId(user.id);
+
+  const planName = payload.plan_name?.trim();
+  if (!planName) {
+    throw new Error('Informe o nome da rotina para importar.');
+  }
+
+  const weeklyFrequency = Number(payload.weekly_frequency);
+  if (!Number.isFinite(weeklyFrequency) || weeklyFrequency < 1 || weeklyFrequency > 7) {
+    throw new Error('A frequencia semanal da rotina deve ficar entre 1 e 7.');
+  }
+
+  const workoutsInput = (payload.workouts || [])
+    .map((workout, index) => ({
+      nome: workout.nome?.trim() || `Treino ${getDefaultSplitLabel(index) || index + 1}`,
+      objetivo: workout.objetivo?.trim() || payload.objective?.trim() || null,
+      descricao: workout.descricao?.trim() || payload.description?.trim() || null,
+      duracao_minutos:
+        workout.duracao_minutos && workout.duracao_minutos > 0
+          ? workout.duracao_minutos
+          : 60,
+      split_label: workout.split_label?.trim() || getDefaultSplitLabel(index),
+      day_of_week:
+        workout.day_of_week == null
+          ? getDefaultWorkoutDay(weeklyFrequency, index)
+          : Number(workout.day_of_week),
+      exercicios: Array.isArray(workout.exercicios) ? workout.exercicios : [],
+    }))
+    .slice(0, 12);
+
+  const workouts = Array.from({ length: Math.max(weeklyFrequency, workoutsInput.length || 0) }).map(
+    (_, index) => {
+      const existingWorkout = workoutsInput[index];
+      if (existingWorkout) {
+        return existingWorkout;
+      }
+
+      return {
+        nome: `Treino ${getDefaultSplitLabel(index) || index + 1}`,
+        objetivo: payload.objective?.trim() || null,
+        descricao: payload.description?.trim() || 'Rotina importada por PDF.',
+        duracao_minutos: 60,
+        split_label: getDefaultSplitLabel(index),
+        day_of_week: getDefaultWorkoutDay(weeklyFrequency, index),
+        exercicios: [],
+      };
+    },
+  );
+
+  const shouldReplaceExisting = payload.replace_existing_by_name !== false;
+  const archivedPlanCount = shouldReplaceExisting
+    ? await archiveExistingTrainingPlansByName(planName)
+    : 0;
+
+  const trainingPlanId = await createTrainingPlan({
+    name: planName,
+    weekly_frequency: weeklyFrequency,
+    description: payload.description?.trim() || null,
+    active: true,
+    objective: payload.objective?.trim() || null,
+    level: payload.level?.trim() || 'iniciante',
+    duration_weeks: payload.duration_weeks || 4,
+    coach_notes: payload.coach_notes?.trim() || null,
+  });
+
+  for (const workout of workouts) {
+    await saveTreino({
+      nome: workout.nome,
+      objetivo: workout.objetivo || undefined,
+      nivel: payload.level?.trim() || 'iniciante',
+      duracao_minutos: workout.duracao_minutos || 60,
+      descricao: workout.descricao || undefined,
+      exercicios: workout.exercicios || [],
+      ativo: true,
+      assigned_student_ids: [],
+      training_plan_id: trainingPlanId,
+      training_plan_version_id: '',
+      sort_order: 0,
+      split_label: workout.split_label || undefined,
+      day_of_week: workout.day_of_week ?? null,
+      coach_notes: payload.coach_notes || '',
+    });
+  }
+
+  return {
+    training_plan_id: trainingPlanId,
+    created_treinos: workouts.length,
+    archived_plan_count: archivedPlanCount,
+  };
 }
 
 export async function syncStudentsToTrainingPlan(

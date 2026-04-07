@@ -12,7 +12,9 @@ interface AssessmentPhotoUploaderProps {
   drafts: AvaliacaoPhotoDraftMap;
   onPickFile: (position: AvaliacaoPhotoPosition, file: File | null) => void;
   onCapturePhoto?: (position: AvaliacaoPhotoPosition) => void | Promise<void>;
+  onPickGalleryPhoto?: (position: AvaliacaoPhotoPosition) => void | Promise<void>;
   capturingPosition?: AvaliacaoPhotoPosition | null;
+  pickingGalleryPosition?: AvaliacaoPhotoPosition | null;
   onRemove: (position: AvaliacaoPhotoPosition) => void;
 }
 
@@ -20,7 +22,9 @@ export default function AssessmentPhotoUploader({
   drafts,
   onPickFile,
   onCapturePhoto,
+  onPickGalleryPhoto,
   capturingPosition,
+  pickingGalleryPosition,
   onRemove,
 }: AssessmentPhotoUploaderProps) {
   const inputRefs = useRef<Record<AvaliacaoPhotoPosition, HTMLInputElement | null>>({
@@ -75,7 +79,7 @@ export default function AssessmentPhotoUploader({
                     <button
                       type="button"
                       onClick={() => void onCapturePhoto(key)}
-                      disabled={capturingPosition === key}
+                      disabled={capturingPosition === key || pickingGalleryPosition === key}
                       className="inline-flex items-center justify-center gap-2 rounded-2xl border border-orange-500/20 bg-orange-500/10 px-4 py-3 text-sm font-bold text-orange-300 transition-all hover:bg-orange-500 hover:text-black disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {capturingPosition === key ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
@@ -83,28 +87,46 @@ export default function AssessmentPhotoUploader({
                     </button>
                   ) : null}
 
-                  <input
-                    ref={(element) => {
-                      inputRefs.current[key] = element;
-                    }}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(event) => {
-                      const file = event.target.files?.[0] ?? null;
-                      onPickFile(key, file);
-                      event.currentTarget.value = '';
-                    }}
-                  />
+                  {onPickGalleryPhoto ? (
+                    <button
+                      type="button"
+                      onClick={() => void onPickGalleryPhoto(key)}
+                      disabled={capturingPosition === key || pickingGalleryPosition === key}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-purple-500/20 bg-purple-500/10 px-4 py-3 text-sm font-bold text-purple-300 transition-all hover:bg-purple-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {pickingGalleryPosition === key ? <Loader2 size={16} className="animate-spin" /> : hasImage ? <RefreshCcw size={16} /> : <ImagePlus size={16} />}
+                      {pickingGalleryPosition === key
+                        ? 'Abrindo galeria...'
+                        : hasImage
+                          ? 'Trocar da galeria'
+                          : 'Adicionar da galeria'}
+                    </button>
+                  ) : (
+                    <>
+                      <input
+                        ref={(element) => {
+                          inputRefs.current[key] = element;
+                        }}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0] ?? null;
+                          onPickFile(key, file);
+                          event.currentTarget.value = '';
+                        }}
+                      />
 
-                  <button
-                    type="button"
-                    onClick={() => inputRefs.current[key]?.click()}
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-purple-500/20 bg-purple-500/10 px-4 py-3 text-sm font-bold text-purple-300 transition-all hover:bg-purple-500 hover:text-white"
-                  >
-                    {hasImage ? <RefreshCcw size={16} /> : <ImagePlus size={16} />}
-                    {hasImage ? 'Trocar foto' : 'Adicionar foto'}
-                  </button>
+                      <button
+                        type="button"
+                        onClick={() => inputRefs.current[key]?.click()}
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-purple-500/20 bg-purple-500/10 px-4 py-3 text-sm font-bold text-purple-300 transition-all hover:bg-purple-500 hover:text-white"
+                      >
+                        {hasImage ? <RefreshCcw size={16} /> : <ImagePlus size={16} />}
+                        {hasImage ? 'Trocar foto' : 'Adicionar foto'}
+                      </button>
+                    </>
+                  )}
 
                   <button
                     type="button"

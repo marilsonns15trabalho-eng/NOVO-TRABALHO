@@ -116,6 +116,33 @@ function mapAvaliacaoRow(
   };
 }
 
+function resolveImageExtension(file: File) {
+  const byType: Record<string, string> = {
+    'image/jpeg': 'jpg',
+    'image/jpg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+    'image/gif': 'gif',
+    'image/bmp': 'bmp',
+    'image/tiff': 'tiff',
+    'image/heic': 'heic',
+    'image/heif': 'heif',
+    'image/avif': 'avif',
+  };
+
+  const fromType = byType[file.type?.toLowerCase()];
+  if (fromType) {
+    return fromType;
+  }
+
+  const fromName = file.name.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase();
+  if (fromName) {
+    return fromName;
+  }
+
+  return 'jpg';
+}
+
 async function attachSignedPhotoUrls(avaliacoes: Avaliacao[]): Promise<Avaliacao[]> {
   const uniquePaths = Array.from(
     new Set(
@@ -470,10 +497,14 @@ export async function syncAvaliacaoPhotos(params: {
     }
 
     const optimizedFile = await optimizeAssessmentPhotoFile(draft.file);
-    const storagePath = `${studentId}/${avaliacaoId}/${position}.jpg`;
+    const extension = resolveImageExtension(optimizedFile);
+    const storagePath = `${studentId}/${avaliacaoId}/${position}.${extension}`;
+    const contentType = optimizedFile.type?.startsWith('image/')
+      ? optimizedFile.type
+      : 'image/jpeg';
 
     const { error: uploadError } = await bucket.upload(storagePath, optimizedFile, {
-      contentType: 'image/jpeg',
+      contentType,
       upsert: true,
     });
 
@@ -492,7 +523,7 @@ export async function syncAvaliacaoPhotos(params: {
             position,
             storage_path: storagePath,
             file_name: optimizedFile.name,
-            content_type: optimizedFile.type,
+            content_type: contentType,
             size_bytes: optimizedFile.size,
             created_by_auth_user_id: user.id,
           },

@@ -48,7 +48,7 @@ import {
 } from '@/lib/biometrics';
 import { compareDateOnly, extractDateOnly, formatDateDayMonthPtBr, formatDatePtBr, isSameMonthDate } from '@/lib/date';
 import type { FileDownloadResult } from '@/lib/external-links';
-import { captureAssessmentPhotoFile } from '@/lib/native-app';
+import { captureAssessmentPhotoFile, pickAssessmentPhotoFromGallery } from '@/lib/native-app';
 import { exportAvaliacaoPdf } from '@/lib/pdf/exportAvaliacaoPdf';
 import { exportAvaliacaoEvolutionPdf } from '@/lib/pdf/exportAvaliacaoEvolutionPdf';
 import { useNativeApp } from '@/hooks/useNativeApp';
@@ -121,6 +121,7 @@ export default function AvaliacaoModule() {
   const [showAlunoDropdown, setShowAlunoDropdown] = useState(false);
   const [photoDrafts, setPhotoDrafts] = useState<AvaliacaoPhotoDraftMap>(() => createPhotoDraftMap());
   const [capturingPhotoPosition, setCapturingPhotoPosition] = useState<AvaliacaoPhotoPosition | null>(null);
+  const [pickingGalleryPhotoPosition, setPickingGalleryPhotoPosition] = useState<AvaliacaoPhotoPosition | null>(null);
   const alunoPickerRef = useRef<HTMLDivElement | null>(null);
 
   const comparisonBase = useMemo(() => {
@@ -215,6 +216,23 @@ export default function AvaliacaoModule() {
       showNotification(message, 'error');
     } finally {
       setCapturingPhotoPosition(null);
+    }
+  };
+
+  const handlePickPhotoFromGallery = async (position: AvaliacaoPhotoPosition) => {
+    try {
+      setPickingGalleryPhotoPosition(position);
+      const file = await pickAssessmentPhotoFromGallery(position);
+      handlePhotoPick(position, file);
+      showNotification('Foto selecionada da galeria com sucesso.', 'success');
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Nao foi possivel abrir a galeria para selecionar a foto.';
+      showNotification(message, 'error');
+    } finally {
+      setPickingGalleryPhotoPosition(null);
     }
   };
 
@@ -970,7 +988,9 @@ export default function AvaliacaoModule() {
                   drafts={photoDrafts}
                   onPickFile={handlePhotoPick}
                   onCapturePhoto={nativeApp ? handleCapturePhoto : undefined}
+                  onPickGalleryPhoto={nativeApp ? handlePickPhotoFromGallery : undefined}
                   capturingPosition={capturingPhotoPosition}
+                  pickingGalleryPosition={pickingGalleryPhotoPosition}
                   onRemove={handlePhotoRemove}
                 />
 

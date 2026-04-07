@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Calendar,
   CheckCircle2,
   Dumbbell,
   Eye,
+  FileUp,
   Filter,
   Layers3,
   Loader2,
@@ -13,18 +14,23 @@ import {
   PlayCircle,
   Plus,
   Search,
-  X,
   Sparkles,
+  Upload,
   UserCheck,
   Users,
+  X,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import ProfileAvatar from '@/components/account/ProfileAvatar';
 import ExerciseOfficialPreviewModal from '@/components/treinos/ExerciseOfficialPreviewModal';
 import { useTreinos } from '@/hooks/useTreinos';
 import { useUserRole } from '@/hooks/useUserRole';
-import { Toast } from '@/components/ui';
+import { ConfirmDialog, Toast } from '@/components/ui';
 import { formatDatePtBr } from '@/lib/date';
+import {
+  buildTrainingRoutineDraftFromPdf,
+  type ParsedTrainingRoutineDraft,
+} from '@/lib/training-pdf';
 import { formatTrainingDay } from '@/lib/training';
 import * as exerciseLibraryService from '@/services/exerciseLibrary.service';
 import * as treinosService from '@/services/treinos.service';
@@ -37,6 +43,8 @@ const SPLIT_PRESETS = [
   { value: 'B', label: 'B: inferiores' },
   { value: 'C', label: 'C: cardio + core' },
 ];
+
+const ROUTINE_IMPORT_FREQUENCIES = [2, 3, 5];
 
 function getSplitDisplayLabel(splitLabel?: string | null) {
   if (!splitLabel) {
@@ -307,6 +315,17 @@ export default function TreinosModule() {
   const [exerciseLibraryError, setExerciseLibraryError] = useState<string | null>(null);
   const [selectedExercisePreview, setSelectedExercisePreview] = useState<ExerciseLibraryItem | null>(null);
   const [exercisePreviewLoadingName, setExercisePreviewLoadingName] = useState<string | null>(null);
+  const [showRoutinePdfModal, setShowRoutinePdfModal] = useState(false);
+  const [routinePdfFile, setRoutinePdfFile] = useState<File | null>(null);
+  const [routinePdfDraft, setRoutinePdfDraft] = useState<ParsedTrainingRoutineDraft | null>(null);
+  const [routinePdfFrequency, setRoutinePdfFrequency] = useState<number>(3);
+  const [routinePdfName, setRoutinePdfName] = useState('');
+  const [routinePdfError, setRoutinePdfError] = useState<string | null>(null);
+  const [routinePdfLoading, setRoutinePdfLoading] = useState(false);
+  const [routinePdfApplying, setRoutinePdfApplying] = useState(false);
+  const [replaceExistingRoutine, setReplaceExistingRoutine] = useState(true);
+  const [showApplyRoutineConfirm, setShowApplyRoutineConfirm] = useState(false);
+  const routinePdfInputRef = useRef<HTMLInputElement | null>(null);
   const state = useTreinos();
   const {
     treinos,
@@ -711,6 +730,118 @@ export default function TreinosModule() {
     }
   };
 
+  const resetRoutinePdfImport = () => {
+    setRoutinePdfFile(null);
+    setRoutinePdfDraft(null);
+    setRoutinePdfFrequency(3);
+    setRoutinePdfName('');
+    setRoutinePdfError(null);
+    setRoutinePdfLoading(false);
+    setRoutinePdfApplying(false);
+    setReplaceExistingRoutine(true);
+    setShowApplyRoutineConfirm(false);
+    if (routinePdfInputRef.current) {
+      routinePdfInputRef.current.value = '';
+    }
+  };
+
+  const openRoutinePdfImportModal = () => {
+    resetRoutinePdfImport();
+    setShowRoutinePdfModal(true);
+  };
+
+  const closeRoutinePdfImportModal = () => {
+    setShowRoutinePdfModal(false);
+    resetRoutinePdfImport();
+  };
+
+  const handleRoutinePdfSelected = async (file: File | null) => {
+    if (!file) {
+      return;
+    }
+
+    const lowerName = file.name.toLowerCase();
+    if (!(file.type === 'application/pdf' || lowerName.endsWith('.pdf'))) {
+      setRoutinePdfError('Envie um arquivo PDF valido para importar a rotina.');
+      setRoutinePdfFile(null);
+      setRoutinePdfDraft(null);
+      return;
+    }
+
+    try {
+      setRoutinePdfLoading(true);
+      setRoutinePdfError(null);
+      setRoutinePdfFile(file);
+
+      const draft = await buildTrainingRoutineDraftFromPdf(file);
+      setRoutinePdfDraft(draft);
+      setRoutinePdfName(draft.routineName);
+      setRoutinePdfFrequency(draft.suggestedWeeklyFrequency);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Nao foi possivel ler o PDF da rotina.';
+      setRoutinePdfError(message);
+      setRoutinePdfDraft(null);
+    } finally {
+      setRoutinePdfLoading(false);
+    }
+  };
+
+  const applyRoutineFromPdf = async () => {
+    if (!routinePdfDraft) {
+      setRoutinePdfError('Selecione o PDF da rotina antes de aplicar.');
+      return;
+    }
+
+    const planName = routinePdfName.trim();
+    if (!planName) {
+      setRoutinePdfError('Informe o nome da rotina para aplicar.');
+      return;
+    }
+
+    try {
+      setRoutinePdfApplying(true);
+      setRoutinePdfError(null);
+
+      const importResult = await treinosService.importTrainingRoutine({
+        plan_name: planName,
+        weekly_frequency: routinePdfFrequency,
+        description: `Rotina importada por PDF em ${new Date().toLocaleDateString('pt-BR')}.`,
+        objective: 'Rotina ajustada pelo protocolo mensal.',
+        level: 'iniciante',
+        duration_weeks: 4,
+        coach_notes: routinePdfDraft.extractedTextPreview
+          ? `Resumo extraido do PDF:\n${routinePdfDraft.extractedTextPreview.slice(0, 1200)}`
+          : 'Importacao por PDF sem texto legivel extraido.',
+        replace_existing_by_name: replaceExistingRoutine,
+        workouts: routinePdfDraft.workouts.map((workout) => ({
+          nome: workout.nome,
+          split_label: workout.split_label || null,
+          exercicios: workout.exercicios,
+          descricao: `Treino importado do PDF ${routinePdfFile?.name || ''}`.trim(),
+          duracao_minutos: 60,
+        })),
+      });
+
+      showNotification(
+        `Rotina aplicada com sucesso. ${importResult.created_treinos} treino(s) criado(s).`,
+        'success',
+      );
+
+      setShowApplyRoutineConfirm(false);
+      closeRoutinePdfImportModal();
+      setActivePanel('rotinas');
+      await reloadData();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Nao foi possivel aplicar a rotina do PDF.';
+      setRoutinePdfError(message);
+      showNotification(message, 'error');
+    } finally {
+      setRoutinePdfApplying(false);
+    }
+  };
+
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-transparent"><Loader2 className="animate-spin text-sky-400" size={46} /></div>;
   }
@@ -727,8 +858,9 @@ export default function TreinosModule() {
             <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-300 md:text-base">Monte a rotina da aluna, distribua os treinos com seguranca e acompanhe a execucao da equipe e do painel da aluna no mesmo fluxo.</p>
           </div>
           {canManageRecords && (
-            <div className="grid gap-3 sm:grid-cols-2 xl:w-[430px]">
+            <div className="grid gap-3 sm:grid-cols-3 xl:w-[680px]">
               <HeroButton filled onClick={openNewTrainingPlanModal} title="Nova rotina semanal" description="Defina a frequencia e as alunas que participam dessa estrutura." icon={<Layers3 size={18} />} />
+              <HeroButton onClick={openRoutinePdfImportModal} title="Importar PDF" description="Ler protocolo do mes, confirmar e aplicar rotina 2x, 3x ou 5x." icon={<FileUp size={18} />} />
               <HeroButton onClick={openNewTreinoModal} title="Novo treino" description="Cadastre exercicios e entregue pela rotina ou por alunas especificas." icon={<Plus size={18} />} />
             </div>
           )}
@@ -879,6 +1011,175 @@ export default function TreinosModule() {
         </section>
       ) : null}
       <AnimatePresence>
+        {showRoutinePdfModal && canManageRecords && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={closeRoutinePdfImportModal}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.96, opacity: 0, y: 20 }}
+              className="relative max-h-[94vh] w-full max-w-4xl overflow-y-auto rounded-[30px] border border-zinc-800 bg-zinc-950 p-4 shadow-2xl sm:p-5 md:p-8"
+            >
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 flex-1">
+                  <SectionTitle
+                    eyebrow="Importacao por PDF"
+                    title="Ler protocolo e aplicar rotina"
+                    description="Envie o PDF do mes, confirme os blocos lidos e escolha se deseja substituir a rotina atual com o mesmo nome."
+                  />
+                </div>
+                <CloseModalButton onClick={closeRoutinePdfImportModal} />
+              </div>
+
+              <div className="mt-5 space-y-5 sm:mt-6">
+                <div className="rounded-[24px] border border-zinc-800 bg-black/20 p-4">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                    1. PDF da rotina
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <input
+                      ref={routinePdfInputRef}
+                      type="file"
+                      accept="application/pdf,.pdf"
+                      className="hidden"
+                      onChange={(event) => {
+                        const selected = event.target.files?.[0] ?? null;
+                        void handleRoutinePdfSelected(selected);
+                        event.currentTarget.value = '';
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => routinePdfInputRef.current?.click()}
+                      disabled={routinePdfLoading || routinePdfApplying}
+                      className="inline-flex items-center gap-2 rounded-2xl border border-sky-500/20 bg-sky-500/10 px-4 py-3 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500 hover:text-black disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {routinePdfLoading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                      {routinePdfLoading ? 'Lendo PDF...' : 'Selecionar PDF'}
+                    </button>
+                    {routinePdfFile ? (
+                      <span className="inline-flex items-center rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-semibold text-zinc-300">
+                        {routinePdfFile.name}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                      2. Nome da rotina
+                    </p>
+                    <input
+                      value={routinePdfName}
+                      onChange={(event) => setRoutinePdfName(event.target.value)}
+                      placeholder="Ex.: Protocolo Abril 2026"
+                      className="mt-2 w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                      3. Frequencia semanal
+                    </p>
+                    <select
+                      value={routinePdfFrequency}
+                      onChange={(event) => setRoutinePdfFrequency(Number(event.target.value) || 3)}
+                      className="mt-2 w-full rounded-2xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30"
+                    >
+                      {Array.from(new Set([...ROUTINE_IMPORT_FREQUENCIES, routinePdfFrequency]))
+                        .sort((a, b) => a - b)
+                        .map((frequency) => (
+                          <option key={`frequency-${frequency}`} value={frequency}>
+                            {frequency}x por semana
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                </div>
+
+                <label className="inline-flex items-center gap-2 rounded-2xl border border-zinc-800 bg-black/20 px-4 py-3 text-sm text-zinc-300">
+                  <input
+                    type="checkbox"
+                    checked={replaceExistingRoutine}
+                    onChange={(event) => setReplaceExistingRoutine(event.target.checked)}
+                    className="h-4 w-4 rounded border-zinc-700 bg-zinc-900 text-sky-500 focus:ring-sky-500"
+                  />
+                  Substituir rotina antiga com o mesmo nome (desativa treinos anteriores)
+                </label>
+
+                {routinePdfDraft ? (
+                  <div className="space-y-4 rounded-[24px] border border-zinc-800 bg-black/25 p-4">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                      Previa da leitura
+                    </p>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {routinePdfDraft.workouts.length > 0 ? (
+                        routinePdfDraft.workouts.map((workout, index) => (
+                          <div key={`${workout.nome}-${index}`} className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-3">
+                            <p className="text-sm font-bold text-white">{workout.nome}</p>
+                            <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">
+                              {workout.exercicios.length} exercicio(s)
+                            </p>
+                            <div className="mt-3 space-y-1">
+                              {workout.exercicios.slice(0, 4).map((exercise, exerciseIndex) => (
+                                <p key={`${exercise.nome}-${exerciseIndex}`} className="truncate text-xs text-zinc-400">
+                                  {exerciseIndex + 1}. {exercise.nome}
+                                </p>
+                              ))}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="md:col-span-2 rounded-2xl border border-dashed border-zinc-800 bg-black/20 px-4 py-4 text-sm text-zinc-500">
+                          Nenhum bloco fechado foi identificado no PDF. Vamos criar a estrutura-base da rotina para voce ajustar no modulo.
+                        </div>
+                      )}
+                    </div>
+                    {routinePdfDraft.parserWarnings.length > 0 ? (
+                      <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                        {routinePdfDraft.parserWarnings.join(' ')}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {routinePdfError ? (
+                  <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+                    {routinePdfError}
+                  </div>
+                ) : null}
+
+                <div className="flex flex-col-reverse gap-3 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={closeRoutinePdfImportModal}
+                    className="w-full flex-1 rounded-2xl bg-zinc-800 px-4 py-4 font-bold text-white transition-all hover:bg-zinc-700"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!routinePdfDraft || routinePdfApplying || routinePdfLoading}
+                    onClick={() => setShowApplyRoutineConfirm(true)}
+                    className="w-full flex-1 rounded-2xl bg-sky-500 px-4 py-4 font-bold text-black transition-all hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <FileUp size={16} />
+                      Aplicar rotina importada
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
         {showTrainingPlanModal && canManageRecords && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeTrainingPlanModal} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
@@ -1862,6 +2163,22 @@ export default function TreinosModule() {
           </div>
         )}
       </AnimatePresence>
+      <ConfirmDialog
+        isOpen={showApplyRoutineConfirm}
+        onClose={() => setShowApplyRoutineConfirm(false)}
+        onConfirm={() => void applyRoutineFromPdf()}
+        title="Aplicar rotina importada?"
+        message={
+          replaceExistingRoutine
+            ? 'Vamos substituir a rotina ativa com o mesmo nome e publicar os novos treinos deste PDF. Deseja continuar?'
+            : 'Vamos manter as rotinas antigas e adicionar esta nova rotina do PDF. Deseja continuar?'
+        }
+        confirmText={replaceExistingRoutine ? 'Substituir e aplicar' : 'Aplicar rotina'}
+        cancelText="Cancelar"
+        variant="warning"
+        loading={routinePdfApplying}
+        confirmDisabled={!routinePdfDraft || !routinePdfName.trim()}
+      />
       <Toast notification={notification} onClose={clearNotification} />
     </div>
   );

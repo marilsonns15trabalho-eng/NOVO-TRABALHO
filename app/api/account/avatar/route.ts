@@ -5,8 +5,34 @@ import { ApiRouteError, requireAuthenticatedCaller } from '@/lib/server/admin-au
 export const runtime = 'nodejs';
 
 const MAX_PROFILE_AVATAR_BYTES = 5 * 1024 * 1024;
-const ALLOWED_CONTENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const SIGNED_URL_EXPIRES_IN = 60 * 60 * 24 * 7;
+
+function resolveImageExtension(file: File) {
+  const byType: Record<string, string> = {
+    'image/jpeg': 'jpg',
+    'image/jpg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+    'image/gif': 'gif',
+    'image/bmp': 'bmp',
+    'image/tiff': 'tiff',
+    'image/heic': 'heic',
+    'image/heif': 'heif',
+    'image/avif': 'avif',
+  };
+
+  const fromType = byType[file.type?.toLowerCase()];
+  if (fromType) {
+    return fromType;
+  }
+
+  const fromName = file.name.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase();
+  if (fromName) {
+    return fromName;
+  }
+
+  return 'jpg';
+}
 
 async function loadCurrentAvatar(admin: Awaited<ReturnType<typeof requireAuthenticatedCaller>>['admin'], userId: string) {
   const { data, error } = await admin
@@ -84,8 +110,12 @@ export async function POST(request: NextRequest) {
       throw new ApiRouteError(400, 'Selecione uma imagem valida para o avatar.');
     }
 
-    if (!ALLOWED_CONTENT_TYPES.has(incomingFile.type)) {
-      throw new ApiRouteError(400, 'Envie apenas imagens JPG, PNG ou WEBP.');
+    const looksLikeImage =
+      incomingFile.type.startsWith('image/') ||
+      /\.(avif|bmp|gif|heic|heif|jpe?g|jfif|jxl|png|tiff?|webp)$/i.test(incomingFile.name);
+
+    if (!looksLikeImage) {
+      throw new ApiRouteError(400, 'Envie um arquivo de imagem valido para o avatar.');
     }
 
     if (incomingFile.size <= 0 || incomingFile.size > MAX_PROFILE_AVATAR_BYTES) {
@@ -94,13 +124,17 @@ export async function POST(request: NextRequest) {
 
     const previousAvatar = await loadCurrentAvatar(admin, callerUserId);
     const timestamp = new Date().toISOString();
-    const avatarPath = `${callerUserId}/avatar-${Date.now()}.jpg`;
+    const extension = resolveImageExtension(incomingFile);
+    const avatarPath = `${callerUserId}/avatar-${Date.now()}.${extension}`;
     const arrayBuffer = await incomingFile.arrayBuffer();
+    const contentType = incomingFile.type?.startsWith('image/')
+      ? incomingFile.type
+      : 'image/jpeg';
 
     const { error: uploadError } = await admin.storage
       .from(STORAGE_BUCKETS.PROFILE_PHOTOS)
       .upload(avatarPath, arrayBuffer, {
-        contentType: 'image/jpeg',
+        contentType,
         upsert: false,
         cacheControl: '31536000',
       });
