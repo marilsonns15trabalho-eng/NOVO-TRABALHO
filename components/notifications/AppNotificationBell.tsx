@@ -41,6 +41,9 @@ export default function AppNotificationBell({ compact = false }: AppNotification
         setLoadingNotifications(true);
         const items = await dashboardService.fetchHeaderNotifications(user.id, role);
         setNotifications(items);
+      } catch (error) {
+        console.error('Erro ao carregar notificacoes do cabecalho:', error);
+        setNotifications([]);
       } finally {
         setLoadingNotifications(false);
       }

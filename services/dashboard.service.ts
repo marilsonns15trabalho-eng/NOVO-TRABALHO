@@ -332,7 +332,10 @@ async function fetchReadNotificationIds(userId: string, notificationIds: string[
     .eq('user_id', userId)
     .in('notification_id', notificationIds);
 
-  assertNoQueryError('HeaderNotifications.reads', error);
+  if (error) {
+    console.warn('HeaderNotifications.reads indisponivel:', error.message);
+    return new Set<string>();
+  }
 
   return new Set((data || []).map((row: any) => row.notification_id).filter(Boolean));
 }
@@ -395,11 +398,21 @@ export async function fetchHeaderNotifications(
   role: 'admin' | 'professor' | 'aluno',
 ): Promise<HeaderNotificationItem[]> {
   const tasks: Array<Promise<HeaderNotificationItem[]>> = [
-    fetchPersistedNotifications(userId).then((items) => items.map(mapPersistedNotification)),
+    fetchPersistedNotifications(userId)
+      .then((items) => items.map(mapPersistedNotification))
+      .catch((error) => {
+        console.warn('HeaderNotifications.persisted indisponivel:', error);
+        return [];
+      }),
   ];
 
   if (role === 'admin') {
-    tasks.unshift(fetchBillingNotifications());
+    tasks.unshift(
+      fetchBillingNotifications().catch((error) => {
+        console.warn('HeaderNotifications.billing indisponivel:', error);
+        return [];
+      }),
+    );
   }
 
   const groups = await Promise.all(tasks);
