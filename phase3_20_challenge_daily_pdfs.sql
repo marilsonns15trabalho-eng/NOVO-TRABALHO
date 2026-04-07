@@ -50,7 +50,7 @@ AS $$
         JOIN public.desafio_participantes dp
           ON dp.challenge_id = d.id
         WHERE d.id = target_challenge_id
-          AND d.status = 'active'
+          AND COALESCE(d.status, 'active') <> 'archived'
           AND dp.student_id = (SELECT public.current_student_id())
           AND dp.removed_at IS NULL
     );

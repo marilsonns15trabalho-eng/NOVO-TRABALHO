@@ -633,7 +633,7 @@ export default function AlunoDashboard() {
     {
       key: 'desafio',
       label: 'Desafio',
-      helper: hasChallengeAccess ? `${activeChallenges.length} ativo(s)` : 'Aguardando liberacao',
+      helper: hasChallengeAccess ? `${activeChallenges.length} liberado(s)` : 'Aguardando liberacao',
       icon: <Target size={16} />,
     },
     {
@@ -1232,7 +1232,7 @@ export default function AlunoDashboard() {
                       </div>
 
                       <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">
-                        ativo
+                        {challenge.status === 'active' ? 'ativo' : 'liberado'}
                       </span>
                     </div>
 
@@ -1933,7 +1933,7 @@ export default function AlunoDashboard() {
             </div>
 
             <div className="rounded-full border border-amber-500/20 bg-amber-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-amber-300">
-              {activeChallenges.length} desafio(s) ativo(s)
+              {activeChallenges.length} desafio(s) liberado(s)
             </div>
           </div>
           {hasChallengeAccess ? (
@@ -1952,7 +1952,7 @@ export default function AlunoDashboard() {
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="text-2xl font-bold text-white">{challenge.title}</h3>
                           <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">
-                            ativo
+                            {challenge.status === 'active' ? 'ativo' : 'liberado'}
                           </span>
                         </div>
                         <p className="mt-2 text-sm leading-6 text-zinc-400">

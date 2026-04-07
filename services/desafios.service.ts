@@ -99,8 +99,12 @@ function mapChallengeParticipantRow(
   };
 }
 
-function isChallengeVisibleOnDate(challenge: ChallengeSummary, dateKey: string) {
-  if (challenge.status !== 'active') {
+function isChallengeAccessibleForStudent(challenge: ChallengeSummary) {
+  return challenge.status !== 'archived';
+}
+
+function isChallengeCurrentOnDate(challenge: ChallengeSummary, dateKey: string) {
+  if (!isChallengeAccessibleForStudent(challenge)) {
     return false;
   }
 
@@ -535,11 +539,11 @@ export async function fetchMyChallengeHub(linkedAuthUserId?: string | null): Pro
   }
 
   const todayKey = getAppDateInputValue();
-  const activeChallenges = (challengeRows || [])
+  const accessibleChallenges = (challengeRows || [])
     .map(mapChallengeRow)
-    .filter((challenge) => isChallengeVisibleOnDate(challenge, todayKey));
+    .filter(isChallengeAccessibleForStudent);
 
-  if (!activeChallenges.length) {
+  if (!accessibleChallenges.length) {
     return {
       student_id: studentId,
       active_challenges: [],
@@ -548,22 +552,31 @@ export async function fetchMyChallengeHub(linkedAuthUserId?: string | null): Pro
     };
   }
 
-  const { data: dayRows, error: dayError } = await supabase
-    .from(TABLES.DESAFIO_DIAS)
-    .select(buildChallengeDaySelect())
-    .in('challenge_id', activeChallenges.map((challenge) => challenge.id))
-    .eq('challenge_date', todayKey)
-    .order('challenge_date', { ascending: false });
+  const currentChallengeIds = accessibleChallenges
+    .filter((challenge) => isChallengeCurrentOnDate(challenge, todayKey))
+    .map((challenge) => challenge.id);
 
-  if (dayError) {
-    console.warn('Erro ao carregar atualizacao diaria dos desafios:', dayError.message);
+  let dayRows: any[] = [];
+  if (currentChallengeIds.length) {
+    const { data, error: dayError } = await supabase
+      .from(TABLES.DESAFIO_DIAS)
+      .select(buildChallengeDaySelect())
+      .in('challenge_id', currentChallengeIds)
+      .eq('challenge_date', todayKey)
+      .order('challenge_date', { ascending: false });
+
+    if (dayError) {
+      console.warn('Erro ao carregar atualizacao diaria dos desafios:', dayError.message);
+    } else {
+      dayRows = data || [];
+    }
   }
 
   return {
     student_id: studentId,
-    active_challenges: activeChallenges,
+    active_challenges: accessibleChallenges,
     today_entries: (dayRows || []).map(mapChallengeDayRow),
-    has_visible_challenges: activeChallenges.length > 0,
+    has_visible_challenges: accessibleChallenges.length > 0,
   };
 }
 
