@@ -3,7 +3,9 @@
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { Filesystem } from '@capacitor/filesystem';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { optimizeAssessmentPhotoFile } from '@/lib/assessmentPhotos';
 import { isNativeApp } from '@/lib/platform';
+import { optimizeProfileAvatarFile } from '@/lib/profile-avatar';
 
 export type NativePermissionState =
   | 'granted'
@@ -180,16 +182,7 @@ export async function pushRuntimeNotification(params: {
   });
 }
 
-export async function captureAssessmentPhotoFile(position: string): Promise<File> {
-  if (!isNativeApp()) {
-    throw new Error('A captura pela camera esta disponivel apenas no aplicativo.');
-  }
-
-  const permission = await requestCameraAccess();
-  if (permission !== 'granted' && permission !== 'limited') {
-    throw new Error('Permita o uso da camera para tirar fotos da avaliacao.');
-  }
-
+async function captureCameraFile(fileNamePrefix: string): Promise<File> {
   const photo = await Camera.getPhoto({
     source: CameraSource.Camera,
     resultType: CameraResultType.Uri,
@@ -205,14 +198,31 @@ export async function captureAssessmentPhotoFile(position: string): Promise<File
 
   const response = await fetch(photo.webPath);
   const blob = await response.blob();
-  const normalizedFormat = photo.format === 'png' || photo.format === 'webp' ? photo.format : 'jpeg';
+  const normalizedFormat =
+    photo.format === 'png' || photo.format === 'webp' || photo.format === 'gif'
+      ? photo.format
+      : 'jpeg';
   const extension = normalizedFormat === 'jpeg' ? 'jpg' : normalizedFormat;
   const mimeType = blob.type || `image/${normalizedFormat}`;
 
-  return new File([blob], `avaliacao-${position}-${Date.now()}.${extension}`, {
+  return new File([blob], `${fileNamePrefix}-${Date.now()}.${extension}`, {
     type: mimeType,
     lastModified: Date.now(),
   });
+}
+
+export async function captureAssessmentPhotoFile(position: string): Promise<File> {
+  if (!isNativeApp()) {
+    throw new Error('A captura pela camera esta disponivel apenas no aplicativo.');
+  }
+
+  const permission = await requestCameraAccess();
+  if (permission !== 'granted' && permission !== 'limited') {
+    throw new Error('Permita o uso da camera para tirar fotos da avaliacao.');
+  }
+
+  const rawFile = await captureCameraFile(`avaliacao-${position}`);
+  return optimizeAssessmentPhotoFile(rawFile);
 }
 
 export async function captureWorkoutSharePhotoFile(): Promise<File> {
@@ -225,29 +235,8 @@ export async function captureWorkoutSharePhotoFile(): Promise<File> {
     throw new Error('Permita o uso da camera para tirar a foto do compartilhamento.');
   }
 
-  const photo = await Camera.getPhoto({
-    source: CameraSource.Camera,
-    resultType: CameraResultType.Uri,
-    quality: 92,
-    correctOrientation: true,
-    saveToGallery: false,
-    presentationStyle: 'fullscreen',
-  });
-
-  if (!photo.webPath) {
-    throw new Error('Nao foi possivel ler a foto capturada.');
-  }
-
-  const response = await fetch(photo.webPath);
-  const blob = await response.blob();
-  const normalizedFormat = photo.format === 'png' || photo.format === 'webp' ? photo.format : 'jpeg';
-  const extension = normalizedFormat === 'jpeg' ? 'jpg' : normalizedFormat;
-  const mimeType = blob.type || `image/${normalizedFormat}`;
-
-  return new File([blob], `treino-compartilhar-${Date.now()}.${extension}`, {
-    type: mimeType,
-    lastModified: Date.now(),
-  });
+  const rawFile = await captureCameraFile('treino-compartilhar');
+  return optimizeAssessmentPhotoFile(rawFile);
 }
 
 export async function captureProfileAvatarFile(): Promise<File> {
@@ -260,27 +249,6 @@ export async function captureProfileAvatarFile(): Promise<File> {
     throw new Error('Permita o uso da camera para tirar a foto de perfil.');
   }
 
-  const photo = await Camera.getPhoto({
-    source: CameraSource.Camera,
-    resultType: CameraResultType.Uri,
-    quality: 92,
-    correctOrientation: true,
-    saveToGallery: false,
-    presentationStyle: 'fullscreen',
-  });
-
-  if (!photo.webPath) {
-    throw new Error('Nao foi possivel ler a foto capturada.');
-  }
-
-  const response = await fetch(photo.webPath);
-  const blob = await response.blob();
-  const normalizedFormat = photo.format === 'png' || photo.format === 'webp' ? photo.format : 'jpeg';
-  const extension = normalizedFormat === 'jpeg' ? 'jpg' : normalizedFormat;
-  const mimeType = blob.type || `image/${normalizedFormat}`;
-
-  return new File([blob], `avatar-${Date.now()}.${extension}`, {
-    type: mimeType,
-    lastModified: Date.now(),
-  });
+  const rawFile = await captureCameraFile('avatar');
+  return optimizeProfileAvatarFile(rawFile);
 }

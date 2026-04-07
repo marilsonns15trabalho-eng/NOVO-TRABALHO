@@ -21,6 +21,7 @@ const TITLES: Record<string, string> = {
   treinos: 'Gestao de Treinos',
   anamnese: 'Anamnese Nutricional',
   avaliacao: 'Avaliacao Fisica',
+  'protocolo-alimentar': 'Protocolos Alimentares',
   relatorios: 'Relatorios e Estatisticas',
   configuracoes: 'Configuracoes do Sistema',
   avatar: 'Foto de Perfil',

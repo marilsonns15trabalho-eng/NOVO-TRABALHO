@@ -12,6 +12,7 @@ import {
   ClipboardList,
   Download,
   Dumbbell,
+  FileStack,
   FileText,
   Loader2,
   LogOut,
@@ -49,9 +50,11 @@ import { formatTrainingDay, isTreinoRecentlyUpdated, pickTodayWorkout } from '@/
 import { ensureStudentWorkspace } from '@/services/account.service';
 import * as avaliacoesService from '@/services/avaliacoes.service';
 import * as exerciseLibraryService from '@/services/exerciseLibrary.service';
+import * as foodProtocolsService from '@/services/food-protocols.service';
 import * as treinosService from '@/services/treinos.service';
 import type { Avaliacao } from '@/types/avaliacao';
 import type { ExerciseLibraryItem } from '@/types/exercise-library';
+import type { FoodProtocol } from '@/types/food-protocol';
 import type {
   StudentMonthlyTrainingProgress,
   TrainingPlan,
@@ -64,7 +67,7 @@ interface StudentPlan {
   plan_price?: number;
 }
 
-type StudentSectionKey = 'inicio' | 'treinos' | 'avaliacoes' | 'conta';
+type StudentSectionKey = 'inicio' | 'treinos' | 'avaliacoes' | 'protocolos' | 'conta';
 
 interface OverviewCardProps {
   eyebrow: string;
@@ -266,6 +269,7 @@ export default function AlunoDashboard() {
   const [trainingProgress, setTrainingProgress] = useState<StudentMonthlyTrainingProgress | null>(null);
   const [treinos, setTreinos] = useState<Treino[]>([]);
   const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([]);
+  const [foodProtocols, setFoodProtocols] = useState<FoodProtocol[]>([]);
   const [activeSection, setActiveSection] = useState<StudentSectionKey>('inicio');
   const [completingTreinoId, setCompletingTreinoId] = useState<string | null>(null);
   const [executionSession, setExecutionSession] = useState<TreinoExecutionSession | null>(null);
@@ -282,7 +286,13 @@ export default function AlunoDashboard() {
 
   useEffect(() => {
     const section = searchParams.get('section');
-    if (section === 'inicio' || section === 'treinos' || section === 'avaliacoes' || section === 'conta') {
+    if (
+      section === 'inicio' ||
+      section === 'treinos' ||
+      section === 'avaliacoes' ||
+      section === 'protocolos' ||
+      section === 'conta'
+    ) {
       setActiveSection(section);
     }
   }, [searchParams]);
@@ -316,17 +326,19 @@ export default function AlunoDashboard() {
         const resolvedStudentId = studentRow?.id ?? null;
         setStudentId(resolvedStudentId);
 
-        const [treinosData, avaliacoesData, workoutPlanData, trainingProgressData] = await Promise.all([
+        const [treinosData, avaliacoesData, workoutPlanData, trainingProgressData, protocolosData] = await Promise.all([
           treinosService.fetchTreinos(user.id),
           avaliacoesService.fetchAvaliacoes(user.id, true),
           treinosService.fetchActiveTrainingPlanForStudent(user.id),
           treinosService.fetchStudentMonthlyProgress(user.id),
+          foodProtocolsService.fetchFoodProtocols({ linkedAuthUserId: user.id }),
         ]);
 
         setTreinos(treinosData);
         setAvaliacoes(avaliacoesData);
         setWorkoutPlan(workoutPlanData);
         setTrainingProgress(trainingProgressData);
+        setFoodProtocols(protocolosData);
 
         if (!resolvedStudentId) {
           setPlan(null);
@@ -375,6 +387,7 @@ export default function AlunoDashboard() {
         setTrainingProgress(null);
         setTreinos([]);
         setAvaliacoes([]);
+        setFoodProtocols([]);
       } finally {
         setLoading(false);
       }
@@ -503,6 +516,12 @@ export default function AlunoDashboard() {
       icon: <Sparkles size={18} className="text-orange-400" />,
       accentClassName: 'bg-gradient-to-r from-orange-500/90 via-orange-400/70 to-transparent',
     },
+    {
+      label: 'Protocolos',
+      value: String(foodProtocols.length),
+      icon: <FileStack size={18} className="text-emerald-400" />,
+      accentClassName: 'bg-gradient-to-r from-emerald-500/90 via-emerald-400/70 to-transparent',
+    },
   ];
   const sectionItems: Array<{
     key: StudentSectionKey;
@@ -527,6 +546,12 @@ export default function AlunoDashboard() {
       label: 'Avaliacoes',
       helper: `${avaliacoes.length} registros`,
       icon: <Activity size={16} />,
+    },
+    {
+      key: 'protocolos',
+      label: 'Protocolos',
+      helper: `${foodProtocols.length} arquivo(s)`,
+      icon: <FileStack size={16} />,
     },
     {
       key: 'conta',
@@ -558,6 +583,13 @@ export default function AlunoDashboard() {
       onClick: () => setActiveSection('avaliacoes'),
     },
     {
+      key: 'protocolos',
+      label: 'Protocolos',
+      icon: FileStack,
+      active: activeSection === 'protocolos',
+      onClick: () => setActiveSection('protocolos'),
+    },
+    {
       key: 'conta',
       label: 'Conta',
       icon: ShieldCheck,
@@ -578,6 +610,27 @@ export default function AlunoDashboard() {
 
     setTreinos(treinosData);
     setTrainingProgress(progressData);
+  };
+
+  const handleOpenFoodProtocol = async (protocol: FoodProtocol) => {
+    try {
+      await foodProtocolsService.openFoodProtocol(protocol);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Nao foi possivel abrir o protocolo alimentar.';
+      showNotification(message, 'error');
+    }
+  };
+
+  const handleDownloadFoodProtocol = async (protocol: FoodProtocol) => {
+    try {
+      const result = await foodProtocolsService.downloadFoodProtocol(protocol);
+      showNotification(getPdfFeedbackMessage(result, 'Protocolo alimentar'), 'success');
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Nao foi possivel baixar o protocolo alimentar.';
+      showNotification(message, 'error');
+    }
   };
 
   const getTreinoStatusLabel = (treino: Treino) => {
@@ -1662,6 +1715,87 @@ export default function AlunoDashboard() {
                   );
                 })}
               </div>
+            </div>
+          )}
+        </section>
+        )}
+
+        {activeSection === 'protocolos' && (
+        <section className="rounded-[32px] border border-zinc-800 bg-zinc-950/85 p-6 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)]">
+          <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">
+                Alimentacao
+              </p>
+              <h2 className="mt-2 text-3xl font-bold text-white">Meus Protocolos Alimentares</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
+                Consulte o PDF mais recente enviado pela equipe, abra para revisar no celular e baixe quando quiser deixar salvo no aparelho.
+              </p>
+            </div>
+
+            <div className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">
+              {foodProtocols.length} arquivo(s)
+            </div>
+          </div>
+
+          {foodProtocols.length === 0 ? (
+            <EmptyState
+              title="Nenhum protocolo alimentar enviado"
+              description="Quando a equipe publicar seu protocolo em PDF, ele vai aparecer aqui para abrir e baixar no celular."
+              icon={<FileStack size={18} />}
+            />
+          ) : (
+            <div className="grid gap-4 xl:grid-cols-2">
+              {foodProtocols.map((protocol) => (
+                <div
+                  key={protocol.id}
+                  className="rounded-[26px] border border-zinc-800 bg-black/30 p-5"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-lg font-bold text-white">{protocol.title}</p>
+                      <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">
+                        Enviado em {formatDatePtBr(protocol.created_at)}
+                      </p>
+                    </div>
+
+                    {protocol.is_active ? (
+                      <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-300">
+                        Vigente
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                      Arquivo disponivel
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-zinc-400">
+                      PDF pronto para visualizar no aparelho ou baixar para a pasta Lioness.
+                    </p>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleOpenFoodProtocol(protocol)}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition-all hover:border-zinc-700"
+                    >
+                      <FileText size={16} />
+                      Abrir PDF
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => void handleDownloadFoodProtocol(protocol)}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-300 transition-all hover:bg-emerald-500 hover:text-black"
+                    >
+                      <Download size={16} />
+                      Baixar no celular
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </section>

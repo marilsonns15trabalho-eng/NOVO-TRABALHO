@@ -210,7 +210,7 @@ export default function ProfileAvatarManager({
                 <input
                   ref={inputRef}
                   type="file"
-                  accept="image/jpeg,image/png,image/webp"
+                  accept="image/*"
                   className="hidden"
                   onChange={(event) => {
                     const selected = event.target.files?.[0] ?? null;

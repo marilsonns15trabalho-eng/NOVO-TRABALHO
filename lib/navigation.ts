@@ -4,6 +4,7 @@ import {
   ClipboardList,
   DollarSign,
   Dumbbell,
+  FileStack,
   Home,
   Settings,
   Users,
@@ -20,8 +21,8 @@ export interface MenuItem {
 }
 
 export const ROLE_ACCESS: Record<UserRole, string[]> = {
-  admin: ['home', 'alunos', 'financeiro', 'planos', 'treinos', 'anamnese', 'avaliacao', 'relatorios', 'configuracoes', 'avatar'],
-  professor: ['home', 'alunos', 'treinos', 'avaliacao', 'anamnese', 'avatar'],
+  admin: ['home', 'alunos', 'financeiro', 'planos', 'treinos', 'anamnese', 'avaliacao', 'protocolo-alimentar', 'relatorios', 'configuracoes', 'avatar'],
+  professor: ['home', 'alunos', 'treinos', 'avaliacao', 'anamnese', 'protocolo-alimentar', 'avatar'],
   aluno: [],
 };
 
@@ -39,6 +40,7 @@ export const allMenuItems: MenuItem[] = [
   { id: 'treinos', label: 'Treinos', icon: Dumbbell, path: '/dashboard/treinos' },
   { id: 'anamnese', label: 'Anamnese', icon: Utensils, path: '/dashboard/anamnese' },
   { id: 'avaliacao', label: 'Avaliacao Fisica', icon: Activity, path: '/dashboard/avaliacao' },
+  { id: 'protocolo-alimentar', label: 'Protocolo Alimentar', icon: FileStack, path: '/dashboard/protocolo-alimentar' },
   { id: 'relatorios', label: 'Relatorios', icon: BarChart3, path: '/dashboard/relatorios' },
   { id: 'configuracoes', label: 'Configuracoes', icon: Settings, path: '/dashboard/configuracoes' },
 ];

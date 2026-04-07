@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Users,
   UserPlus,
@@ -47,6 +48,7 @@ const EMPTY_ALUNO_FORM: Partial<AlunoFormData> = {
 };
 
 export default function AlunosModule() {
+  const router = useRouter();
   const { user, role, isSuperAdmin } = useAuth();
   const userRole = role;
   const isAdmin = userRole === 'admin';
@@ -132,6 +134,10 @@ export default function AlunosModule() {
   const handleOpenAdd = () => {
     setFormData({ ...EMPTY_ALUNO_FORM });
     openAddModal();
+  };
+
+  const openFoodProtocolForAluno = (aluno: Aluno) => {
+    router.push(`/dashboard/protocolo-alimentar?studentId=${encodeURIComponent(aluno.id)}`);
   };
 
   const openMobileAlunoMenu = (alunoId: string) => {
@@ -470,6 +476,14 @@ export default function AlunosModule() {
                             </button>
                           )}
 
+                          <button
+                            onClick={() => openFoodProtocolForAluno(aluno)}
+                            className="p-2 text-zinc-500 transition-colors hover:text-emerald-400"
+                            title="Protocolos alimentares"
+                          >
+                            Protocolo
+                          </button>
+
                           {!isReadOnly && (
                             <>
                               <button
@@ -619,6 +633,16 @@ export default function AlunosModule() {
                   Editar
                 </button>
               ) : null}
+
+              <button
+                onClick={() => {
+                  closeMobileAlunoMenu();
+                  openFoodProtocolForAluno(selectedMobileAluno);
+                }}
+                className="inline-flex items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition-all hover:border-emerald-500/20 hover:bg-emerald-500/10 hover:text-emerald-300"
+              >
+                Protocolo
+              </button>
 
               {isAdmin ? (
                 <button

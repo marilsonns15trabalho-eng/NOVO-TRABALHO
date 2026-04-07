@@ -49,6 +49,7 @@ export const TABLES = {
   TREINO_EXECUTION_ITEMS: 'treino_execution_items',
   AVALIACOES: 'avaliacoes',
   AVALIACAO_PHOTOS: 'avaliacao_photos',
+  FOOD_PROTOCOLS: 'protocolos_alimentares',
   ANAMNESES: 'anamneses',
   FINANCEIRO: 'financeiro',
   BILLS: 'bills',
@@ -63,6 +64,7 @@ export const TABLES = {
 export const STORAGE_BUCKETS = {
   AVALIACAO_PHOTOS: 'avaliacao-photos',
   PROFILE_PHOTOS: 'profile-photos',
+  FOOD_PROTOCOLS: 'food-protocols',
 } as const;
 
 /** Super admin protegido contra alteracoes */

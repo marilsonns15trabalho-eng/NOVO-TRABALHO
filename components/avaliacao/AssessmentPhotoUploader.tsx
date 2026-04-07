@@ -88,7 +88,7 @@ export default function AssessmentPhotoUploader({
                       inputRefs.current[key] = element;
                     }}
                     type="file"
-                    accept="image/jpeg,image/png,image/webp"
+                    accept="image/*"
                     className="hidden"
                     onChange={(event) => {
                       const file = event.target.files?.[0] ?? null;

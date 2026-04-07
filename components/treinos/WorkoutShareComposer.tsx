@@ -696,12 +696,12 @@ export default function WorkoutShareComposer({
                     ) : null}
 
                     <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      className="hidden"
-                      onChange={(event) => {
-                        const selected = event.target.files?.[0] ?? null;
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(event) => {
+                          const selected = event.target.files?.[0] ?? null;
                         void handlePhotoSelected(selected);
                         event.currentTarget.value = '';
                       }}
