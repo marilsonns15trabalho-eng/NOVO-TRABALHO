@@ -18,6 +18,48 @@ import type { FoodProtocol, FoodProtocolStudent, FoodProtocolUploadInput } from 
 const MAX_FOOD_PROTOCOL_BYTES = 15 * 1024 * 1024;
 const FOOD_PROTOCOL_SIGNED_URL_EXPIRES_IN = 60 * 60;
 
+async function replaceExistingProtocolsForStudent(studentId: string, keepProtocolId: string) {
+  const { data, error } = await supabase
+    .from(TABLES.FOOD_PROTOCOLS)
+    .select('id, storage_path')
+    .eq('student_id', studentId)
+    .neq('id', keepProtocolId);
+
+  if (error) {
+    console.error('Erro ao localizar protocolos antigos para substituicao:', error);
+    return;
+  }
+
+  const rows = (data || []).filter((row: any) => row?.id);
+  if (!rows.length) {
+    return;
+  }
+
+  const storagePaths = rows
+    .map((row: any) => row.storage_path)
+    .filter((value: string | null | undefined) => Boolean(value));
+
+  if (storagePaths.length > 0) {
+    const { error: storageError } = await supabase.storage
+      .from(STORAGE_BUCKETS.FOOD_PROTOCOLS)
+      .remove(storagePaths);
+
+    if (storageError) {
+      console.error('Erro ao remover protocolos antigos do storage:', storageError);
+    }
+  }
+
+  const protocolIds = rows.map((row: any) => row.id);
+  const { error: deleteError } = await supabase
+    .from(TABLES.FOOD_PROTOCOLS)
+    .delete()
+    .in('id', protocolIds);
+
+  if (deleteError) {
+    console.error('Erro ao remover protocolos antigos da base:', deleteError);
+  }
+}
+
 async function syncActiveProtocolForStudent(studentId: string) {
   const { data, error } = await supabase
     .from(TABLES.FOOD_PROTOCOLS)
@@ -266,12 +308,7 @@ export async function uploadFoodProtocol(input: FoodProtocolUploadInput): Promis
     throw new Error('Nao foi possivel confirmar o protocolo alimentar enviado.');
   }
 
-  await supabase
-    .from(TABLES.FOOD_PROTOCOLS)
-    .update({ is_active: false })
-    .eq('student_id', input.student_id)
-    .neq('id', data.id)
-    .eq('is_active', true);
+  await replaceExistingProtocolsForStudent(input.student_id, data.id);
 
   const avatarMap = await fetchStudentAvatarMap(
     collectLinkedAuthUserIds([normalizeStudentRelation(data.student ?? data.students)]),

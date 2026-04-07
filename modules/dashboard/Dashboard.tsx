@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   Activity,
+  AlertTriangle,
   ArrowDownRight,
   ArrowRight,
   ArrowUpRight,
@@ -145,6 +146,7 @@ export default function Dashboard({ setActiveTab }: DashboardProps) {
     chartData,
     activities,
     proximosVencimentos,
+    trainingReviewAlerts,
     formatCurrency,
     loadData,
   } = useDashboard();
@@ -262,6 +264,9 @@ export default function Dashboard({ setActiveTab }: DashboardProps) {
                 </div>
                 <div className="rounded-full border border-white/8 bg-white/[0.03] px-4 py-2 text-sm text-zinc-300">
                   <span className="font-bold text-white">Atividades:</span> {activities.length}
+                </div>
+                <div className="rounded-full border border-white/8 bg-white/[0.03] px-4 py-2 text-sm text-zinc-300">
+                  <span className="font-bold text-white">Avisos de treino:</span> {trainingReviewAlerts.length}
                 </div>
               </div>
             </div>
@@ -397,6 +402,62 @@ export default function Dashboard({ setActiveTab }: DashboardProps) {
           </section>
 
           <div className="grid gap-8">
+            <section className="rounded-[32px] border border-zinc-800 bg-zinc-950/85 p-6 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)]">
+              <div className="mb-5 flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-500">
+                    Treinos
+                  </p>
+                  <h3 className="mt-2 text-2xl font-bold text-white">Revisoes sugeridas de hoje</h3>
+                </div>
+                <AlertTriangle size={20} className="text-amber-400" />
+              </div>
+
+              <div className="space-y-3">
+                {trainingReviewAlerts.length > 0 ? (
+                  trainingReviewAlerts.map((alert) => (
+                    <button
+                      key={alert.id}
+                      onClick={() => setActiveTab('treinos')}
+                      className="w-full rounded-[24px] border border-zinc-800 bg-black/25 p-4 text-left transition-all hover:border-zinc-700"
+                    >
+                      <div className="flex items-start gap-3">
+                        <ProfileAvatar
+                          displayName={alert.student_name}
+                          avatarUrl={alert.avatar_url}
+                          className="h-11 w-11 shrink-0 rounded-2xl border border-zinc-800"
+                          textClassName="text-sm"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="truncate text-sm font-bold text-white">{alert.student_name}</p>
+                            <span
+                              className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ${
+                                alert.type === 'check_completion'
+                                  ? 'bg-sky-500/10 text-sky-300'
+                                  : 'bg-amber-500/10 text-amber-300'
+                              }`}
+                            >
+                              {alert.type === 'check_completion' ? 'Confirmacao' : 'Revisao'}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-sm font-medium text-zinc-200">{alert.title}</p>
+                          <p className="mt-2 text-sm leading-6 text-zinc-500">{alert.description}</p>
+                          <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-600">
+                            treino: {alert.treino_name}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <div className="rounded-[24px] border border-dashed border-zinc-800 bg-black/20 px-5 py-6 text-sm text-zinc-500">
+                    Nenhum aviso de revisao de treino por agora.
+                  </div>
+                )}
+              </div>
+            </section>
+
             <section className="rounded-[32px] border border-zinc-800 bg-zinc-950/85 p-6 shadow-[0_28px_90px_-58px_rgba(0,0,0,0.92)]">
               <div className="mb-5 flex items-center justify-between gap-4">
                 <div>

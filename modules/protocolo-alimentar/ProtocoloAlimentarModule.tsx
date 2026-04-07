@@ -198,7 +198,7 @@ export default function ProtocoloAlimentarModule() {
         file,
       });
 
-      showNotification('Protocolo alimentar enviado com sucesso.', 'success');
+      showNotification('Novo protocolo enviado e o anterior da aluna foi substituido.', 'success');
       setFile(null);
       setTitle('');
       setFileSuggestionMessage(null);
@@ -325,7 +325,7 @@ export default function ProtocoloAlimentarModule() {
         <ModuleStatCard
           label="PDFs enviados"
           value={String(protocols.length)}
-          detail="Historico completo de uploads disponiveis para consulta, download e substituicao segura."
+          detail="Quantidade atual de PDFs disponiveis depois das substituicoes automaticas por aluna."
           icon={FileStack}
           accent="emerald"
         />
@@ -409,7 +409,7 @@ export default function ProtocoloAlimentarModule() {
             <div>
               <p className="text-sm font-bold text-white">Arquivo do protocolo</p>
               <p className="mt-1 text-sm text-zinc-500">
-                Aceita somente PDF. Ao enviar um novo protocolo, ele passa a ser o principal da aluna.
+                Aceita somente PDF. Ao enviar um novo protocolo, o anterior da mesma aluna e removido automaticamente.
               </p>
             </div>
 
@@ -453,7 +453,7 @@ export default function ProtocoloAlimentarModule() {
         <ModuleSectionHeading
           eyebrow="Historico"
           title="Protocolos enviados"
-          description="Abra, baixe, troque a versao principal ou exclua quando necessario."
+          description="Abra, baixe, troque a versao principal ou exclua quando necessario. O envio novo substitui o protocolo anterior da mesma aluna."
         />
 
         <div className="flex flex-col gap-4 sm:flex-row">

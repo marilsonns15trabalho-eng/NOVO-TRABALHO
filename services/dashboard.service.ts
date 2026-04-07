@@ -13,6 +13,10 @@ import {
   type PersistedNotificationItem,
   type PersistedNotificationType,
 } from '@/services/app-notifications.service';
+import {
+  fetchTrainingReviewAlerts,
+  type TrainingReviewAlert,
+} from '@/services/training-review-alerts.service';
 
 export interface DashboardStats {
   totalAlunos: number;
@@ -68,6 +72,14 @@ export interface HeaderNotificationItem {
   priority: number;
 }
 
+export interface DashboardData {
+  stats: DashboardStats;
+  chartData: DashboardChartData[];
+  activities: RecentActivity[];
+  proximosVencimentos: ProximoVencimento[];
+  trainingReviewAlerts: TrainingReviewAlert[];
+}
+
 function assertNoQueryError(label: string, error: { message?: string } | null) {
   if (error) {
     throw new Error(`${label}: ${error.message || 'erro desconhecido'}`);
@@ -84,7 +96,7 @@ function matchesMonthAndYear(value: string | null | undefined, month: number, ye
   return itemYear === year && itemMonth === month + 1;
 }
 
-export async function fetchDashboardData() {
+export async function fetchDashboardData(): Promise<DashboardData> {
   const now = new Date();
   const firstDayOfMonth = getLocalDateInputValue(new Date(now.getFullYear(), now.getMonth(), 1));
 
@@ -243,6 +255,8 @@ export async function fetchDashboardData() {
     };
   });
 
+  const trainingReviewAlerts = await fetchTrainingReviewAlerts();
+
   return {
     stats: {
       totalAlunos,
@@ -254,6 +268,7 @@ export async function fetchDashboardData() {
     chartData,
     activities,
     proximosVencimentos,
+    trainingReviewAlerts,
   };
 }
 

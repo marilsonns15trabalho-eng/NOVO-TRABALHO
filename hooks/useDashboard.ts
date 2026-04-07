@@ -1,7 +1,13 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import * as dashboardService from '@/services/dashboard.service';
-import type { DashboardStats, DashboardChartData, ProximoVencimento, RecentActivity } from '@/services/dashboard.service';
+import type {
+  DashboardStats,
+  DashboardChartData,
+  ProximoVencimento,
+  RecentActivity,
+} from '@/services/dashboard.service';
+import type { TrainingReviewAlert } from '@/services/training-review-alerts.service';
 
 export function useDashboard() {
   const [loading, setLoading] = useState(true);
@@ -16,6 +22,7 @@ export function useDashboard() {
   const [chartData, setChartData] = useState<DashboardChartData[]>([]);
   const [activities, setActivities] = useState<RecentActivity[]>([]);
   const [proximosVencimentos, setProximosVencimentos] = useState<ProximoVencimento[]>([]);
+  const [trainingReviewAlerts, setTrainingReviewAlerts] = useState<TrainingReviewAlert[]>([]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -26,6 +33,7 @@ export function useDashboard() {
       setChartData(data.chartData);
       setActivities(data.activities);
       setProximosVencimentos(data.proximosVencimentos);
+      setTrainingReviewAlerts(data.trainingReviewAlerts);
     } catch (error: any) {
       console.error('Erro ao carregar dashboard:', error);
       setError(error?.message || 'Nao foi possivel carregar o dashboard.');
@@ -52,6 +60,7 @@ export function useDashboard() {
     chartData,
     activities,
     proximosVencimentos,
+    trainingReviewAlerts,
     formatCurrency,
     loadData,
   };

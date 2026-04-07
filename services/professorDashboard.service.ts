@@ -6,6 +6,10 @@ import {
   collectLinkedAuthUserIds,
   fetchStudentAvatarMap,
 } from '@/services/student-avatars.service';
+import {
+  fetchTrainingReviewAlerts,
+  type TrainingReviewAlert,
+} from '@/services/training-review-alerts.service';
 
 export interface ProfessorDashboardStats {
   totalAlunos: number;
@@ -32,6 +36,7 @@ export interface ProfessorDashboardRecentEvaluation {
 export interface ProfessorDashboardData {
   stats: ProfessorDashboardStats;
   ultimasAvaliacoes: ProfessorDashboardRecentEvaluation[];
+  trainingReviewAlerts: TrainingReviewAlert[];
 }
 
 function assertNoProfessorQueryError(label: string, error: { message?: string } | null) {
@@ -108,6 +113,8 @@ export async function fetchProfessorDashboardData(): Promise<ProfessorDashboardD
     } as ProfessorDashboardRecentEvaluation;
   });
 
+  const trainingReviewAlerts = await fetchTrainingReviewAlerts();
+
   return {
     stats: {
       totalAlunos: totalAlunosRes.count || 0,
@@ -117,5 +124,6 @@ export async function fetchProfessorDashboardData(): Promise<ProfessorDashboardD
       avaliacoesRecentes30d: avaliacoesRecentesRes.count || 0,
     },
     ultimasAvaliacoes,
+    trainingReviewAlerts,
   };
 }
