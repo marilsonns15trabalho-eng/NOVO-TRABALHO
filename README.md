@@ -18,3 +18,9 @@ View your app in AI Studio: https://ai.studio/apps/36696681-f9b1-4ada-ae87-44591
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+
+## Vercel Cron Keep-Alive
+
+If this project is deployed on Vercel and uses a Supabase Free project, a lightweight keep-alive route is available at `/api/internal/keep-supabase-alive`.
+
+Set `CRON_SECRET` in your Vercel production environment before deploying. The `vercel.json` file schedules one daily cron invocation to this route, which performs a tiny Supabase query to keep periodic activity without maintaining a permanent connection.

@@ -52,7 +52,7 @@ export default function AlunosModule() {
   const { user, role, isSuperAdmin } = useAuth();
   const userRole = role;
   const isAdmin = userRole === 'admin';
-  const isReadOnly = userRole === 'professor';
+  const canManageCadastro = userRole === 'admin' || userRole === 'professor';
 
   const [showRolesModal, setShowRolesModal] = useState(false);
   const [userProfiles, setUserProfiles] = useState<UserProfileRow[]>([]);
@@ -280,7 +280,7 @@ export default function AlunosModule() {
                 onClick={openRolesModal}
               />
             ) : null}
-            {!isReadOnly ? (
+            {canManageCadastro ? (
               <ModuleHeroAction
                 label="Novo aluno"
                 subtitle="Criar cadastro e liberar acesso inicial."
@@ -433,7 +433,7 @@ export default function AlunosModule() {
                       <td className="px-6 py-4">
                         <button
                           onClick={() => handleToggleStatus(aluno.id, aluno.status)}
-                          disabled={isReadOnly}
+                          disabled={!canManageCadastro}
                           className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wider transition-all ${
                             aluno.status === 'ativo'
                               ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-black'
@@ -484,24 +484,25 @@ export default function AlunosModule() {
                             Protocolo
                           </button>
 
-                          {!isReadOnly && (
-                            <>
-                              <button
-                                onClick={() => handleStartEdit(aluno)}
-                                className="p-2 text-zinc-500 transition-colors hover:text-orange-500"
-                                title="Editar"
-                              >
-                                Editar
-                              </button>
-                              <button
-                                onClick={() => setDeleteConfirmation(aluno.id)}
-                                className="p-2 text-zinc-500 transition-colors hover:text-red-500"
-                                title="Excluir"
-                              >
-                                Excluir
-                              </button>
-                            </>
-                          )}
+                          {canManageCadastro ? (
+                            <button
+                              onClick={() => handleStartEdit(aluno)}
+                              className="p-2 text-zinc-500 transition-colors hover:text-orange-500"
+                              title="Editar"
+                            >
+                              Editar
+                            </button>
+                          ) : null}
+
+                          {isAdmin ? (
+                            <button
+                              onClick={() => setDeleteConfirmation(aluno.id)}
+                              className="p-2 text-zinc-500 transition-colors hover:text-red-500"
+                              title="Excluir"
+                            >
+                              Excluir
+                            </button>
+                          ) : null}
                         </div>
                       </td>
                     </tr>
@@ -518,7 +519,7 @@ export default function AlunosModule() {
               title="Nenhum aluno encontrado"
               description="Crie o primeiro cadastro para comecar."
             />
-            {!isReadOnly && (
+            {canManageCadastro && (
               <div className="mt-6 flex justify-center">
                 <button
                   onClick={handleOpenAdd}
@@ -532,7 +533,7 @@ export default function AlunosModule() {
         )}
       </ModuleSurface>
 
-      {!isReadOnly && (
+      {canManageCadastro && (
         <Modal
           isOpen={showAddModal}
           onClose={handleCloseAlunoModal}
@@ -579,7 +580,7 @@ export default function AlunosModule() {
               </div>
               <button
                 onClick={() => handleToggleStatus(selectedMobileAluno.id, selectedMobileAluno.status)}
-                disabled={isReadOnly}
+                disabled={!canManageCadastro}
                 className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wider transition-all ${
                   selectedMobileAluno.status === 'ativo'
                     ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400'
@@ -622,7 +623,7 @@ export default function AlunosModule() {
                 WhatsApp
               </button>
 
-              {!isReadOnly ? (
+              {canManageCadastro ? (
                 <button
                   onClick={() => {
                     closeMobileAlunoMenu();
@@ -662,7 +663,7 @@ export default function AlunosModule() {
                 </button>
               ) : null}
 
-              {!isReadOnly ? (
+              {isAdmin ? (
                 <button
                   onClick={() => {
                     closeMobileAlunoMenu();

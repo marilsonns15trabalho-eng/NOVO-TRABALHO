@@ -2,7 +2,7 @@ import { getAuthenticatedUser, supabase } from '@/lib/supabase';
 import { authorizedApiJson } from '@/lib/api-client';
 import { TABLES } from '@/lib/constants';
 import { mapAlunoToStudentRow, mapStudentRowToAluno } from '@/lib/mappers';
-import { assertAdminForUserId } from '@/lib/authz';
+import { assertCanManageStudentDataForUserId } from '@/lib/authz';
 import {
   attachStudentAvatar,
   collectLinkedAuthUserIds,
@@ -140,7 +140,7 @@ export async function updateAluno(
       throw new Error('Voce nao tem permissao para editar este registro.');
     }
   } else {
-    await assertAdminForUserId(user.id);
+    await assertCanManageStudentDataForUserId(user.id);
   }
 
   const { error } = await supabase
@@ -214,7 +214,7 @@ export async function deleteAluno(alunoId: string): Promise<void> {
 
 export async function toggleAlunoStatus(alunoId: string, currentStatus: string): Promise<void> {
   const user = await getAuthenticatedUser();
-  await assertAdminForUserId(user.id);
+  await assertCanManageStudentDataForUserId(user.id);
 
   const newStatus = currentStatus === 'ativo' ? 'inativo' : 'ativo';
 

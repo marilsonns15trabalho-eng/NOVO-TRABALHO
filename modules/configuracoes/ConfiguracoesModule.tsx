@@ -330,7 +330,7 @@ export default function ConfiguracoesModule() {
               <ModuleSectionHeading
                 eyebrow="Migracao"
                 title="Importacao do legado atualizado"
-                description="Importa 56 alunos com e-mail valido e 40 avaliacoes, sem duplicar o que ja foi cadastrado."
+                description="Executa o refresh legado de alunos e avaliacoes sem duplicar o que ja foi cadastrado."
               />
 
               {legacyImportFeedback ? (
@@ -363,7 +363,7 @@ export default function ConfiguracoesModule() {
                   className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-6 py-4 font-bold text-black transition-all hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {importingLegacy ? <Loader2 className="animate-spin" size={18} /> : <Database size={18} />}
-                  Importar 56 alunos + 40 avaliacoes
+                  Importar refresh legado
                 </button>
               </div>
             </div>

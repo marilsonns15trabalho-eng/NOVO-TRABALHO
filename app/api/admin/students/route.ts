@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   ApiRouteError,
   assertAdminCaller,
+  assertStaffCaller,
   getTargetProfile,
   preventEditingProtectedSuperAdmin,
   requireAuthenticatedCaller,
@@ -108,7 +109,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const { callerProfile, callerUserId } = await requireAuthenticatedCaller(request);
-    assertAdminCaller(callerProfile);
+    assertStaffCaller(callerProfile);
 
     const body = (await request.json()) as CreateStudentPayload;
     const aluno = body?.aluno || {};

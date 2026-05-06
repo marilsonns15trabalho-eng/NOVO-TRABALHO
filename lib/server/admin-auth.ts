@@ -75,6 +75,12 @@ export function assertAdminCaller(profile: CallerProfile) {
   }
 }
 
+export function assertStaffCaller(profile: CallerProfile) {
+  if (profile.role === 'aluno') {
+    throw new ApiRouteError(403, 'Acao restrita a administracao e professor.');
+  }
+}
+
 export async function getTargetProfile(userId: string): Promise<CallerProfile | null> {
   const admin = getSupabaseAdmin();
   const { data, error } = await admin
