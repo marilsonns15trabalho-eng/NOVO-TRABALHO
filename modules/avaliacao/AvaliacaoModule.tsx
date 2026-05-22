@@ -27,7 +27,6 @@ import {
 import ProfileAvatar from '@/components/account/ProfileAvatar';
 import AssessmentPhotoGallery from '@/components/avaliacao/AssessmentPhotoGallery';
 import AssessmentPhotoUploader from '@/components/avaliacao/AssessmentPhotoUploader';
-import AvaliacaoEvolutionBadge from '@/components/avaliacao/AvaliacaoEvolutionBadge';
 import ChartWrapper from '@/components/ChartWrapper';
 import {
   ModuleEmptyState,
@@ -40,10 +39,6 @@ import {
 } from '@/components/dashboard/ModulePrimitives';
 import { ConfirmDialog, Toast } from '@/components/ui';
 import { createPhotoDraftMap, revokePhotoDraftUrls } from '@/lib/assessmentPhotos';
-import {
-  describeAvaliacaoEvolution,
-  getAvaliacaoEvolutionMetrics,
-} from '@/lib/avaliacao-evolution';
 import {
   calcularBiometria,
   getAvaliacaoProtocolLabel,
@@ -113,6 +108,7 @@ const COMPARISON_METRICS: Array<{
     | 'massa_gorda'
     | 'massa_magra'
     | 'cintura'
+    | 'abdome'
     | 'quadril'
     | 'rcq';
   label: string;
@@ -128,9 +124,19 @@ const COMPARISON_METRICS: Array<{
   { key: 'massa_gorda', label: 'Massa gorda', suffix: 'kg', precision: 1, mode: 'lower_better', threshold: 0.1 },
   { key: 'massa_magra', label: 'Massa magra', suffix: 'kg', precision: 1, mode: 'higher_better', threshold: 0.1 },
   { key: 'cintura', label: 'Cintura', suffix: 'cm', precision: 1, mode: 'lower_better', threshold: 0.3 },
+  { key: 'abdome', label: 'Abdome', suffix: 'cm', precision: 1, mode: 'lower_better', threshold: 0.3 },
   { key: 'quadril', label: 'Quadril', suffix: 'cm', precision: 1, mode: 'direction', threshold: 0.3 },
   { key: 'rcq', label: 'RCQ', suffix: '', precision: 2, mode: 'lower_better', threshold: 0.01 },
 ];
+
+const TOP_CHANGE_METRIC_KEYS = ['peso', 'cintura', 'quadril', 'abdome'] as const;
+
+const TOP_CHANGE_VALUE_CLASSNAMES: Record<(typeof TOP_CHANGE_METRIC_KEYS)[number], string> = {
+  peso: 'text-fuchsia-300',
+  cintura: 'text-emerald-300',
+  quadril: 'text-sky-300',
+  abdome: 'text-amber-300',
+};
 
 type ComparisonTone = 'improved' | 'worsened' | 'stable' | 'up' | 'down';
 
@@ -638,28 +644,33 @@ export default function AvaliacaoModule() {
   const availableComparisonOptions = historicoOrdenadoDesc.filter(
     (avaliacao) => avaliacao.id !== selectedReport?.id,
   );
-  const selectedReportBodyFatDelta = selectedReport
-    ? getMetricDelta(
-        selectedReport.percentual_gordura,
-        primaryComparisonBase?.percentual_gordura,
-      )
-    : null;
-  const selectedReportLeanMassDelta = selectedReport
-    ? getMetricDelta(selectedReport.massa_magra, primaryComparisonBase?.massa_magra)
-    : null;
-  const selectedReportFatMassDelta = selectedReport
-    ? getMetricDelta(selectedReport.massa_gorda, primaryComparisonBase?.massa_gorda)
-    : null;
   const comparisonIntervalDays =
     selectedReport && primaryComparisonBase
       ? Math.abs(diffDateOnlyInDays(primaryComparisonBase.data, selectedReport.data) ?? 0)
       : null;
-  const evolutionMetrics = useMemo(
-    () => getAvaliacaoEvolutionMetrics(selectedReport, primaryComparisonBase),
-    [primaryComparisonBase, selectedReport],
-  );
-  const evolutionSummary = useMemo(
-    () => describeAvaliacaoEvolution(selectedReport, primaryComparisonBase),
+  const topChangeCards = useMemo(
+    () =>
+      TOP_CHANGE_METRIC_KEYS.map((key) => {
+        const metric = COMPARISON_METRICS.find((item) => item.key === key);
+        const currentValue = selectedReport?.[key] as number | null | undefined;
+        const baseValue = primaryComparisonBase?.[key] as number | null | undefined;
+        const delta = metric ? getMetricDelta(currentValue, baseValue, metric.precision) : null;
+        const tone = metric && delta !== null ? getComparisonTone(delta, metric) : null;
+        const toneStyles = tone ? COMPARISON_TONE_STYLES[tone] : null;
+
+        return {
+          key,
+          label: metric?.label || key,
+          suffix: metric?.suffix || '',
+          precision: metric?.precision ?? 1,
+          currentValue,
+          baseValue,
+          delta,
+          tone,
+          toneStyles,
+          valueClassName: TOP_CHANGE_VALUE_CLASSNAMES[key],
+        };
+      }),
     [primaryComparisonBase, selectedReport],
   );
 
@@ -674,13 +685,21 @@ export default function AvaliacaoModule() {
     }
   };
 
-  const handleExportEvolutionPdf = async (base: Avaliacao, atual: Avaliacao) => {
+  const handleExportEvolutionPdf = async (avaliacoesSelecionadas: Avaliacao[]) => {
     try {
-      const result = await exportAvaliacaoEvolutionPdf(base, atual);
-      showNotification(getPdfFeedbackMessage(result, 'PDF de evolucao'), 'success');
+      const orderedSelection = [...avaliacoesSelecionadas].sort((a, b) =>
+        compareDateOnly(a.data, b.data),
+      );
+
+      if (orderedSelection.length < 2) {
+        throw new Error('Selecione pelo menos duas avaliacoes para gerar o comparativo.');
+      }
+
+      const result = await exportAvaliacaoEvolutionPdf(orderedSelection);
+      showNotification(getPdfFeedbackMessage(result, 'PDF comparativo'), 'success');
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : 'Nao foi possivel gerar o PDF de evolucao.';
+        error instanceof Error ? error.message : 'Nao foi possivel gerar o PDF comparativo.';
       showNotification(message, 'error');
     }
   };
@@ -966,22 +985,24 @@ export default function AvaliacaoModule() {
                     </button>
                     <button
                       onClick={() =>
-                        primaryComparisonBase &&
-                        void handleExportEvolutionPdf(primaryComparisonBase, selectedReport)
+                        comparisonEntries.length >= 2 &&
+                        void handleExportEvolutionPdf(comparisonEntries)
                       }
-                      disabled={!primaryComparisonBase}
+                      disabled={comparisonEntries.length < 2}
                       className={`px-6 py-2 rounded-xl font-bold transition-all flex items-center gap-2 ${
-                        primaryComparisonBase
+                        comparisonEntries.length >= 2
                           ? 'bg-white/10 text-white hover:bg-white/15'
                           : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
                       }`}
                       title={
-                        primaryComparisonBase
-                          ? 'Gerar relatorio comparativo entre a base principal e a data em foco.'
-                          : 'Selecione uma base principal para habilitar o PDF de evolucao.'
+                        comparisonEntries.length >= 2
+                          ? 'Gerar relatorio comparativo com todas as avaliacoes selecionadas.'
+                          : 'Selecione ao menos duas avaliacoes para habilitar o PDF comparativo.'
                       }
                     >
-                      PDF evolucao
+                      {comparisonEntries.length > 2
+                        ? `PDF comparativo (${comparisonEntries.length})`
+                        : 'PDF evolucao'}
                     </button>
                     {canManageRecords ? (
                       <button
@@ -1229,37 +1250,14 @@ export default function AvaliacaoModule() {
                             </span>
                           ) : null}
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                          {evolutionMetrics.map((metric) => {
-                            const unit =
-                              metric.key === 'massa_magra'
-                                ? 'kg'
-                                : metric.key === 'cintura'
-                                  ? 'cm'
-                                  : '%';
-                            const signedDelta = `${metric.delta > 0 ? '+' : ''}${formatMetricValue(
-                              metric.delta,
-                              unit,
-                              1,
-                            )}`;
-
-                            return (
-                              <AvaliacaoEvolutionBadge
-                                key={metric.key}
-                                tone={metric.tone}
-                                label={`${metric.label} ${signedDelta}`}
-                              />
-                            );
-                          })}
-                        </div>
-                        {evolutionSummary ? (
-                          <p className="mt-3 text-sm text-zinc-200">{evolutionSummary}</p>
-                        ) : (
-                          <p className="mt-3 text-sm text-zinc-400">
-                            Comparacao pronta. Ajuste as datas livremente ate chegar no recorte
-                            ideal.
-                          </p>
-                        )}
+                        <p className="text-sm text-zinc-200">
+                          O comparativo principal usa a base selecionada, enquanto a matriz e o
+                          PDF levam junto todas as datas extras marcadas neste workspace.
+                        </p>
+                        <p className="mt-2 text-sm text-zinc-400">
+                          Se quiser um PDF somente entre duas datas, deixe apenas a data em foco e
+                          a base principal selecionadas.
+                        </p>
                       </div>
                     ) : (
                       <div className="rounded-3xl border border-zinc-800 bg-black/20 p-5 text-sm text-zinc-400">
@@ -1417,96 +1415,63 @@ export default function AvaliacaoModule() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-6 mb-8 md:grid-cols-2 xl:grid-cols-4">
-                  <div className="bg-black/40 border border-zinc-800 p-6 rounded-2xl text-center relative">
-                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">
-                      Percentual de Gordura
-                    </p>
-                    <p className="text-4xl font-black text-purple-500">
-                      {selectedReport.percentual_gordura !== undefined &&
-                      selectedReport.percentual_gordura !== null
-                        ? formatMetricValue(selectedReport.percentual_gordura, '%')
-                        : '-'}
-                    </p>
-                    <p className="text-xs text-zinc-600 mt-2">
-                      {getAvaliacaoProtocolLabel(selectedReport.protocolo)}
-                    </p>
-                    {primaryComparisonBase && selectedReportBodyFatDelta !== null ? (
+                <div className="mb-8">
+                  <div className="mb-4 flex flex-wrap items-center gap-2">
+                    <TrendingUp className="text-purple-500" />
+                    <h4 className="text-xl font-bold">Top 4 mudancas</h4>
+                    <span className="rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-400">
+                      Peso, cintura, quadril e abdome
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+                    {topChangeCards.map((card) => (
                       <div
-                        className={`absolute top-4 right-4 text-xs font-bold flex items-center gap-1 ${
-                          selectedReportBodyFatDelta < 0
-                            ? 'text-emerald-500'
-                            : 'text-rose-500'
+                        key={card.key}
+                        className={`rounded-2xl border p-6 ${
+                          card.toneStyles?.panelClassName ||
+                          'border-zinc-800 bg-black/40'
                         }`}
                       >
-                        {selectedReportBodyFatDelta < 0 ? (
-                          <ArrowDown size={12} />
-                        ) : (
-                          <ArrowUp size={12} />
-                        )}
-                        {formatMetricValue(Math.abs(selectedReportBodyFatDelta), '%')}
-                      </div>
-                    ) : null}
-                  </div>
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
+                              {card.label}
+                            </p>
+                            <p className={`mt-2 text-4xl font-black ${card.valueClassName}`}>
+                              {formatMetricValue(card.currentValue, card.suffix, card.precision)}
+                            </p>
+                          </div>
+                          {card.delta !== null ? (
+                            <div className="flex items-center gap-1 text-xs font-bold">
+                              {card.delta > 0 ? (
+                                <ArrowUp size={12} />
+                              ) : card.delta < 0 ? (
+                                <ArrowDown size={12} />
+                              ) : null}
+                              {card.delta > 0 ? '+' : ''}
+                              {formatMetricValue(card.delta, card.suffix, card.precision)}
+                            </div>
+                          ) : null}
+                        </div>
 
-                  <div className="bg-black/40 border border-zinc-800 p-6 rounded-2xl text-center relative">
-                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">
-                      Massa Magra
-                    </p>
-                    <p className="text-4xl font-black text-emerald-500">
-                      {formatMetricValue(selectedReport.massa_magra, 'kg')}
-                    </p>
-                    {primaryComparisonBase && selectedReportLeanMassDelta !== null ? (
-                      <div
-                        className={`absolute top-4 right-4 text-xs font-bold flex items-center gap-1 ${
-                          selectedReportLeanMassDelta > 0
-                            ? 'text-emerald-500'
-                            : 'text-rose-500'
-                        }`}
-                      >
-                        {selectedReportLeanMassDelta > 0 ? (
-                          <ArrowUp size={12} />
-                        ) : (
-                          <ArrowDown size={12} />
-                        )}
-                        {formatMetricValue(Math.abs(selectedReportLeanMassDelta), 'kg')}
-                      </div>
-                    ) : null}
-                  </div>
+                        <p className="mt-2 text-xs text-zinc-500">
+                          Base principal:{' '}
+                          {formatMetricValue(card.baseValue, card.suffix, card.precision)}
+                        </p>
 
-                  <div className="bg-black/40 border border-zinc-800 p-6 rounded-2xl text-center relative">
-                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">
-                      Massa Gorda
-                    </p>
-                    <p className="text-4xl font-black text-red-500">
-                      {formatMetricValue(selectedReport.massa_gorda, 'kg')}
-                    </p>
-                    {primaryComparisonBase && selectedReportFatMassDelta !== null ? (
-                      <div
-                        className={`absolute top-4 right-4 text-xs font-bold flex items-center gap-1 ${
-                          selectedReportFatMassDelta < 0
-                            ? 'text-emerald-500'
-                            : 'text-rose-500'
-                        }`}
-                      >
-                        {selectedReportFatMassDelta < 0 ? (
-                          <ArrowDown size={12} />
+                        {card.toneStyles ? (
+                          <span
+                            className={`mt-3 inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${card.toneStyles.badgeClassName}`}
+                          >
+                            {card.toneStyles.label}
+                          </span>
                         ) : (
-                          <ArrowUp size={12} />
+                          <p className="mt-3 text-xs text-zinc-500">
+                            Selecione uma base principal para ver a mudanca.
+                          </p>
                         )}
-                        {formatMetricValue(Math.abs(selectedReportFatMassDelta), 'kg')}
                       </div>
-                    ) : null}
-                  </div>
-
-                  <div className="bg-black/40 border border-zinc-800 p-6 rounded-2xl text-center">
-                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">
-                      RCQ
-                    </p>
-                    <p className="text-4xl font-black text-amber-400">
-                      {formatMetricValue(selectedReport.rcq, '', 2)}
-                    </p>
-                    <p className="text-xs text-zinc-600 mt-2">Relacao cintura-quadril</p>
+                    ))}
                   </div>
                 </div>
 

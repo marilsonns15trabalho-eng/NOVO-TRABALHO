@@ -1,4 +1,9 @@
-import { diffDateOnlyInDays, formatDatePtBr, formatDateTimePtBr } from '@/lib/date';
+import {
+  compareDateOnly,
+  diffDateOnlyInDays,
+  formatDatePtBr,
+  formatDateTimePtBr,
+} from '@/lib/date';
 import { calcularRcq, getAvaliacaoProtocolLabel } from '@/lib/biometrics';
 import { downloadFile, type FileDownloadResult } from '@/lib/external-links';
 
@@ -186,6 +191,7 @@ async function savePdfDocument(
 }
 
 function drawHeader(doc: any) {
+  const pageWidth = doc.internal.pageSize.getWidth();
   doc.setTextColor(18, 18, 18);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
@@ -198,7 +204,7 @@ function drawHeader(doc: any) {
 
   doc.setDrawColor(160, 160, 160);
   doc.setLineWidth(0.5);
-  doc.line(14, 26, 196, 26);
+  doc.line(14, 26, pageWidth - 14, 26);
 }
 
 function drawSectionTitle(doc: any, title: string, y: number) {
@@ -254,6 +260,24 @@ function buildRow(
   ];
 }
 
+function buildSeriesRow(
+  label: string,
+  avaliacoes: PdfAvaliacao[],
+  pickValue: (avaliacao: PdfAvaliacao) => number | null | undefined,
+  unit = '',
+  digits = 1,
+) {
+  const values = avaliacoes.map((avaliacao) => pickValue(avaliacao));
+  const firstValue = values[0];
+  const lastValue = values[values.length - 1];
+
+  return [
+    label,
+    ...values.map((value) => formatMetric(value, unit, digits)),
+    formatVariation(lastValue, firstValue, unit, digits),
+  ];
+}
+
 function drawGridTable(
   renderTable: (options: Record<string, unknown>) => void,
   doc: any,
@@ -285,6 +309,48 @@ function drawGridTable(
     alternateRowStyles: { fillColor: [250, 250, 250] },
     styles: {
       fontSize: 9,
+      cellPadding: 3,
+      halign: 'center',
+      valign: 'middle',
+    },
+    columnStyles: {
+      0: { halign: 'left', fontStyle: 'bold' },
+    },
+    margin: { left: 14, right: 14 },
+  });
+}
+
+function drawFlexibleGridTable(
+  renderTable: (options: Record<string, unknown>) => void,
+  doc: any,
+  title: string,
+  startY: number,
+  headers: string[],
+  body: string[][],
+  fontSize = 8.5,
+) {
+  drawSectionTitle(doc, title, startY);
+
+  renderTable({
+    startY: startY + 8,
+    head: [headers],
+    body,
+    theme: 'grid',
+    headStyles: {
+      fillColor: [224, 224, 224],
+      textColor: [16, 16, 16],
+      fontStyle: 'bold',
+      lineColor: [170, 170, 170],
+      lineWidth: 0.2,
+    },
+    bodyStyles: {
+      textColor: [30, 30, 30],
+      lineColor: [185, 185, 185],
+      lineWidth: 0.15,
+    },
+    alternateRowStyles: { fillColor: [250, 250, 250] },
+    styles: {
+      fontSize,
       cellPadding: 3,
       halign: 'center',
       valign: 'middle',
@@ -510,7 +576,312 @@ function buildRecommendations(previous: PdfAvaliacao, current: PdfAvaliacao) {
   return items.slice(0, 5);
 }
 
-export async function exportAvaliacaoEvolutionPdf(
+function normalizeEvolutionSelection(
+  previousOrSelection: PdfAvaliacao | PdfAvaliacao[],
+  current?: PdfAvaliacao,
+) {
+  const source = Array.isArray(previousOrSelection)
+    ? previousOrSelection
+    : [previousOrSelection, current].filter(Boolean);
+
+  const uniqueMap = new Map<string, PdfAvaliacao>();
+  source.forEach((avaliacao, index) => {
+    const item = avaliacao as PdfAvaliacao;
+    const key = item.id || `${item.data}-${index}`;
+    if (!uniqueMap.has(key)) {
+      uniqueMap.set(key, item);
+    }
+  });
+
+  return Array.from(uniqueMap.values()).sort((a, b) => compareDateOnly(a.data, b.data));
+}
+
+function drawMultiInfoBlock(doc: any, avaliacoes: PdfAvaliacao[], reportDate: Date) {
+  const first = avaliacoes[0];
+  const last = avaliacoes[avaliacoes.length - 1];
+  const studentName = last.students?.nome || first.students?.nome || 'Aluno';
+  const selectedDates = avaliacoes.map((item) => formatDatePtBr(item.data)).join(' | ');
+
+  drawSectionTitle(doc, 'RELATORIO COMPARATIVO DE EVOLUCAO', 42);
+
+  const infoRows = [
+    ['Aluno', studentName],
+    ['Periodo', `${formatDatePtBr(first.data)} a ${formatDatePtBr(last.data)}`],
+    ['Intervalo total', `${diffInDays(first.data, last.data)} dias`],
+    ['Avaliacoes', String(avaliacoes.length)],
+    ['Data Relatorio', formatDateTimePtBr(reportDate)],
+  ];
+
+  let y = 58;
+  for (const [label, value] of infoRows) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(17, 24, 39);
+    doc.text(`${label}:`, 14, y);
+
+    doc.setFont('helvetica', 'normal');
+    doc.text(String(value || '-'), 54, y);
+    y += 9;
+  }
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(17, 24, 39);
+  doc.text('Datas selecionadas:', 14, y + 4);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(selectedDates, 14, y + 12, {
+    maxWidth: doc.internal.pageSize.getWidth() - 28,
+    lineHeightFactor: 1.4,
+  });
+}
+
+function buildMultiAnalysis(avaliacoes: PdfAvaliacao[]) {
+  if (avaliacoes.length < 2) {
+    return 'Nao ha dados suficientes para descrever a evolucao entre as avaliacoes selecionadas.';
+  }
+
+  const first = avaliacoes[0];
+  const last = avaliacoes[avaliacoes.length - 1];
+  const baseAnalysis = buildAnalysis(first, last);
+
+  return `Foram comparadas ${avaliacoes.length} avaliacoes selecionadas, do periodo de ${formatDatePtBr(
+    first.data,
+  )} ate ${formatDatePtBr(last.data)}. ${baseAnalysis}`;
+}
+
+function buildMultiRecommendations(avaliacoes: PdfAvaliacao[]) {
+  if (avaliacoes.length < 2) {
+    return ['Manter a reavaliacao periodica para consolidar historico e orientar ajustes com base em dados reais.'];
+  }
+
+  const first = avaliacoes[0];
+  const last = avaliacoes[avaliacoes.length - 1];
+  const recommendations = buildRecommendations(first, last);
+
+  if (avaliacoes.length > 2) {
+    recommendations.unshift(
+      'Use a leitura das datas intermediarias para confirmar tendencia, platô ou mudanca de resposta ao longo do periodo.',
+    );
+  }
+
+  return recommendations.slice(0, 6);
+}
+
+async function exportMultiAvaliacaoEvolutionPdf(
+  avaliacoes: PdfAvaliacao[],
+): Promise<FileDownloadResult | null> {
+  const { default: jsPDF } = await import('jspdf');
+  const { default: autoTable } = await import('jspdf-autotable');
+
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
+  const renderTable = (options: Record<string, unknown>) => (autoTable as any)(doc, options);
+  const reportDate = new Date();
+  const first = avaliacoes[0];
+  const last = avaliacoes[avaliacoes.length - 1];
+  const dateHeaders = avaliacoes.map((avaliacao) => formatDatePtBr(avaliacao.data));
+  const tableHeaders = ['Parametro', ...dateHeaders, 'Variacao total'];
+  const compactFontSize = avaliacoes.length >= 5 ? 7.2 : avaliacoes.length >= 4 ? 7.8 : 8.4;
+
+  drawHeader(doc);
+  drawMultiInfoBlock(doc, avaliacoes, reportDate);
+  drawFlexibleGridTable(
+    renderTable,
+    doc,
+    'TOP 4 MUDANCAS',
+    112,
+    tableHeaders,
+    [
+      buildSeriesRow('Peso', avaliacoes, (item) => asNumber(item.peso), ' kg'),
+      buildSeriesRow('Cintura', avaliacoes, (item) => asNumber(item.cintura), ' cm'),
+      buildSeriesRow('Quadril', avaliacoes, (item) => asNumber(item.quadril), ' cm'),
+      buildSeriesRow('Abdome', avaliacoes, (item) => asNumber(item.abdome), ' cm'),
+    ],
+    compactFontSize,
+  );
+
+  doc.addPage();
+  drawHeader(doc);
+  drawFlexibleGridTable(
+    renderTable,
+    doc,
+    'RESUMO COMPARATIVO',
+    38,
+    tableHeaders,
+    [
+      buildSeriesRow('Peso (kg)', avaliacoes, (item) => asNumber(item.peso), ' kg'),
+      buildSeriesRow('IMC', avaliacoes, (item) => asNumber(item.imc), '', 2),
+      buildSeriesRow('% Gordura', avaliacoes, (item) => asNumber(item.percentual_gordura), '%'),
+      buildSeriesRow('Massa Gorda (kg)', avaliacoes, (item) => asNumber(item.massa_gorda), ' kg'),
+      buildSeriesRow('Massa Magra (kg)', avaliacoes, (item) => asNumber(item.massa_magra), ' kg'),
+      buildSeriesRow('Cintura (cm)', avaliacoes, (item) => asNumber(item.cintura), ' cm'),
+      buildSeriesRow('Quadril (cm)', avaliacoes, (item) => asNumber(item.quadril), ' cm'),
+      buildSeriesRow('Abdome (cm)', avaliacoes, (item) => asNumber(item.abdome), ' cm'),
+      buildSeriesRow(
+        'RCQ',
+        avaliacoes,
+        (item) => calcularRcq(item.cintura, item.quadril),
+        '',
+        2,
+      ),
+    ],
+    compactFontSize,
+  );
+
+  doc.addPage();
+  drawHeader(doc);
+  drawFlexibleGridTable(
+    renderTable,
+    doc,
+    'PERIMETROS E DOBRAS',
+    38,
+    tableHeaders,
+    [
+      buildSeriesRow('Pescoco (cm)', avaliacoes, (item) => asNumber(item.pescoco), ' cm'),
+      buildSeriesRow('Torax (cm)', avaliacoes, (item) => asNumber(item.torax), ' cm'),
+      buildSeriesRow('Cintura (cm)', avaliacoes, (item) => asNumber(item.cintura), ' cm'),
+      buildSeriesRow('Abdome (cm)', avaliacoes, (item) => asNumber(item.abdome), ' cm'),
+      buildSeriesRow('Quadril (cm)', avaliacoes, (item) => asNumber(item.quadril), ' cm'),
+      buildSeriesRow(
+        'Tricipital (mm)',
+        avaliacoes,
+        (item) => asNumber(item.tricipital),
+        ' mm',
+      ),
+      buildSeriesRow(
+        'Subescapular (mm)',
+        avaliacoes,
+        (item) => asNumber(item.subescapular),
+        ' mm',
+      ),
+      buildSeriesRow(
+        'Supra-iliaca (mm)',
+        avaliacoes,
+        (item) => asNumber(item.supra_iliaca),
+        ' mm',
+      ),
+      buildSeriesRow(
+        'Abdominal (mm)',
+        avaliacoes,
+        (item) => asNumber(item.abdominal),
+        ' mm',
+      ),
+      buildSeriesRow('Soma Dobras', avaliacoes, (item) => calculateSkinfoldSum(item), ' mm'),
+    ],
+    compactFontSize,
+  );
+
+  doc.addPage();
+  drawHeader(doc);
+  drawSectionTitle(doc, 'GRAFICOS COMPARATIVOS', 38);
+  drawGroupedBarChart(
+    doc,
+    14,
+    48,
+    128,
+    72,
+    'Peso x Massa Magra',
+    avaliacoes.map((item) => ({
+      label: formatDatePtBr(item.data),
+      values: [asNumber(item.peso), asNumber(item.massa_magra)],
+    })),
+    [
+      { label: 'Peso', color: [59, 130, 246] },
+      { label: 'Massa Magra', color: [34, 197, 94] },
+    ],
+  );
+  drawGroupedBarChart(
+    doc,
+    155,
+    48,
+    128,
+    72,
+    'Percentual de Gordura',
+    avaliacoes.map((item) => ({
+      label: formatDatePtBr(item.data),
+      values: [asNumber(item.percentual_gordura)],
+    })),
+    [{ label: '% Gordura', color: [220, 38, 38] }],
+  );
+  drawGroupedBarChart(
+    doc,
+    14,
+    132,
+    128,
+    72,
+    'Cintura x Abdome',
+    avaliacoes.map((item) => ({
+      label: formatDatePtBr(item.data),
+      values: [asNumber(item.cintura), asNumber(item.abdome)],
+    })),
+    [
+      { label: 'Cintura', color: [245, 158, 11] },
+      { label: 'Abdome', color: [249, 115, 22] },
+    ],
+  );
+  drawGroupedBarChart(
+    doc,
+    155,
+    132,
+    128,
+    72,
+    'Quadril',
+    avaliacoes.map((item) => ({
+      label: formatDatePtBr(item.data),
+      values: [asNumber(item.quadril)],
+    })),
+    [{ label: 'Quadril', color: [14, 165, 233] }],
+  );
+
+  doc.addPage();
+  drawHeader(doc);
+  drawSectionTitle(doc, 'ANALISE GERAL', 38);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(11);
+  doc.setTextColor(28, 28, 28);
+  doc.text(buildMultiAnalysis(avaliacoes), 14, 52, {
+    maxWidth: doc.internal.pageSize.getWidth() - 28,
+    lineHeightFactor: 1.5,
+  });
+
+  drawSectionTitle(doc, 'RECOMENDACOES', 104);
+  const recommendations = buildMultiRecommendations(avaliacoes);
+  let bulletY = 118;
+  recommendations.forEach((item) => {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.text(`- ${item}`, 14, bulletY, {
+      maxWidth: doc.internal.pageSize.getWidth() - 28,
+      lineHeightFactor: 1.5,
+    });
+    bulletY += 14;
+  });
+
+  if (last.observacoes) {
+    drawSectionTitle(doc, 'OBSERVACOES DA AVALIACAO MAIS RECENTE', Math.max(186, bulletY + 8));
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text(last.observacoes, 14, Math.max(200, bulletY + 22), {
+      maxWidth: doc.internal.pageSize.getWidth() - 28,
+      lineHeightFactor: 1.45,
+    });
+  }
+
+  doc.setFontSize(8);
+  doc.setTextColor(110, 110, 110);
+  doc.text(
+    `Documento gerado em ${formatDateTimePtBr(reportDate)}.`,
+    doc.internal.pageSize.getWidth() / 2,
+    doc.internal.pageSize.getHeight() - 11,
+    { align: 'center' },
+  );
+
+  const studentName = safeFileName(last.students?.nome || first.students?.nome || 'aluno');
+  const fileName = `Comparativo_${studentName}_${formatDatePtBr(first.data).replace(/\//g, '-')}_${formatDatePtBr(last.data).replace(/\//g, '-')}_${avaliacoes.length}_avaliacoes.pdf`;
+  return savePdfDocument(doc, fileName);
+}
+
+async function exportDualAvaliacaoEvolutionPdf(
   previous: PdfAvaliacao,
   current: PdfAvaliacao,
 ): Promise<FileDownloadResult | null> {
@@ -695,12 +1066,29 @@ export async function exportAvaliacaoEvolutionPdf(
   doc.setTextColor(110, 110, 110);
   doc.text(
     `Documento gerado em ${formatDateTimePtBr(reportDate)}.`,
-    105,
-    286,
+    doc.internal.pageSize.getWidth() / 2,
+    doc.internal.pageSize.getHeight() - 11,
     { align: 'center' },
   );
 
   const studentName = safeFileName(current.students?.nome || previous.students?.nome || 'aluno');
   const fileName = `Evolucao_${studentName}_${dateA.replace(/\//g, '-')}_${dateB.replace(/\//g, '-')}.pdf`;
   return savePdfDocument(doc, fileName);
+}
+
+export async function exportAvaliacaoEvolutionPdf(
+  previousOrSelection: PdfAvaliacao | PdfAvaliacao[],
+  current?: PdfAvaliacao,
+): Promise<FileDownloadResult | null> {
+  const normalizedSelection = normalizeEvolutionSelection(previousOrSelection, current);
+
+  if (normalizedSelection.length < 2) {
+    throw new Error('Selecione ao menos duas avaliacoes para gerar o comparativo.');
+  }
+
+  if (normalizedSelection.length === 2) {
+    return exportDualAvaliacaoEvolutionPdf(normalizedSelection[0], normalizedSelection[1]);
+  }
+
+  return exportMultiAvaliacaoEvolutionPdf(normalizedSelection);
 }
