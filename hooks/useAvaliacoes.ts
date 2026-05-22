@@ -240,14 +240,11 @@ export function useAvaliacoes() {
         throw new Error('Acao nao permitida para aluno');
       }
 
+      const reportStudentId = selectedAvaliacao?.student_id ?? null;
+      const selectedReportId = selectedAvaliacao?.id ?? null;
+
       setDeletingId(deleteConfirmation);
       await avaliacoesService.excluirAvaliacao(deleteConfirmation);
-
-      if (selectedAvaliacao?.id === deleteConfirmation) {
-        setShowViewModal(false);
-        setSelectedAvaliacao(null);
-        setHistorico([]);
-      }
 
       if (editingAvaliacao?.id === deleteConfirmation) {
         setShowAddModal(false);
@@ -258,6 +255,29 @@ export function useAvaliacoes() {
       setDeleteConfirmation(null);
       showNotification('Avaliacao excluida com sucesso.', 'success');
       await loadData();
+
+      if (showViewModal && reportStudentId) {
+        const updatedHistorico = await avaliacoesService.fetchHistoricoAluno(
+          reportStudentId,
+          restrictLinkedAuthUserId,
+        );
+
+        if (updatedHistorico.length > 0) {
+          const nextSelected =
+            updatedHistorico.find((item) => item.id === selectedReportId) ??
+            updatedHistorico[updatedHistorico.length - 1];
+
+          setHistorico(updatedHistorico);
+          setSelectedAvaliacao(nextSelected);
+        } else {
+          setShowViewModal(false);
+          setSelectedAvaliacao(null);
+          setHistorico([]);
+        }
+      } else if (selectedReportId === deleteConfirmation) {
+        setSelectedAvaliacao(null);
+        setHistorico([]);
+      }
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Nao foi possivel excluir a avaliacao.';
@@ -270,7 +290,9 @@ export function useAvaliacoes() {
     editingAvaliacao,
     isAluno,
     loadData,
+    restrictLinkedAuthUserId,
     selectedAvaliacao,
+    showViewModal,
     showNotification,
   ]);
 
@@ -289,6 +311,7 @@ export function useAvaliacoes() {
     showViewModal,
     setShowViewModal,
     selectedAvaliacao,
+    setSelectedAvaliacao,
     historico,
     viewAvaliacao,
     newAvaliacao,
