@@ -238,6 +238,21 @@ function getDefaultComparisonId(historico: Avaliacao[], currentId?: string | nul
   return currentIndex > 0 ? historico[currentIndex - 1]?.id ?? '' : '';
 }
 
+function buildDefaultPdfSelectionIds(
+  historico: Avaliacao[],
+  selectedReport: Avaliacao | null,
+  comparisonEntries: Avaliacao[],
+) {
+  const seededIds =
+    comparisonEntries.length >= 2
+      ? comparisonEntries.map((item) => item.id)
+      : selectedReport
+        ? [selectedReport.id, getDefaultComparisonId(historico, selectedReport.id)]
+        : [];
+
+  return Array.from(new Set(seededIds.filter(Boolean)));
+}
+
 function buildStudentHistoryGroups(avaliacoes: Avaliacao[]): StudentHistoryGroup[] {
   const groups = new Map<string, StudentHistoryGroup>();
 
@@ -325,6 +340,12 @@ export default function AvaliacaoModule() {
     useState<AvaliacaoPhotoPosition | null>(null);
   const [primaryComparisonId, setPrimaryComparisonId] = useState('');
   const [extraComparisonIds, setExtraComparisonIds] = useState<string[]>([]);
+  const [showPdfSelectionModal, setShowPdfSelectionModal] = useState(false);
+  const [pdfSelectionIds, setPdfSelectionIds] = useState<string[]>([]);
+  const [pdfExporting, setPdfExporting] = useState(false);
+  const [comparisonWorkspaceTab, setComparisonWorkspaceTab] = useState<'top_changes' | 'matrix'>(
+    'top_changes',
+  );
   const alunoPickerRef = useRef<HTMLDivElement | null>(null);
 
   const historicoOrdenadoDesc = useMemo(
@@ -501,6 +522,9 @@ export default function AvaliacaoModule() {
     if (!showReportModal || !selectedReport) {
       setPrimaryComparisonId('');
       setExtraComparisonIds([]);
+      setShowPdfSelectionModal(false);
+      setPdfSelectionIds([]);
+      setComparisonWorkspaceTab('top_changes');
       return;
     }
 
@@ -590,6 +614,26 @@ export default function AvaliacaoModule() {
     void startEdit(avaliacao);
   };
 
+  const handleOpenPdfSelectionModal = () => {
+    if (historicoOrdenadoDesc.length < 2) {
+      showNotification('Selecione uma aluna com pelo menos duas avaliacoes.', 'error');
+      return;
+    }
+
+    setPdfSelectionIds(
+      buildDefaultPdfSelectionIds(historicoOrdenadoDesc, selectedReport, comparisonEntries),
+    );
+    setShowPdfSelectionModal(true);
+  };
+
+  const handleTogglePdfSelection = (avaliacaoId: string) => {
+    setPdfSelectionIds((currentValue) =>
+      currentValue.includes(avaliacaoId)
+        ? currentValue.filter((id) => id !== avaliacaoId)
+        : [...currentValue, avaliacaoId],
+    );
+  };
+
   const filteredAvaliacoes = avaliacoes.filter((avaliacao) => {
     const avaliacaoDate = extractDateOnly(avaliacao.data);
     const matchInicio = filterDataInicio
@@ -648,6 +692,14 @@ export default function AvaliacaoModule() {
     selectedReport && primaryComparisonBase
       ? Math.abs(diffDateOnlyInDays(primaryComparisonBase.data, selectedReport.data) ?? 0)
       : null;
+  const selectedPdfAvaliacoes = useMemo(
+    () =>
+      historicoOrdenadoDesc.filter((avaliacao) => pdfSelectionIds.includes(avaliacao.id)).sort((a, b) =>
+        compareDateOnly(a.data, b.data),
+      ),
+    [historicoOrdenadoDesc, pdfSelectionIds],
+  );
+  const canChoosePdfComparativo = historicoOrdenadoDesc.length >= 2;
   const topChangeCards = useMemo(
     () =>
       TOP_CHANGE_METRIC_KEYS.map((key) => {
@@ -697,10 +749,29 @@ export default function AvaliacaoModule() {
 
       const result = await exportAvaliacaoEvolutionPdf(orderedSelection);
       showNotification(getPdfFeedbackMessage(result, 'PDF comparativo'), 'success');
+      return true;
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Nao foi possivel gerar o PDF comparativo.';
       showNotification(message, 'error');
+      return false;
+    }
+  };
+
+  const handleConfirmPdfSelection = async () => {
+    if (selectedPdfAvaliacoes.length < 2) {
+      showNotification('Selecione pelo menos duas avaliacoes para gerar o comparativo.', 'error');
+      return;
+    }
+
+    try {
+      setPdfExporting(true);
+      const exported = await handleExportEvolutionPdf(selectedPdfAvaliacoes);
+      if (exported) {
+        setShowPdfSelectionModal(false);
+      }
+    } finally {
+      setPdfExporting(false);
     }
   };
 
@@ -984,25 +1055,20 @@ export default function AvaliacaoModule() {
                       PDF avaliacao
                     </button>
                     <button
-                      onClick={() =>
-                        comparisonEntries.length >= 2 &&
-                        void handleExportEvolutionPdf(comparisonEntries)
-                      }
-                      disabled={comparisonEntries.length < 2}
+                      onClick={handleOpenPdfSelectionModal}
+                      disabled={!canChoosePdfComparativo}
                       className={`px-6 py-2 rounded-xl font-bold transition-all flex items-center gap-2 ${
-                        comparisonEntries.length >= 2
+                        canChoosePdfComparativo
                           ? 'bg-white/10 text-white hover:bg-white/15'
                           : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
                       }`}
                       title={
-                        comparisonEntries.length >= 2
-                          ? 'Gerar relatorio comparativo com todas as avaliacoes selecionadas.'
-                          : 'Selecione ao menos duas avaliacoes para habilitar o PDF comparativo.'
+                        canChoosePdfComparativo
+                          ? 'Escolha as avaliacoes que deseja incluir no PDF comparativo.'
+                          : 'A aluna precisa ter pelo menos duas avaliacoes para gerar o PDF comparativo.'
                       }
                     >
-                      {comparisonEntries.length > 2
-                        ? `PDF comparativo (${comparisonEntries.length})`
-                        : 'PDF evolucao'}
+                      PDF evolucao
                     </button>
                     {canManageRecords ? (
                       <button
@@ -1266,17 +1332,122 @@ export default function AvaliacaoModule() {
                       </div>
                     )}
 
-                    {primaryComparisonBase ? (
-                      <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-black/20">
-                        <div className="border-b border-zinc-800 px-5 py-4">
-                          <p className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">
-                            Matriz comparativa
-                          </p>
-                          <p className="mt-1 text-sm text-zinc-400">
-                            Compare 2 ou mais avaliacoes lado a lado. A primeira coluna e a data
-                            em foco, a segunda e a base principal e as demais sao extras.
-                          </p>
+                    <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-black/20">
+                      <div className="border-b border-zinc-800 px-5 py-4">
+                        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                          <div>
+                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">
+                              Painel comparativo
+                            </p>
+                            <p className="mt-1 text-sm text-zinc-400">
+                              Use uma aba dedicada para acompanhar as principais mudancas ou abrir
+                              a matriz completa lado a lado.
+                            </p>
+                          </div>
+                          <div className="inline-flex w-full rounded-2xl border border-zinc-800 bg-zinc-950/80 p-1 xl:w-auto">
+                            <button
+                              type="button"
+                              onClick={() => setComparisonWorkspaceTab('top_changes')}
+                              className={`flex-1 rounded-xl px-4 py-2 text-sm font-bold transition-colors xl:flex-none ${
+                                comparisonWorkspaceTab === 'top_changes'
+                                  ? 'bg-purple-500 text-white'
+                                  : 'text-zinc-400 hover:text-white'
+                              }`}
+                            >
+                              Top 4 mudancas
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setComparisonWorkspaceTab('matrix')}
+                              className={`flex-1 rounded-xl px-4 py-2 text-sm font-bold transition-colors xl:flex-none ${
+                                comparisonWorkspaceTab === 'matrix'
+                                  ? 'bg-white text-zinc-950'
+                                  : 'text-zinc-400 hover:text-white'
+                              }`}
+                            >
+                              Matriz comparativa
+                            </button>
+                          </div>
                         </div>
+                      </div>
+
+                      {comparisonWorkspaceTab === 'top_changes' ? (
+                        <div className="p-5">
+                          <div className="mb-4 flex flex-wrap items-center gap-2">
+                            <TrendingUp className="text-purple-500" />
+                            <h4 className="text-xl font-bold">Top 4 mudancas</h4>
+                            <span className="rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-400">
+                              Peso, cintura, quadril e abdome
+                            </span>
+                            {primaryComparisonBase ? (
+                              <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-200">
+                                Base: {formatDatePtBr(primaryComparisonBase.data)}
+                              </span>
+                            ) : null}
+                          </div>
+
+                          {!primaryComparisonBase ? (
+                            <div className="mb-5 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4 text-sm text-zinc-400">
+                              Escolha uma base principal para calcular as mudancas. Os cards ja
+                              ficam separados aqui para essa leitura ficar sempre facil.
+                            </div>
+                          ) : null}
+
+                          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+                            {topChangeCards.map((card) => (
+                              <div
+                                key={card.key}
+                                className={`rounded-2xl border p-6 ${
+                                  card.toneStyles?.panelClassName || 'border-zinc-800 bg-black/40'
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div>
+                                    <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
+                                      {card.label}
+                                    </p>
+                                    <p className={`mt-2 text-4xl font-black ${card.valueClassName}`}>
+                                      {formatMetricValue(
+                                        card.currentValue,
+                                        card.suffix,
+                                        card.precision,
+                                      )}
+                                    </p>
+                                  </div>
+                                  {card.delta !== null ? (
+                                    <div className="flex items-center gap-1 text-xs font-bold">
+                                      {card.delta > 0 ? (
+                                        <ArrowUp size={12} />
+                                      ) : card.delta < 0 ? (
+                                        <ArrowDown size={12} />
+                                      ) : null}
+                                      {card.delta > 0 ? '+' : ''}
+                                      {formatMetricValue(card.delta, card.suffix, card.precision)}
+                                    </div>
+                                  ) : null}
+                                </div>
+
+                                <p className="mt-2 text-xs text-zinc-500">
+                                  Base principal:{' '}
+                                  {formatMetricValue(card.baseValue, card.suffix, card.precision)}
+                                </p>
+
+                                {card.toneStyles ? (
+                                  <span
+                                    className={`mt-3 inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${card.toneStyles.badgeClassName}`}
+                                  >
+                                    {card.toneStyles.label}
+                                  </span>
+                                ) : (
+                                  <p className="mt-3 text-xs text-zinc-500">
+                                    Selecione uma base principal para ver a mudanca.
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : primaryComparisonBase ? (
                         <div className="overflow-x-auto">
                           <table className="min-w-[980px] w-full text-left">
                             <thead className="bg-zinc-950/70">
@@ -1410,68 +1581,12 @@ export default function AvaliacaoModule() {
                             </tbody>
                           </table>
                         </div>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="mb-8">
-                  <div className="mb-4 flex flex-wrap items-center gap-2">
-                    <TrendingUp className="text-purple-500" />
-                    <h4 className="text-xl font-bold">Top 4 mudancas</h4>
-                    <span className="rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-400">
-                      Peso, cintura, quadril e abdome
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-                    {topChangeCards.map((card) => (
-                      <div
-                        key={card.key}
-                        className={`rounded-2xl border p-6 ${
-                          card.toneStyles?.panelClassName ||
-                          'border-zinc-800 bg-black/40'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
-                              {card.label}
-                            </p>
-                            <p className={`mt-2 text-4xl font-black ${card.valueClassName}`}>
-                              {formatMetricValue(card.currentValue, card.suffix, card.precision)}
-                            </p>
-                          </div>
-                          {card.delta !== null ? (
-                            <div className="flex items-center gap-1 text-xs font-bold">
-                              {card.delta > 0 ? (
-                                <ArrowUp size={12} />
-                              ) : card.delta < 0 ? (
-                                <ArrowDown size={12} />
-                              ) : null}
-                              {card.delta > 0 ? '+' : ''}
-                              {formatMetricValue(card.delta, card.suffix, card.precision)}
-                            </div>
-                          ) : null}
+                      ) : (
+                        <div className="px-5 py-8 text-sm text-zinc-400">
+                          Escolha uma base principal para liberar a matriz comparativa completa.
                         </div>
-
-                        <p className="mt-2 text-xs text-zinc-500">
-                          Base principal:{' '}
-                          {formatMetricValue(card.baseValue, card.suffix, card.precision)}
-                        </p>
-
-                        {card.toneStyles ? (
-                          <span
-                            className={`mt-3 inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${card.toneStyles.badgeClassName}`}
-                          >
-                            {card.toneStyles.label}
-                          </span>
-                        ) : (
-                          <p className="mt-3 text-xs text-zinc-500">
-                            Selecione uma base principal para ver a mudanca.
-                          </p>
-                        )}
-                      </div>
-                    ))}
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -1699,6 +1814,181 @@ export default function AvaliacaoModule() {
                     <p className="text-zinc-300 italic">{selectedReport.observacoes}</p>
                   </div>
                 ) : null}
+              </motion.div>
+            </div>
+          ) : null}
+
+          {showPdfSelectionModal && selectedReport ? (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => !pdfExporting && setShowPdfSelectionModal(false)}
+                className="absolute inset-0 bg-black/85 backdrop-blur-md"
+              />
+              <motion.div
+                initial={{ scale: 0.94, opacity: 0, y: 18 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.94, opacity: 0, y: 18 }}
+                className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-2xl"
+              >
+                <div className="border-b border-zinc-800 px-6 py-5">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">
+                        PDF comparativo
+                      </p>
+                      <h4 className="mt-1 text-2xl font-bold text-white">
+                        Escolha as avaliacoes do comparativo
+                      </h4>
+                      <p className="mt-2 text-sm text-zinc-400">
+                        Selecione 2 ou mais datas da {selectedReport.students?.nome} para gerar o
+                        PDF de evolucao exatamente do jeito que voce quiser.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => !pdfExporting && setShowPdfSelectionModal(false)}
+                      className="p-2 text-zinc-500 transition-colors hover:text-white"
+                    >
+                      <Plus className="rotate-45" size={24} />
+                    </button>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <span className="rounded-full border border-zinc-800 bg-zinc-950 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-300">
+                      {selectedPdfAvaliacoes.length} selecionadas
+                    </span>
+                    {selectedPdfAvaliacoes.length >= 2 ? (
+                      <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-200">
+                        Pronto para exportar
+                      </span>
+                    ) : (
+                      <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-amber-200">
+                        Minimo de 2 datas
+                      </span>
+                    )}
+                    {selectedPdfAvaliacoes.length >= 2 ? (
+                      <span className="rounded-full border border-zinc-800 bg-zinc-950 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-300">
+                        Periodo: {formatDatePtBr(selectedPdfAvaliacoes[0].data)} ate{' '}
+                        {formatDatePtBr(selectedPdfAvaliacoes[selectedPdfAvaliacoes.length - 1].data)}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="border-b border-zinc-800 px-6 py-4">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPdfSelectionIds(historicoOrdenadoDesc.map((item) => item.id))}
+                      className="rounded-xl border border-zinc-800 px-3 py-2 text-xs font-bold text-zinc-300 transition-colors hover:border-zinc-700 hover:text-white"
+                    >
+                      Selecionar todas
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPdfSelectionIds(
+                          buildDefaultPdfSelectionIds(
+                            historicoOrdenadoDesc,
+                            selectedReport,
+                            comparisonEntries,
+                          ),
+                        )
+                      }
+                      className="rounded-xl border border-zinc-800 px-3 py-2 text-xs font-bold text-zinc-300 transition-colors hover:border-zinc-700 hover:text-white"
+                    >
+                      Usar selecao atual do painel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPdfSelectionIds([])}
+                      className="rounded-xl border border-zinc-800 px-3 py-2 text-xs font-bold text-zinc-300 transition-colors hover:border-zinc-700 hover:text-white"
+                    >
+                      Limpar
+                    </button>
+                  </div>
+                </div>
+
+                <div className="max-h-[52vh] overflow-y-auto px-6 py-5">
+                  <div className="space-y-3">
+                    {historicoOrdenadoDesc.map((avaliacao) => {
+                      const isChecked = pdfSelectionIds.includes(avaliacao.id);
+
+                      return (
+                        <label
+                          key={avaliacao.id}
+                          className={`flex cursor-pointer items-start gap-4 rounded-2xl border p-4 transition-colors ${
+                            isChecked
+                              ? 'border-purple-500/35 bg-purple-500/10'
+                              : 'border-zinc-800 bg-zinc-950/60 hover:border-zinc-700'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => handleTogglePdfSelection(avaliacao.id)}
+                            className="mt-1 h-4 w-4 rounded border-zinc-700 bg-zinc-950 text-purple-500 focus:ring-purple-500"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-bold text-white">
+                                {formatDatePtBr(avaliacao.data)}
+                              </p>
+                              {selectedReport.id === avaliacao.id ? (
+                                <span className="rounded-full border border-purple-500/30 bg-purple-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-purple-200">
+                                  Em foco
+                                </span>
+                              ) : null}
+                              {primaryComparisonId === avaliacao.id ? (
+                                <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-200">
+                                  Base principal
+                                </span>
+                              ) : null}
+                            </div>
+                            <p className="mt-2 text-sm text-zinc-400">
+                              {getAvaliacaoProtocolLabel(avaliacao.protocolo)} · Peso{' '}
+                              {formatMetricValue(avaliacao.peso, 'kg')} · Cintura{' '}
+                              {formatMetricValue(avaliacao.cintura, 'cm')} · Quadril{' '}
+                              {formatMetricValue(avaliacao.quadril, 'cm')} · Abdome{' '}
+                              {formatMetricValue(avaliacao.abdome, 'cm')}
+                            </p>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-800 px-6 py-5">
+                  <p className="text-sm text-zinc-400">
+                    O PDF vai respeitar somente as datas marcadas aqui.
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowPdfSelectionModal(false)}
+                      disabled={pdfExporting}
+                      className="rounded-2xl bg-zinc-800 px-5 py-3 font-bold text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleConfirmPdfSelection()}
+                      disabled={selectedPdfAvaliacoes.length < 2 || pdfExporting}
+                      className={`rounded-2xl px-5 py-3 font-bold transition-colors ${
+                        selectedPdfAvaliacoes.length >= 2 && !pdfExporting
+                          ? 'bg-purple-500 text-white hover:bg-purple-600'
+                          : 'cursor-not-allowed bg-zinc-800 text-zinc-500'
+                      }`}
+                    >
+                      {pdfExporting ? 'Gerando PDF...' : 'Gerar PDF comparativo'}
+                    </button>
+                  </div>
+                </div>
               </motion.div>
             </div>
           ) : null}
