@@ -374,6 +374,11 @@ export default function AvaliacaoModule() {
       [selectedReport, primaryComparisonBase, ...extraComparisonBases].filter(Boolean) as Avaliacao[],
     [extraComparisonBases, primaryComparisonBase, selectedReport],
   );
+  const comparisonMatrixEntries = useMemo(
+    () =>
+      [primaryComparisonBase, selectedReport, ...extraComparisonBases].filter(Boolean) as Avaliacao[],
+    [extraComparisonBases, primaryComparisonBase, selectedReport],
+  );
 
   const handleAvaliacaoFieldChange = (campo: string, valor: unknown) => {
     setNewAvaliacao((prev) => {
@@ -1455,18 +1460,18 @@ export default function AvaliacaoModule() {
                                 <th className="px-5 py-4 text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">
                                   Metrica
                                 </th>
-                                {comparisonEntries.map((avaliacao, index) => {
+                                {comparisonMatrixEntries.map((avaliacao, index) => {
                                   const roleLabel =
                                     index === 0
-                                      ? 'Em foco'
+                                      ? 'Base principal'
                                       : index === 1
-                                        ? 'Base principal'
+                                        ? 'Em foco'
                                         : `Extra ${index - 1}`;
                                   const roleClassName =
                                     index === 0
-                                      ? 'border-purple-500/20 bg-purple-500/10 text-purple-200'
+                                      ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-200'
                                       : index === 1
-                                        ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-200'
+                                        ? 'border-purple-500/20 bg-purple-500/10 text-purple-200'
                                         : 'border-sky-500/20 bg-sky-500/10 text-sky-200';
 
                                   return (
@@ -1502,9 +1507,9 @@ export default function AvaliacaoModule() {
                                       Base principal como referencia visual
                                     </div>
                                   </td>
-                                  {comparisonEntries.map((avaliacao, index) => {
+                                  {comparisonMatrixEntries.map((avaliacao, index) => {
                                     const delta =
-                                      index !== 1 && primaryComparisonBase
+                                      index !== 0 && primaryComparisonBase
                                         ? getMetricDelta(
                                             avaliacao[metric.key],
                                             primaryComparisonBase[metric.key],
@@ -1518,9 +1523,9 @@ export default function AvaliacaoModule() {
                                       : null;
                                     const panelBaseClassName =
                                       index === 0
-                                        ? 'border-purple-500/20 bg-purple-500/[0.06]'
-                                        : index === 1
                                           ? 'border-emerald-500/20 bg-emerald-500/[0.06]'
+                                        : index === 1
+                                          ? 'border-purple-500/20 bg-purple-500/[0.06]'
                                           : 'border-zinc-800 bg-zinc-950/40';
                                     const panelClassName = toneStyles
                                       ? `${panelBaseClassName} ${toneStyles.panelClassName}`
@@ -1542,7 +1547,7 @@ export default function AvaliacaoModule() {
                                             )}
                                           </div>
 
-                                          {index === 1 ? (
+                                          {index === 0 ? (
                                             <div className="mt-2 text-xs font-medium text-emerald-200/90">
                                               Referencia principal
                                             </div>
@@ -1819,7 +1824,7 @@ export default function AvaliacaoModule() {
           ) : null}
 
           {showPdfSelectionModal && selectedReport ? (
-            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-[60] flex items-end justify-center p-3 sm:items-center sm:p-4">
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -1831,15 +1836,15 @@ export default function AvaliacaoModule() {
                 initial={{ scale: 0.94, opacity: 0, y: 18 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.94, opacity: 0, y: 18 }}
-                className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-2xl"
+                className="relative flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-2xl"
               >
-                <div className="border-b border-zinc-800 px-6 py-5">
+                <div className="shrink-0 border-b border-zinc-800 px-4 py-4 sm:px-6 sm:py-5">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                       <p className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">
                         PDF comparativo
                       </p>
-                      <h4 className="mt-1 text-2xl font-bold text-white">
+                      <h4 className="mt-1 text-xl font-bold text-white sm:text-2xl">
                         Escolha as avaliacoes do comparativo
                       </h4>
                       <p className="mt-2 text-sm text-zinc-400">
@@ -1878,7 +1883,7 @@ export default function AvaliacaoModule() {
                   </div>
                 </div>
 
-                <div className="border-b border-zinc-800 px-6 py-4">
+                <div className="shrink-0 border-b border-zinc-800 px-4 py-4 sm:px-6">
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
@@ -1912,7 +1917,7 @@ export default function AvaliacaoModule() {
                   </div>
                 </div>
 
-                <div className="max-h-[52vh] overflow-y-auto px-6 py-5">
+                <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
                   <div className="space-y-3">
                     {historicoOrdenadoDesc.map((avaliacao) => {
                       const isChecked = pdfSelectionIds.includes(avaliacao.id);
@@ -1962,31 +1967,33 @@ export default function AvaliacaoModule() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-800 px-6 py-5">
-                  <p className="text-sm text-zinc-400">
-                    O PDF vai respeitar somente as datas marcadas aqui.
-                  </p>
-                  <div className="flex gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setShowPdfSelectionModal(false)}
-                      disabled={pdfExporting}
-                      className="rounded-2xl bg-zinc-800 px-5 py-3 font-bold text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleConfirmPdfSelection()}
-                      disabled={selectedPdfAvaliacoes.length < 2 || pdfExporting}
-                      className={`rounded-2xl px-5 py-3 font-bold transition-colors ${
-                        selectedPdfAvaliacoes.length >= 2 && !pdfExporting
-                          ? 'bg-purple-500 text-white hover:bg-purple-600'
-                          : 'cursor-not-allowed bg-zinc-800 text-zinc-500'
-                      }`}
-                    >
-                      {pdfExporting ? 'Gerando PDF...' : 'Gerar PDF comparativo'}
-                    </button>
+                <div className="shrink-0 border-t border-zinc-800 bg-zinc-900/95 px-4 py-4 backdrop-blur sm:px-6 sm:py-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm text-zinc-400">
+                      O PDF vai respeitar somente as datas marcadas aqui.
+                    </p>
+                    <div className="flex flex-col-reverse gap-3 sm:flex-row">
+                      <button
+                        type="button"
+                        onClick={() => setShowPdfSelectionModal(false)}
+                        disabled={pdfExporting}
+                        className="w-full rounded-2xl bg-zinc-800 px-5 py-3 font-bold text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleConfirmPdfSelection()}
+                        disabled={selectedPdfAvaliacoes.length < 2 || pdfExporting}
+                        className={`w-full rounded-2xl px-5 py-3 font-bold transition-colors sm:w-auto ${
+                          selectedPdfAvaliacoes.length >= 2 && !pdfExporting
+                            ? 'bg-purple-500 text-white hover:bg-purple-600'
+                            : 'cursor-not-allowed bg-zinc-800 text-zinc-500'
+                        }`}
+                      >
+                        {pdfExporting ? 'Gerando PDF...' : 'Gerar PDF comparativo'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </motion.div>
